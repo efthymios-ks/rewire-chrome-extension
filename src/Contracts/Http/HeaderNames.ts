@@ -1,0 +1,15 @@
+export const HeaderNames = {
+    ContentType: "Content-Type",
+    ContentLength: "Content-Length",
+    ContentEncoding: "Content-Encoding",
+    Origin: "Origin",
+    Vary: "Vary",
+    AccessControlRequestMethod: "Access-Control-Request-Method",
+    AccessControlRequestHeaders: "Access-Control-Request-Headers",
+    AccessControlAllowOrigin: "Access-Control-Allow-Origin",
+    AccessControlAllowCredentials: "Access-Control-Allow-Credentials",
+    AccessControlAllowMethods: "Access-Control-Allow-Methods",
+    AccessControlAllowHeaders: "Access-Control-Allow-Headers",
+    AccessControlExposeHeaders: "Access-Control-Expose-Headers",
+    AccessControlMaxAge: "Access-Control-Max-Age",
+} as const;

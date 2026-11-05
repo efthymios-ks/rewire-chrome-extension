@@ -1,0 +1,23 @@
+{
+  "name": "rewire",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chromium side-panel extension to watch HTTP traffic and rewire it with ordered rules.",
+  "author": "Efthymios Koktsidis <efthymios.ks@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.7",
+    "devtools-protocol": "0.0.1734725",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vite": "6.4.5",
+    "vitest": "3.2.7"
+  }
+}

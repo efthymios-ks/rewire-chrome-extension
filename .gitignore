@@ -1,0 +1,21 @@
+node_modules/
+
+# Built extension, produced by scripts/build.mjs
+dist/
+
+# Store packages, produced by Publish-Extension.ps1
+artifacts/
+
+# Browser profile, used by Start-Debug.ps1
+.debug-profile/
+
+# Test results, when Invoke-Test.ps1 is asked for them
+testResults.xml
+
+# Source zip, produced by Compress-Source.ps1
+*.zip
+
+# Playwright MCP captures
+.playwright-mcp/
+
+*.log
