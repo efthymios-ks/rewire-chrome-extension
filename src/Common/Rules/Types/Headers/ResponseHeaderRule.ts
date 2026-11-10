@@ -1,7 +1,7 @@
-import { CommonHeaderNames } from "../../../../Contracts/Http/CommonHeaderNames";
 import type { RuleAction } from "../../../../Contracts/Rules/Rule";
 import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
 import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
+import { HeaderSuggestions } from "../../../Http/HeaderSuggestions";
 import { Result } from "../../../Results/Result";
 import type { RuleContext } from "../../Context/RuleContext";
 import type { DnrCondition } from "../../Criteria/DnrFragment";
@@ -28,7 +28,8 @@ export class ResponseHeaderRule extends RuleTypeBase<ResponseHeaderAction> {
             key: "operations",
             label: "Headers",
             nameLabel: "Header",
-            nameSuggestions: CommonHeaderNames,
+            nameSuggestions: HeaderSuggestions.names(),
+            valueSuggestionsFor: HeaderSuggestions.valuesFor,
             hint: `${OperationHint} Values can use {{variables}}.`,
         },
     ];

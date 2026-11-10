@@ -17,7 +17,6 @@ export interface LegacyInterceptionRule {
     statusCodeOverride: number | null;
     mockContentType: string;
     mockBody: string;
-    baselineBody: string;
     delayInMilliseconds: number;
 }
 

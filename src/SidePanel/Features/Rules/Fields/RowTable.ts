@@ -16,6 +16,7 @@ export interface RowColumn {
     placeholder?: string;
     options?: SelectOption[];
     suggestions?: readonly string[];
+    suggestionsOf?: (row: TableRow) => readonly string[];
     defaultValue?: string;
 }
 
@@ -37,6 +38,7 @@ function emptyRow(columns: RowColumn[]): TableRow {
 
 interface CellArguments {
     column: RowColumn;
+    row: TableRow;
     value: string | number;
     onChange: (value: string | number) => void;
 }
@@ -61,7 +63,7 @@ const CellBuilders: Record<ColumnKind, (args: CellArguments) => HTMLElement> = {
     [ColumnKind.Suggested]: args => SuggestionInput.build({
         value: String(args.value),
         placeholder: args.column.placeholder ?? args.column.label,
-        suggestions: args.column.suggestions ?? [],
+        suggestions: () => args.column.suggestionsOf?.(args.row) ?? args.column.suggestions ?? [],
         onInput: args.onChange,
     }),
 };
@@ -137,6 +139,7 @@ export class RowTable {
                     children: [
                         CellBuilders[column.kind]({
                             column,
+                            row,
                             value: row[column.key] ?? "",
                             onChange: value => {
                                 row[column.key] = value;

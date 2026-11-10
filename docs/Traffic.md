@@ -10,7 +10,8 @@ Requests sent from the [Client](Client.md) tab join the timeline of the inspecte
 
 The timeline sits on top and the inspector below.  
 From 720 px wide they sit side by side.  
-Drag the handle, or focus it and use the arrow keys; the ratio is remembered.
+Drag the handle, or focus it and use the arrow keys; the ratio is remembered.  
+The arrow button on the handle slides the inspector away, down or to the right, so the timeline gets the room; picking a call, clicking the button again or dragging the handle brings it back.
 
 ## Timeline
 
@@ -23,30 +24,35 @@ When the debugger can't attach, as on `chrome://` pages, the panel tries again o
 - Hover **Rules** for the names of the rules that acted on the call.
 - A redirect splits a call: the hop keeps its own row with the `3xx` answer, and the call goes on in a row for the new URL.
 - A page from the address bar that a rule acted on keeps its redirect hops, and its failure when it fails, even when the page itself is HTML.
-- Right-click a row to copy it in any format of the **Code** tab, with its default parts.
+- Right-click a row, or the inspector, to **Open in Client** or to copy the call in any format of the **Code** tab, with its default parts.
+
+## Toolbar
+
+The first row holds the content filter chips and the call count.  
+The second row holds the layout switch and **Clear**.
 
 ## Waterfall
 
-**Layout** in the toolbar switches between **List** and **Waterfall**.
+The layout switch reads **List** when off and **Waterfall** when on.
 
 - One bar per call, sorted by start time, then duration.
 - Bars are colored by status or by resource type.
 - A dot marks calls that a rule changed.
 - **Zoom in** and **Zoom out** widen the chart; scroll sideways to pan.
   **Reset zoom** fits the whole chart again.
-- The waterfall follows the domain and content filters.
+- The waterfall follows the content filter.
 - Click a bar to inspect the call.
 
 ## Search
 
-The search bar looks through the URL, request and response headers, and request and response bodies of every captured call of this tab.
+The search bar looks through the URL, request and response headers, and request and response bodies of every captured call of this tab.  
+It always ignores case.
 
 | Control     | Effect                                                                      |
 | ----------- | --------------------------------------------------------------------------- |
 | Text        | What to find. Matching rows get a mark on the left.                         |
 | Counter     | Which match is selected, such as `2 of 7`, or `No matches`.                 |
 | `↑`, `↓`    | Select the previous or next match; `Shift+Enter` and `Enter` do the same.   |
-| `Aa`        | Match case.                                                                 |
 | `.*`        | Treat the text as a regular expression.                                     |
 
 While a search is active, the inspector shows bodies as raw text with the matches highlighted.
@@ -56,13 +62,6 @@ While a search is active, the inspector shows bodies as raw text with the matche
 The star on a row pins its endpoint: method plus URL without the query.  
 Up to 3 pins sit in a shelf above the filters, each showing its latest call.  
 Click a pin to select that call.
-
-## Domain filter
-
-A comma separated list, such as `api.example.com, auth.example.com`.  
-Subdomains match too.  
-Calls to other domains are dropped by the worker, so analytics and CDNs never fill the timeline.  
-Empty keeps every domain.
 
 ## Content filter
 
@@ -93,6 +92,7 @@ Empty keeps every domain.
   **Wrap** breaks long values onto new lines, in the tree and in the text; off, they scroll sideways.
   It is on by default.
 - Values a rule added, updated or removed are highlighted, name and value; hover one to see what it was before.
+- An `Authorization` header that holds a JWT gets an open icon that opens it in the [JWT](Jwt.md) tab.
 - Actions: **Mock this**, **Pin**, **Copy URL**, **Copy response body**.
 
 **Code** turns the call into a command or a script.
@@ -100,8 +100,8 @@ Empty keeps every domain.
 - **Headers**, **Cookies**, **Query params** and **Body** are dropdowns, shown when the call has any.
   Each lists its items with **All** on top; untick the ones to leave out.
   Everything is ticked when the call opens, except `If-None-Match` and `If-Modified-Since`, which would make the server answer `304 Not Modified`.
-- **As the page sent it** or **After rules**, when a rule changed the URL, headers or body.
-- The command sits under **Show snippet**; changing the format or the variant folds it again.
+- The command is the call as sent after rules, the same one **Open in Client** fills in.
+- The command sits under **Show snippet**; changing the format folds it again.
 - **Copy** puts it on the clipboard.
 
 | Format          | Runs in                       | Notes                                                                                     |
@@ -119,8 +119,5 @@ Every format keeps the method, the full URL with its query, and the ticked heade
 - A captured `Accept-Encoding` becomes `--compressed` for cURL, and is left to the tool elsewhere, so responses print decoded.
 - `GET` and `HEAD` bodies are left out of Fetch and PowerShell, which refuse them.
 - Binary bodies, such as file uploads, are not captured, so they can't be copied byte for byte.
-
-The **Diff** tab compares the live payload with the body of the mock rule for the call.  
-When the mock answered the call, the live side is the payload saved when **Mock this** made the rule.
 
 Text bodies are captured and cut after 1,048,576 characters; binary bodies are skipped.

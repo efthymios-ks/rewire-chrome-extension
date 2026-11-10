@@ -111,6 +111,31 @@ describe("PanelSettingsNormalizer", () => {
         expect(settings.rules).toEqual([rule]);
     });
 
+    test("normalize_WhenAMockStillStoresItsBaselineBody_ShouldDropIt", () => {
+        // Arrange
+        const rule = aRule();
+        const stored = {
+            schemaVersion: SettingsSchema.CurrentVersion,
+            domainWhitelist: ["example.com"],
+            rules: [
+                {
+                    ...rule,
+                    action: {
+                        ...rule.action,
+                        baselineBody: "{\"id\":42}",
+                    },
+                },
+            ],
+        };
+
+        // Act
+        const settings = PanelSettingsNormalizer.normalize(stored);
+
+        // Assert
+        expect(settings.rules[0]?.action).toEqual(rule.action);
+        expect(settings).not.toHaveProperty("domainWhitelist");
+    });
+
     test("normalize_WhenOnlyTheOldTesterSamplesExist_ShouldKeepThem", () => {
         // Arrange
         const stored = {

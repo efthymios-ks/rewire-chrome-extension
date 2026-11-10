@@ -8,8 +8,6 @@ import { TimelineRecordClassifier } from "../../../../src/Background/Features/Ca
 import { TimelineRecordFactory } from "../../../../src/Background/Features/Capture/TimelineRecordFactory";
 import { TimelineStore } from "../../../../src/Background/Features/Capture/TimelineStore";
 import { ContentKindClassifier } from "../../../../src/Common/Content/ContentKindClassifier";
-import { aSettings } from "../../../TestData";
-import { settingsCacheOf } from "../../BackgroundTestData";
 
 export const DocumentUrl = "https://jsonplaceholder.typicode.com/posts";
 
@@ -35,7 +33,7 @@ export function captureParts(): CaptureParts {
         timelineStore,
         pendingDocuments: new PendingDocuments(),
         admission: new TimelineAdmission(timelineStore, browserRuleSimulator),
-        captureFilter: new CaptureFilter(settingsCacheOf(aSettings())),
+        captureFilter: new CaptureFilter(),
         recordClassifier,
         recordFactory: new TimelineRecordFactory(recordClassifier),
         browserRuleSimulator,

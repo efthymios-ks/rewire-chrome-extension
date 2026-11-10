@@ -8,7 +8,6 @@ export const SettingsSchema = {
 export const DefaultPanelSettings: PanelSettings = {
     schemaVersion: SettingsSchema.CurrentVersion,
     interceptionEnabled: true,
-    domainWhitelist: [],
     pinnedEndpoints: [],
     rules: [],
     testerSamples: [

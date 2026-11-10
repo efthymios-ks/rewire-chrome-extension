@@ -1,7 +1,6 @@
 import { DefaultSnippetParts, type RequestSnapshot, type SnippetOptions } from "../../../Common/CodeGen/RequestSnapshot";
-import { RequestSnapshots } from "../../../Common/CodeGen/RequestSnapshots";
+import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
 import { SnippetChoices } from "../../../Common/CodeGen/SnippetChoices";
-import { SnippetGenerators } from "../../../Common/CodeGen/SnippetGenerators";
 import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
@@ -12,11 +11,6 @@ import type { PanelContext } from "../Shell/PanelContext";
 import { DetailSnippets } from "./DetailSnippets";
 import type { IInspectorTab } from "./IInspectorTab";
 import { CurrentInspectorPreferences } from "./InspectorPreferences";
-
-const VariantValues = {
-    Original: "original",
-    Modified: "modified",
-} as const;
 
 const BodyKey = "body";
 
@@ -89,11 +83,10 @@ export class CodeTab implements IInspectorTab {
 
     render(detail: TimelineEntryDetail): HTMLElement {
         const preferences = CurrentInspectorPreferences;
-        const hasChanges = RequestSnapshots.hasRequestChanges(detail.changes);
         let selection: SnippetOptions = {
             ...DefaultSnippetParts,
         };
-        const snapshot = (): RequestSnapshot => DetailSnippets.snapshotOf(detail, hasChanges && preferences.useModified);
+        const snapshot: RequestSnapshot = DetailSnippets.snapshotOf(detail);
         const output = buildElement("pre", {
             className: "code-block wrap",
         });
@@ -111,8 +104,8 @@ export class CodeTab implements IInspectorTab {
         });
         const refresh = (): void => {
             output.textContent = DetailSnippets.of(
-                snapshot(),
-                preferences.generatorId,
+                snapshot,
+                preferences.snippetId,
                 selection
             );
         };
@@ -120,11 +113,10 @@ export class CodeTab implements IInspectorTab {
             snippet.open = false;
         };
         const renderPickers = (): void => {
-            const current = snapshot();
             pickers.replaceChildren(...PartGroups
                 .map(group => ({
                     group,
-                    choices: group.choicesOf(current),
+                    choices: group.choicesOf(snapshot),
                 }))
                 .filter(item => item.choices.length > 0)
                 .map(item => PickList.build({
@@ -137,27 +129,6 @@ export class CodeTab implements IInspectorTab {
                     },
                 })));
         };
-        const variant = FormControls.select({
-            value: preferences.useModified && hasChanges ? VariantValues.Modified : VariantValues.Original,
-            options: [
-                {
-                    value: VariantValues.Original,
-                    label: "As the page sent it",
-                },
-                {
-                    value: VariantValues.Modified,
-                    label: "After rules",
-                },
-            ],
-            onChange: value => {
-                preferences.useModified = value === VariantValues.Modified;
-                collapseSnippet();
-                renderPickers();
-                refresh();
-            },
-        });
-        variant.disabled = !hasChanges;
-        variant.title = hasChanges ? "" : "No rule changed this request.";
         renderPickers();
         refresh();
 
@@ -168,18 +139,17 @@ export class CodeTab implements IInspectorTab {
                     className: "body-tools",
                     children: [
                         FormControls.select({
-                            value: preferences.generatorId,
-                            options: SnippetGenerators.all().map(generator => ({
-                                value: generator.id,
-                                label: generator.label,
+                            value: preferences.snippetId,
+                            options: RequestSnippets.all().map(type => ({
+                                value: type.id,
+                                label: type.label,
                             })),
                             onChange: value => {
-                                preferences.generatorId = value;
+                                preferences.snippetId = value;
                                 collapseSnippet();
                                 refresh();
                             },
                         }),
-                        variant,
                     ],
                 }),
                 buildElement("div", {

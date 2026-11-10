@@ -9,6 +9,8 @@ import { TrafficSearchBar } from "./TrafficSearchBar";
 import { TrafficToolbar } from "./TrafficToolbar";
 import { WaterfallView } from "./WaterfallView";
 
+const NoSelections = 0;
+
 export class TrafficView {
     readonly root: HTMLElement;
 
@@ -35,6 +37,15 @@ export class TrafficView {
                 splitPane.root,
             ],
         });
+
+        context.store.select(
+            state => state.selectionCount,
+            count => {
+                if (count > NoSelections) {
+                    splitPane.expand();
+                }
+            }
+        );
 
         context.store.select(
             state => state.trafficLayout,

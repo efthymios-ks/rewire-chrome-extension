@@ -77,7 +77,7 @@ const ruleSync = new DeclarativeRuleSync({
     logger,
 });
 
-const captureFilter = new CaptureFilter(settingsCache);
+const captureFilter = new CaptureFilter();
 const pendingDocuments = new PendingDocuments();
 const admission = new TimelineAdmission(timelineStore, browserRuleSimulator);
 

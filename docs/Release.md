@@ -7,7 +7,7 @@ Packaging is local and uploads are manual: `Publish-Extension.ps1` runs the test
 1. Register a publisher account at the dashboard ($5, one-time).
 2. Package locally so there is a zip to upload for the first time:
    ```powershell
-   pwsh -File .\Publish-Extension.ps1
+   powershell -File .\Publish-Extension.ps1
    ```
    Press Enter at the prompt to accept the suggested version.
 3. In the dashboard, **Add new item** and upload `artifacts\Rewire-<version>.zip`.
@@ -20,7 +20,7 @@ Packaging is local and uploads are manual: `Publish-Extension.ps1` runs the test
 Each time you want to ship a new version:
 
 ```powershell
-pwsh -File .\Publish-Extension.ps1
+powershell -File .\Publish-Extension.ps1
 ```
 
 The script:

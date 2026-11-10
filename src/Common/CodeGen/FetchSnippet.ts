@@ -1,7 +1,9 @@
 import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
 import { FetchCall } from "./FetchCall";
-import type { ISnippetGenerator, RequestSnapshot, SnippetOptions } from "./RequestSnapshot";
-import { type SnippetParts as Parts, SnippetHeaderNames, SnippetParts } from "./SnippetParts";
+import { DefaultSnippetParts, type RequestSnapshot, type SnippetOptions } from "./RequestSnapshot";
+import { RequestSnippetBase } from "./RequestSnippetBase";
+import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
+import { type SnippetRequest, SnippetRequests } from "./SnippetRequest";
 
 const ForbiddenHeaders = [
     "accept-charset",
@@ -26,6 +28,7 @@ const Credentials = {
     Include: "include",
     Omit: "omit",
 } as const;
+const PickedFileExpression = "document.querySelector(\"input[type=file]\").files[0]";
 
 function isAllowed(header: HeaderEntry): boolean {
     const name = header.name.toLowerCase();
@@ -33,9 +36,9 @@ function isAllowed(header: HeaderEntry): boolean {
     return !ForbiddenHeaders.includes(name) && !ForbiddenPrefixes.some(prefix => name.startsWith(prefix));
 }
 
-function browserOptions(parts: Parts): Array<[string, string]> {
+function browserOptions(request: SnippetRequest): Array<[string, string]> {
     const extra: Array<[string, string]> = [];
-    const referer = SnippetParts.find(parts.headers, SnippetHeaderNames.Referer);
+    const referer = SnippetHeaders.find(request.headers, SnippetHeaderNames.Referer);
     if (referer !== undefined) {
         extra.push([
             "referrer",
@@ -45,24 +48,30 @@ function browserOptions(parts: Parts): Array<[string, string]> {
 
     extra.push([
         "credentials",
-        JSON.stringify(parts.cookie === null ? Credentials.Omit : Credentials.Include),
+        JSON.stringify(SnippetRequests.cookieTextOf(request) === null ? Credentials.Omit : Credentials.Include),
     ]);
 
     return extra;
 }
 
-export class FetchSnippet implements ISnippetGenerator {
-    readonly id = "fetch";
-    readonly label = "Fetch (browser)";
+export class FetchSnippet extends RequestSnippetBase {
+    static readonly id = "fetch";
+    static readonly label = "Fetch (browser)";
 
-    generate(snapshot: RequestSnapshot, options: SnippetOptions): string {
-        return FetchCall.build(
-            snapshot,
-            options,
-            {
-                headersOf: parts => parts.headers.filter(isAllowed),
-                extraOptions: browserOptions,
-            }
-        );
+    static tryParse(_text: string): FetchSnippet | null {
+        return null;
+    }
+
+    static from(snapshot: RequestSnapshot, options: SnippetOptions = DefaultSnippetParts): FetchSnippet {
+        return new FetchSnippet(SnippetRequests.of(snapshot, options));
+    }
+
+    override toString(): string {
+        return FetchCall.render(this.request, {
+            headersOf: request => request.headers.filter(isAllowed),
+            extraOptions: browserOptions,
+            fileExpression: () => PickedFileExpression,
+            preamble: () => [],
+        });
     }
 }

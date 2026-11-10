@@ -46,7 +46,7 @@ Cancelling it detaches; the header offers Reattach.
 Rewire/
 ├─ src/
 │  ├─ Contracts/          # types shared by worker, panel and storage
-│  ├─ Common/             # pure logic: rules engine, code generation, search, diff, URLs, storage clients
+│  ├─ Common/             # pure logic: rules engine, request snippets, search, JWT, URLs, storage clients
 │  ├─ Background/         # service worker
 │  │  ├─ main.ts          # composition root
 │  │  ├─ Endpoints/       # one folder per panel command
@@ -54,7 +54,7 @@ Rewire/
 │  └─ SidePanel/          # side panel
 │     ├─ main.ts          # composition root
 │     ├─ Core/            # store, worker connection, DOM helpers
-│     └─ Features/        # Shell, Traffic, Inspector, Rules, Cookies, Client
+│     └─ Features/        # Shell, Traffic, Inspector, Rules, Cookies, Client, Jwt
 ├─ tests/                 # mirrors src, one *Tests.ts per type
 ├─ public/                # manifest.json and icons
 ├─ scripts/build.mjs      # esbuild bundle to dist/

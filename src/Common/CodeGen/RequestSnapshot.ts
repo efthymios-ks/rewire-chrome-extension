@@ -7,11 +7,6 @@ export interface RequestSnapshot {
     body: string | null;
 }
 
-export enum SnapshotVariant {
-    Original = 1,
-    Modified = 2,
-}
-
 export interface SnippetOptions {
     excludedHeaders: string[];
     excludedCookies: string[];
@@ -30,9 +25,3 @@ export const DefaultSnippetParts: SnippetOptions = {
     excludedQueryParams: [],
     includeBody: true,
 };
-
-export interface ISnippetGenerator {
-    readonly id: string;
-    readonly label: string;
-    generate(snapshot: RequestSnapshot, options: SnippetOptions): string;
-}

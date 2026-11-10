@@ -11,7 +11,7 @@ import { RuleCatalog } from "./Editor/RuleCatalog";
 import { RuleEditor } from "./Editor/RuleEditor";
 import { SlideOver } from "./Editor/SlideOver";
 import { RuleFactory } from "./RuleFactory";
-import { AllTypes, type RuleFilter } from "./RuleFilter";
+import type { RuleFilter } from "./RuleFilter";
 import { RuleList } from "./RuleList";
 import { RuleScopes } from "./RuleScopes";
 import { RuleTesterPanel } from "./Tester/RuleTesterPanel";
@@ -26,7 +26,6 @@ export class RulesView {
     private readonly _list: RuleList;
     private _filter: RuleFilter = {
         text: "",
-        typeId: AllTypes,
     };
 
     constructor(context: PanelContext) {
@@ -49,22 +48,11 @@ export class RulesView {
     }
 
     private toolbar(): HTMLElement {
-        const typeOptions = [
-            {
-                value: AllTypes,
-                label: "All types",
-            },
-            ...RuleTypeRegistry.all().map(type => ({
-                value: type.id,
-                label: type.label,
-            })),
-        ];
         const search = FormControls.textInput({
             value: "",
             placeholder: "Search rules by name",
             className: "input rule-search",
             onInput: text => this.setFilter({
-                ...this._filter,
                 text,
             }),
         });
@@ -73,34 +61,35 @@ export class RulesView {
         return buildElement("div", {
             className: "rules-toolbar",
             children: [
-                FormControls.button({
-                    text: "Add rule",
-                    variant: ButtonVariants.Primary,
-                    onClick: () => this.openCatalog(),
+                buildElement("div", {
+                    className: "rules-toolbar-row",
+                    children: [
+                        FormControls.button({
+                            text: "Add rule",
+                            variant: ButtonVariants.Primary,
+                            onClick: () => this.openCatalog(),
+                        }),
+                        search,
+                    ],
                 }),
-                search,
-                FormControls.select({
-                    value: AllTypes,
-                    options: typeOptions,
-                    className: "input rule-type-filter",
-                    onChange: typeId => this.setFilter({
-                        ...this._filter,
-                        typeId,
-                    }),
-                }),
-                FormControls.button({
-                    text: "Test rules",
-                    variant: ButtonVariants.Ghost,
-                    title: "Run a sample request through every enabled rule",
-                    onClick: () => this.openGlobalTester(),
-                }),
-                FormControls.button({
-                    text: "Import / export",
-                    variant: ButtonVariants.Ghost,
-                    onClick: () => this._slideOver.push({
-                        title: "Import / export",
-                        content: new TransferPanel(this._context, this._fileClient).root,
-                    }),
+                buildElement("div", {
+                    className: "rules-toolbar-row",
+                    children: [
+                        FormControls.button({
+                            text: "Test rules",
+                            variant: ButtonVariants.Ghost,
+                            title: "Run a sample request through every enabled rule",
+                            onClick: () => this.openGlobalTester(),
+                        }),
+                        FormControls.button({
+                            text: "Import / export",
+                            variant: ButtonVariants.Ghost,
+                            onClick: () => this._slideOver.push({
+                                title: "Import / export",
+                                content: new TransferPanel(this._context, this._fileClient).root,
+                            }),
+                        }),
+                    ],
                 }),
             ],
         });

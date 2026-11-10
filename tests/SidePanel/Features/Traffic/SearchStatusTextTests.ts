@@ -8,8 +8,7 @@ function aSearchState(overrides: Partial<TrafficSearchState> = {}): TrafficSearc
     return {
         query: {
             text: "ada",
-            isCaseSensitive: false,
-            isRegex: false,
+                        isRegex: false,
         },
         matches: [],
         activeIndex: -1,
@@ -72,8 +71,7 @@ describe("SearchStatusText", () => {
         const state = aSearchState({
             query: {
                 text: "",
-                isCaseSensitive: false,
-                isRegex: false,
+                                isRegex: false,
             },
         });
 

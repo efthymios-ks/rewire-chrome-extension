@@ -18,6 +18,7 @@ export const PanelStateFactory = {
             },
             entries: [],
             selectedEntryId: null,
+            selectionCount: 0,
             selectedEntryDetail: null,
             detailVersion: 0,
             detailError: null,
@@ -28,7 +29,6 @@ export const PanelStateFactory = {
             search: {
                 query: {
                     text: "",
-                    isCaseSensitive: false,
                     isRegex: false,
                 },
                 matches: [],
@@ -38,6 +38,8 @@ export const PanelStateFactory = {
             ruleSyncReport: null,
             ruleHits: {},
             ruleEditRequest: null,
+            clientLaunch: null,
+            jwtLaunch: null,
             notice: null,
             theme: PanelThemes.System,
         };

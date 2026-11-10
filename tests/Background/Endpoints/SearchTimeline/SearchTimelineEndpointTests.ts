@@ -20,8 +20,7 @@ describe("SearchTimelineEndpoint", () => {
             tabId: TabId,
             query: {
                 text: "ada",
-                isCaseSensitive: false,
-                isRegex: false,
+                                isRegex: false,
             },
         });
 

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -46,7 +46,7 @@ param(
     [Parameter(Position = 0)]
     [string]$Version,
 
-    [string]$OutputPath = (Join-Path $PSScriptRoot 'artifacts'),
+    [string]$OutputPath,
 
     [switch]$SkipTests,
 
@@ -56,10 +56,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# powershell.exe -File leaves $PSScriptRoot empty in the param defaults of an advanced script.
+if (-not $OutputPath) { $OutputPath = Join-Path $PSScriptRoot 'artifacts' }
+
 $script:PackageName = 'Rewire'
 $script:DistPath = Join-Path $PSScriptRoot 'dist'
-$script:SourceManifestPath = Join-Path $PSScriptRoot 'public' 'manifest.json'
+$script:SourceManifestPath = Join-Path $PSScriptRoot 'public/manifest.json'
 $script:VersionPattern = '^\d+\.\d+\.\d+$'
+# The value of the manifest's "version" property, without its quotes.
+$script:ManifestVersionValuePattern = '(?<="version"\s*:\s*")[^"]*'
 $script:ExcludedExtensions = @('.map')
 $script:RequiredEntries = @(
     'manifest.json'
@@ -103,18 +108,22 @@ function Invoke-Native {
 
 function Get-ManifestVersion {
     param([Parameter(Mandatory)][string]$Path)
-    return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json).version
+    return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json).version
 }
 
+# Replaces only the version value, so the rest of the file keeps its formatting; a ConvertTo-Json
+# round trip on Windows PowerShell 5.1 re-indents the file and escapes characters such as < and >.
 function Set-ManifestVersion {
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$NewVersion
     )
 
-    $manifest = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
-    $manifest.version = $NewVersion
-    Set-Content -LiteralPath $Path -Value ($manifest | ConvertTo-Json -Depth 10) -Encoding utf8NoBOM
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $versionValue = [regex]$script:ManifestVersionValuePattern
+    if (-not $versionValue.IsMatch($text)) { Exit-WithError "no version property in $Path" }
+    $updated = $versionValue.Replace($text, $NewVersion, 1)
+    [System.IO.File]::WriteAllText($Path, $updated, (New-Object System.Text.UTF8Encoding $false))
 }
 
 function Get-SuggestedNextVersion {
@@ -123,6 +132,21 @@ function Get-SuggestedNextVersion {
     if ($CurrentVersion -notmatch $script:VersionPattern) { return '' }
     $parts = $CurrentVersion -split '\.'
     return "{0}.{1}.{2}" -f $parts[0], $parts[1], ([int]$parts[2] + 1)
+}
+
+# $Path below $BasePath, as [System.IO.Path]::GetRelativePath gives it; .NET Framework has
+# no such method. $Path is a full path; one outside $BasePath comes back whole.
+function Get-RelativePath {
+    param(
+        [Parameter(Mandatory)][string]$BasePath,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $base = (Convert-Path -LiteralPath $BasePath).TrimEnd('\', '/')
+    $full = $Path.TrimEnd('\', '/')
+    if ($full -eq $base) { return '.' }
+    if (-not $full.StartsWith("$base\", [System.StringComparison]::OrdinalIgnoreCase)) { return $full }
+    return $full.Substring($base.Length + 1)
 }
 
 function Copy-ExtensionFolder {
@@ -136,7 +160,7 @@ function Copy-ExtensionFolder {
         Where-Object { $script:ExcludedExtensions -notcontains $_.Extension }
 
     foreach ($file in $files) {
-        $relative = [System.IO.Path]::GetRelativePath($SourcePath, $file.FullName)
+        $relative = Get-RelativePath -BasePath $SourcePath -Path $file.FullName
         $target = Join-Path $DestinationPath $relative
         $null = New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force
         Copy-Item -LiteralPath $file.FullName -Destination $target -Force
@@ -154,7 +178,7 @@ function New-ExtensionZip {
     $zip = [System.IO.Compression.ZipFile]::Open($ZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($file in Get-ChildItem -LiteralPath $SourcePath -Recurse -File) {
-            $entryName = [System.IO.Path]::GetRelativePath($SourcePath, $file.FullName) -replace '\\', '/'
+            $entryName = (Get-RelativePath -BasePath $SourcePath -Path $file.FullName) -replace '\\', '/'
             $null = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
                 $zip,
                 $file.FullName,
@@ -194,6 +218,9 @@ function Test-ExtensionZip {
         $zip.Dispose()
     }
 }
+
+# Windows PowerShell 5.1 does not load the zip types on its own.
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 
 # --- version --------------------------------------------------------------------
 

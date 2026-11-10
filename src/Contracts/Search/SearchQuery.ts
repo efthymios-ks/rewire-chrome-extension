@@ -10,7 +10,6 @@ export type SearchField = typeof SearchFields[keyof typeof SearchFields];
 
 export interface SearchQuery {
     text: string;
-    isCaseSensitive: boolean;
     isRegex: boolean;
 }
 

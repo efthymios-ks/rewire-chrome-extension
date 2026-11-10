@@ -9,6 +9,10 @@ import { SchemaVersion3Migration } from "./Migrations/SchemaVersion3Migration";
 
 type RawRecord = Record<string, unknown>;
 
+const RetiredActionKeys = [
+    "baselineBody",
+];
+
 function isRecord(value: unknown): value is RawRecord {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -75,6 +79,16 @@ function criteriaOf(value: unknown): RuleCriteria {
     };
 }
 
+function actionOf(value: unknown): RawRecord {
+    if (!isRecord(value)) {
+        return {};
+    }
+
+    return Object.fromEntries(Object
+        .entries(value)
+        .filter(([key]) => !RetiredActionKeys.includes(key)));
+}
+
 function ruleOf(record: RawRecord): Rule {
     return {
         id: text(record, "id") || crypto.randomUUID(),
@@ -86,7 +100,7 @@ function ruleOf(record: RawRecord): Rule {
         ),
         type: text(record, "type"),
         criteria: criteriaOf(record["criteria"]),
-        action: isRecord(record["action"]) ? record["action"] : {},
+        action: actionOf(record["action"]),
     };
 }
 
@@ -123,11 +137,6 @@ export const PanelSettingsNormalizer = {
                 value,
                 "interceptionEnabled",
                 DefaultPanelSettings.interceptionEnabled
-            ),
-            domainWhitelist: strings(
-                value,
-                "domainWhitelist",
-                []
             ),
             pinnedEndpoints: strings(
                 value,

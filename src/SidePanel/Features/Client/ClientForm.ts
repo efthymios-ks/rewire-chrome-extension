@@ -1,9 +1,13 @@
-import { CommonHeaderNames } from "../../../Contracts/Http/CommonHeaderNames";
-import type { ClientExchangeRequest } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
+import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
+import { HeaderSuggestions } from "../../../Common/Http/HeaderSuggestions";
 import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { FormControls } from "../../Core/Dom/FormControls";
+import { FormControls, type SelectOption } from "../../Core/Dom/FormControls";
 import { SuggestionInput } from "../../Core/Dom/SuggestionInput";
+import { ClientBodyEditor } from "./ClientBodyEditor";
+import type { ClientRequest } from "./ClientRequest";
+import { ClientRequestDraft } from "./ClientRequestDraft";
+import { ClientRowGrid } from "./ClientRowGrid";
 
 const Methods = [
     "GET",
@@ -14,44 +18,43 @@ const Methods = [
     "HEAD",
     "OPTIONS",
 ];
-const BodyRows = 10;
+const PlainTextType = "text/plain";
 
-function headerRow(
-    header: HeaderEntry,
-    onChange: (header: HeaderEntry) => void,
-    onRemove: () => void
-): HTMLElement {
-    const name = SuggestionInput.build({
-        value: header.name,
-        placeholder: "Header",
-        suggestions: CommonHeaderNames,
-        className: "input client-header-name",
-        onInput: value => onChange({
-            ...header,
-            name: value,
-        }),
-    });
-    const value = FormControls.textInput({
-        value: header.value,
-        placeholder: "Value",
-        className: "input client-header-value",
-        onInput: value => onChange({
-            ...header,
-            value,
-        }),
-    });
-    const remove = FormControls.button({
-        text: "×",
-        title: "Remove header",
-        onClick: onRemove,
-    });
+export interface ClientFormArguments {
+    initial: ClientRequest;
+    onPasteFilled: () => void;
+}
 
-    return buildElement("div", {
-        className: "client-header-row",
+function emptyHeader(): HeaderEntry {
+    return {
+        name: "",
+        value: "",
+    };
+}
+
+function methodOptionsFor(method: string): SelectOption[] {
+    const methods = Methods.includes(method)
+        ? Methods
+        : [
+            ...Methods,
+            method,
+        ];
+
+    return methods.map(value => ({
+        value,
+        label: value,
+    }));
+}
+
+function section(title: string, content: HTMLElement): HTMLElement {
+    return buildElement("section", {
+        className: "client-section",
         children: [
-            name,
-            value,
-            remove,
+            buildElement("h3", {
+                className: "client-section-title",
+                text: title,
+            }),
+            content,
         ],
     });
 }
@@ -59,130 +62,117 @@ function headerRow(
 export class ClientForm {
     readonly root: HTMLElement;
 
-    private readonly _methodSelect: HTMLSelectElement;
     private readonly _urlInput: HTMLInputElement;
-    private readonly _headersContainer: HTMLElement;
-    private readonly _bodyInput: HTMLTextAreaElement;
-    private readonly _request: ClientExchangeRequest;
+    private readonly _headers: ClientRowGrid<HeaderEntry>;
+    private readonly _body: ClientBodyEditor;
+    private _method: string;
+    private _methodSelect: HTMLSelectElement;
 
-    constructor(initial: ClientExchangeRequest) {
-        this._request = {
-            ...initial,
-            headers: initial.headers.map(header => ({
+    constructor(args: ClientFormArguments) {
+        this._method = args.initial.method;
+        this._methodSelect = this.methodSelect();
+        this._urlInput = FormControls.textInput({
+            value: args.initial.url,
+            placeholder: "https://api.example.com/users/42 or paste a cURL or Wget command",
+            className: "input client-url",
+        });
+        this._urlInput.setAttribute("aria-label", "URL");
+        this._urlInput.addEventListener("paste", event => {
+            const snippet = RequestSnippets.parse(event.clipboardData?.getData(PlainTextType) ?? "");
+            if (snippet === null) {
+                return;
+            }
+
+            event.preventDefault();
+            this.fill(ClientRequestDraft.fromSnippet(snippet));
+            args.onPasteFilled();
+        });
+        const line = buildElement("div", {
+            className: "client-line",
+            children: [
+                this._methodSelect,
+                this._urlInput,
+            ],
+        });
+        this._headers = new ClientRowGrid<HeaderEntry>({
+            rows: args.initial.headers.map(header => ({
                 ...header,
             })),
-        };
-        this._methodSelect = FormControls.select({
-            value: this._request.method,
-            options: Methods.map(method => ({
-                value: method,
-                label: method,
-            })),
-            className: "input client-method",
-            onChange: value => {
-                this._request.method = value;
-            },
+            addLabel: "Add header",
+            removeLabel: "Remove header",
+            keepsOneRow: true,
+            emptyRow: emptyHeader,
+            cellsOf: header => ({
+                name: SuggestionInput.build({
+                    value: header.name,
+                    placeholder: "Header",
+                    label: "Header name",
+                    suggestions: HeaderSuggestions.names(),
+                    wrapperClassName: "client-row-name",
+                    onInput: value => {
+                        header.name = value;
+                    },
+                }),
+                value: SuggestionInput.build({
+                    value: header.value,
+                    placeholder: "Value",
+                    label: "Header value",
+                    suggestions: () => HeaderSuggestions.valuesFor(header.name),
+                    wrapperClassName: "client-row-value",
+                    onInput: value => {
+                        header.value = value;
+                    },
+                }),
+            }),
         });
-        this._urlInput = FormControls.textInput({
-            value: this._request.url,
-            placeholder: "https://api.example.com/users/42?page=1",
-            className: "input client-url",
-            onInput: value => {
-                this._request.url = value;
-            },
-        });
-        this._headersContainer = buildElement("div", {
-            className: "client-headers",
-        });
-        this._bodyInput = FormControls.textArea({
-            value: this._request.body,
-            rows: BodyRows,
-            placeholder: "Request body (sent for POST, PUT, PATCH, DELETE, OPTIONS)",
-            onInput: value => {
-                this._request.body = value;
-            },
-        });
-        this.renderHeaders();
+        this._body = new ClientBodyEditor(args.initial.body);
 
         this.root = buildElement("div", {
             className: "client-form",
             children: [
-                buildElement("div", {
-                    className: "client-line",
-                    children: [
-                        this._methodSelect,
-                        this._urlInput,
-                    ],
-                }),
-                buildElement("section", {
-                    className: "client-section",
-                    children: [
-                        buildElement("h3", {
-                            className: "client-section-title",
-                            text: "Headers",
-                        }),
-                        this._headersContainer,
-                        buildElement("div", {
-                            className: "client-header-tools",
-                            children: [
-                                FormControls.button({
-                                    text: "Add header",
-                                    onClick: () => this.addHeader(),
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
-                buildElement("section", {
-                    className: "client-section",
-                    children: [
-                        buildElement("h3", {
-                            className: "client-section-title",
-                            text: "Body",
-                        }),
-                        this._bodyInput,
-                    ],
-                }),
+                line,
+                section("Headers", this._headers.root),
+                section("Body", this._body.root),
             ],
         });
     }
 
-    current(): ClientExchangeRequest {
+    current(): ClientRequest {
         return {
-            method: this._request.method,
-            url: this._request.url,
-            headers: this._request.headers.map(header => ({
-                ...header,
-            })),
-            body: this._request.body,
+            method: this._method,
+            url: this._urlInput.value,
+            headers: this._headers
+                .rows()
+                .map(header => ({
+                    ...header,
+                })),
+            body: this._body.current(),
         };
     }
 
-    private addHeader(): void {
-        this._request.headers.push({
-            name: "",
-            value: "",
-        });
-        this.renderHeaders();
+    fill(request: ClientRequest): void {
+        this._method = request.method.toUpperCase();
+        const select = this.methodSelect();
+        this._methodSelect.replaceWith(select);
+        this._methodSelect = select;
+        this._urlInput.value = request.url;
+        this._headers.setRows(request.headers.map(header => ({
+            ...header,
+        })));
+        this._body.fill(request.body);
     }
 
-    private renderHeaders(): void {
-        if (this._request.headers.length === 0) {
-            this._request.headers.push({
-                name: "",
-                value: "",
-            });
-        }
-
-        this._headersContainer.replaceChildren(...this._request.headers.map((header, index) => headerRow(
-            header,
-            next => {
-                this._request.headers[index] = next;
+    private methodSelect(): HTMLSelectElement {
+        const select = FormControls.select({
+            value: this._method,
+            options: methodOptionsFor(this._method),
+            className: "input client-method",
+            onChange: value => {
+                this._method = value;
             },
-            () => {
-                this._request.headers.splice(index, 1);
-                this.renderHeaders();
-            }
-        )));
+        });
+        select.setAttribute("aria-label", "Method");
+
+        return select;
     }
 }

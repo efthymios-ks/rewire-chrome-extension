@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { RuleTypeIds } from "../../../../src/Contracts/Rules/RuleTypeIds";
-import { AllTypes, RuleFilters } from "../../../../src/SidePanel/Features/Rules/RuleFilter";
+import { RuleFilters } from "../../../../src/SidePanel/Features/Rules/RuleFilter";
 import { aRule } from "../../../TestData";
 
 describe("RuleFilters", () => {
-    test("apply_WhenTextAndTypeAreSet_ShouldKeepRulesMatchingBoth", () => {
+    test("apply_WhenTextIsSet_ShouldKeepRulesWhoseNameMatchesWhateverTheirType", () => {
         // Arrange
         const rules = [
             aRule({
@@ -25,11 +25,13 @@ describe("RuleFilters", () => {
         // Act
         const filtered = RuleFilters.apply(rules, {
             text: " USERS ",
-            typeId: RuleTypeIds.MockResponse,
         });
 
         // Assert
-        expect(filtered.map(rule => rule.id)).toEqual(["users"]);
+        expect(filtered.map(rule => rule.id)).toEqual([
+            "users",
+            "delay",
+        ]);
     });
 
     test("apply_WhenNothingIsSet_ShouldKeepEveryRule", () => {
@@ -44,7 +46,6 @@ describe("RuleFilters", () => {
         // Act
         const filtered = RuleFilters.apply(rules, {
             text: "",
-            typeId: AllTypes,
         });
 
         // Assert

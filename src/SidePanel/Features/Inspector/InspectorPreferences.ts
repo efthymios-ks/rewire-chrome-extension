@@ -6,13 +6,11 @@ export enum BodyMode {
 export interface InspectorPreferences {
     bodyMode: BodyMode;
     wrap: boolean;
-    generatorId: string;
-    useModified: boolean;
+    snippetId: string;
 }
 
 export const CurrentInspectorPreferences: InspectorPreferences = {
     bodyMode: BodyMode.Tree,
     wrap: true,
-    generatorId: "curl",
-    useModified: false,
+    snippetId: "curl",
 };

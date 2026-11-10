@@ -184,7 +184,6 @@ describe("RuleTransfer", () => {
                     contentType: "",
                     headers: [],
                     body: "",
-                    baselineBody: "",
                 },
             },
         ]);

@@ -1,19 +1,28 @@
+import { CurlBashSnippet } from "../../../Common/CodeGen/CurlBashSnippet";
 import type { Result } from "../../../Common/Results/Result";
-import type { ClientExchangeRequest, ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
+import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
 import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import type { ClientLaunchRequest } from "../../Core/ViewLaunchRequests";
 import type { PanelContext } from "../Shell/PanelContext";
+import { ClientBodies } from "./ClientBodies";
 import { ClientForm } from "./ClientForm";
+import type { ClientRequest } from "./ClientRequest";
+import { ClientRequestDraft } from "./ClientRequestDraft";
 import { ClientResponseView } from "./ClientResponseView";
 import { HttpClient, type IHttpClient } from "./HttpClient";
 
-const DefaultRequest: ClientExchangeRequest = {
-    method: "GET",
-    url: "",
-    headers: [],
-    body: "",
-};
+const DefaultMethod = "GET";
+
+function defaultRequest(): ClientRequest {
+    return {
+        method: DefaultMethod,
+        url: "",
+        headers: [],
+        body: ClientBodies.empty(),
+    };
+}
 
 export class ClientView {
     readonly root: HTMLElement;
@@ -28,7 +37,10 @@ export class ClientView {
     constructor(context: PanelContext, httpClient: IHttpClient = new HttpClient()) {
         this._context = context;
         this._httpClient = httpClient;
-        this._form = new ClientForm(DefaultRequest);
+        this._form = new ClientForm({
+            initial: defaultRequest(),
+            onPasteFilled: () => context.notifier.show("Filled in from the pasted command. Pick any files it names."),
+        });
         this._response = new ClientResponseView();
         this._sendButton = FormControls.button({
             text: "Send",
@@ -52,6 +64,19 @@ export class ClientView {
                 this._response.root,
             ],
         });
+
+        context.store.select(
+            state => state.clientLaunch,
+            launch => this.open(launch)
+        );
+    }
+
+    private open(launch: ClientLaunchRequest | null): void {
+        if (launch === null) {
+            return;
+        }
+
+        this._form.fill(ClientRequestDraft.fromSnippet(CurlBashSnippet.from(launch.snapshot)));
     }
 
     private async send(): Promise<void> {
@@ -59,17 +84,12 @@ export class ClientView {
             return;
         }
 
-        const raw = this._form.current();
-        if (raw.url.trim() === "") {
+        const request = this._form.current();
+        if (request.url.trim() === "") {
             this._context.notifier.show("Enter a URL first.");
 
             return;
         }
-
-        const request: ClientExchangeRequest = {
-            ...raw,
-            headers: raw.headers.filter(header => header.name.trim() !== ""),
-        };
 
         this._isBusy = true;
         this._sendButton.disabled = true;
@@ -95,7 +115,7 @@ export class ClientView {
     }
 
     private log(
-        request: ClientExchangeRequest,
+        request: ClientRequest,
         result: Result<ClientExchangeResponse>,
         startedAt: string
     ): void {
@@ -104,12 +124,18 @@ export class ClientView {
             return;
         }
 
+        const sentBody = ClientBodies.sentWith(request.method, request.body);
         void this._context.connection.send({
             type: PanelCommandType.LogClientExchange,
             entryId: `client-${crypto.randomUUID()}`,
             tabId,
             startedAt,
-            request,
+            request: {
+                method: request.method,
+                url: request.url,
+                headers: ClientBodies.withContentType(request.headers, sentBody),
+                body: ClientBodies.logTextOf(sentBody),
+            },
             response: result.hasErrors ? null : result.value,
             error: result.hasErrors ? result.error : null,
         });

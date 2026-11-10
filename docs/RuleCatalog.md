@@ -72,7 +72,6 @@ Goes to    http://localhost:5000/users/42
   With only one on, the server answers and the rule changes that part of its answer.
   With a response condition, the rule waits for the server and changes its answer even with both on.
 - **Content type** takes free text and suggests the common media types.
-- It keeps the live body it was made from, for the inspector's **Diff** tab.
 - It answers the CORS preflight of a call it mocks with `204`, allowing the requested method and headers, so cross-origin mocks need no **CORS** rule.
 - To block a request, mock it, for example with status `403`.
 

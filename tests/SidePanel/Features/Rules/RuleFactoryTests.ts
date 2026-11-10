@@ -63,7 +63,6 @@ describe("RuleFactory", () => {
             status: 201,
             contentType: "application/json",
             body: "{\n  \"id\": 7\n}",
-            baselineBody: "{\"id\":7}",
         });
     });
 

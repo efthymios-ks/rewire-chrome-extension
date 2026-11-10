@@ -90,7 +90,8 @@ Each row shows: drag handle, on/off switch, name, type, where it works, hit coun
 
 - **Edit**, **Duplicate** and **Remove**.
   **Remove** asks first, and the notice after it can undo it for 8 seconds.
-- Search by name, and filter by type.
+- The toolbar's first row holds **Add rule** and the search box, which searches names only.
+  The second row holds **Test rules** and **Import / export**.
 - The header switch turns every rule off at once; capture keeps running.
 - Hit counts start at zero with the browser.
   Inspected-tab rules count exactly.
@@ -109,8 +110,10 @@ Picking a type opens the editor:
   It shows each condition with its value, the changes the rule makes, and where the request ends up.
 
 A new rule, or a row added to it, starts blank; editing a rule keeps what it holds.  
-Content type fields take free text and suggest the common media types, the ones .NET lists in `MediaTypeNames`.
+Content type fields take free text and suggest the common media types, the ones .NET lists in `MediaTypeNames`.  
 Header name fields do the same with the header names ASP.NET Core lists in `HeaderNames`.  
+Header value fields suggest values for the header named next to them, such as media types for `Content-Type` and `Accept`, and nothing for a header without known values.  
+Suggestions appear as you type, with no dropdown arrow: arrow keys and **Enter** pick one, **Escape** closes the list.  
 Text fields marked so can use `{{name}}` variables, set by a **Set variable** rule.
 
 Shortcuts that open the editor already filled in:

@@ -236,7 +236,6 @@ describe("SchemaVersion2Migration", () => {
             contentType: "",
             headers: [],
             body: "",
-            baselineBody: "",
         });
     });
 
@@ -588,7 +587,6 @@ describe("SchemaVersion2Migration", () => {
                     contentType: "",
                     headers: [],
                     body: "",
-                    baselineBody: "",
                 },
             ],
         ]);

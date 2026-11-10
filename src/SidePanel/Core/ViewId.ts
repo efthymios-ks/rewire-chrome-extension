@@ -3,4 +3,5 @@ export enum ViewId {
     Rules = 2,
     CookieJar = 3,
     Client = 4,
+    Jwt = 5,
 }

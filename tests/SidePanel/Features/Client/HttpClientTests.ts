@@ -1,5 +1,15 @@
 import { describe, expect, test, vi } from "vitest";
+import { ClientBodies } from "../../../../src/SidePanel/Features/Client/ClientBodies";
+import { type ClientBody, ClientBodyType } from "../../../../src/SidePanel/Features/Client/ClientRequest";
 import { HttpClient } from "../../../../src/SidePanel/Features/Client/HttpClient";
+
+function textBody(text: string): ClientBody {
+    return {
+        ...ClientBodies.empty(),
+        type: ClientBodyType.Json,
+        text,
+    };
+}
 
 function responseOf(options: {
     status?: number;
@@ -33,10 +43,10 @@ function nowSequence(values: number[]): () => number {
 describe("HttpClient", () => {
     test("send_WhenCalled_ShouldFetchWithTheMethodHeadersAndBody", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf({
+        const fetcher = vi.fn().mockResolvedValue(responseOf({
             body: "{}",
         }));
-        const client = new HttpClient(fetchFn, nowSequence([
+        const client = new HttpClient(fetcher, nowSequence([
             100,
             250,
         ]));
@@ -55,13 +65,13 @@ describe("HttpClient", () => {
                     value: "abc",
                 },
             ],
-            body: "{\"name\":\"Ada\"}",
+            body: textBody("{\"name\":\"Ada\"}"),
         });
 
         // Assert
         expect(result.hasErrors).toBe(false);
-        expect(fetchFn).toHaveBeenCalledOnce();
-        const [url, init] = fetchFn.mock.calls[0] as [string, RequestInit];
+        expect(fetcher).toHaveBeenCalledOnce();
+        const [url, init] = fetcher.mock.calls[0] as [string, RequestInit];
         expect(url).toBe("https://api.example.com/users");
         expect(init.method).toBe("POST");
         expect(init.body).toBe("{\"name\":\"Ada\"}");
@@ -72,49 +82,49 @@ describe("HttpClient", () => {
 
     test("send_WhenMethodIsGetOrHead_ShouldOmitTheBody", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf());
-        const client = new HttpClient(fetchFn, () => 0);
+        const fetcher = vi.fn().mockResolvedValue(responseOf());
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         await client.send({
             method: "get",
             url: "https://api.example.com/users",
             headers: [],
-            body: "not sent",
+            body: textBody("not sent"),
         });
 
         // Assert
-        expect((fetchFn.mock.calls[0]?.[1] as RequestInit).body).toBeUndefined();
+        expect((fetcher.mock.calls[0]?.[1] as RequestInit).body).toBeUndefined();
     });
 
     test("send_WhenBodyIsEmpty_ShouldOmitTheBody", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf());
-        const client = new HttpClient(fetchFn, () => 0);
+        const fetcher = vi.fn().mockResolvedValue(responseOf());
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         await client.send({
             method: "POST",
             url: "https://api.example.com/users",
             headers: [],
-            body: "",
+            body: ClientBodies.empty(),
         });
 
         // Assert
-        expect((fetchFn.mock.calls[0]?.[1] as RequestInit).body).toBeUndefined();
+        expect((fetcher.mock.calls[0]?.[1] as RequestInit).body).toBeUndefined();
     });
 
     test("send_WhenUrlIsInvalid_ShouldReturnAFailureWithoutCallingFetch", async () => {
         // Arrange
-        const fetchFn = vi.fn();
-        const client = new HttpClient(fetchFn, () => 0);
+        const fetcher = vi.fn();
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         const result = await client.send({
             method: "GET",
             url: "not a url",
             headers: [],
-            body: "",
+            body: ClientBodies.empty(),
         });
 
         // Assert
@@ -122,20 +132,20 @@ describe("HttpClient", () => {
             hasErrors: true,
             error: "URL is not valid.",
         });
-        expect(fetchFn).not.toHaveBeenCalled();
+        expect(fetcher).not.toHaveBeenCalled();
     });
 
     test("send_WhenFetchThrows_ShouldReturnTheErrorMessage", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockRejectedValue(new Error("network down"));
-        const client = new HttpClient(fetchFn, () => 0);
+        const fetcher = vi.fn().mockRejectedValue(new Error("network down"));
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         const result = await client.send({
             method: "GET",
             url: "https://api.example.com/users",
             headers: [],
-            body: "",
+            body: ClientBodies.empty(),
         });
 
         // Assert
@@ -147,17 +157,17 @@ describe("HttpClient", () => {
 
     test("send_WhenReadingTheBodyFails_ShouldReturnAFailure", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf({
+        const fetcher = vi.fn().mockResolvedValue(responseOf({
             throwOn: "text",
         }));
-        const client = new HttpClient(fetchFn, () => 0);
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         const result = await client.send({
             method: "GET",
             url: "https://api.example.com/users",
             headers: [],
-            body: "",
+            body: ClientBodies.empty(),
         });
 
         // Assert
@@ -169,7 +179,7 @@ describe("HttpClient", () => {
 
     test("send_WhenSuccessful_ShouldReturnStatusHeadersAndBodyAndTiming", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf({
+        const fetcher = vi.fn().mockResolvedValue(responseOf({
             status: 201,
             statusText: "Created",
             headers: {
@@ -178,7 +188,7 @@ describe("HttpClient", () => {
             },
             body: "{\"id\":1}",
         }));
-        const client = new HttpClient(fetchFn, nowSequence([
+        const client = new HttpClient(fetcher, nowSequence([
             1000,
             1123,
         ]));
@@ -188,7 +198,7 @@ describe("HttpClient", () => {
             method: "POST",
             url: "https://api.example.com/users",
             headers: [],
-            body: "{}",
+            body: textBody("{}"),
         });
 
         // Assert
@@ -218,8 +228,8 @@ describe("HttpClient", () => {
 
     test("send_WhenHeaderNameIsBlank_ShouldSkipIt", async () => {
         // Arrange
-        const fetchFn = vi.fn().mockResolvedValue(responseOf());
-        const client = new HttpClient(fetchFn, () => 0);
+        const fetcher = vi.fn().mockResolvedValue(responseOf());
+        const client = new HttpClient(fetcher, () => 0);
 
         // Act
         await client.send({
@@ -235,12 +245,49 @@ describe("HttpClient", () => {
                     value: "application/json",
                 },
             ],
-            body: "",
+            body: ClientBodies.empty(),
         });
 
         // Assert
-        const headers = (fetchFn.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+        const headers = (fetcher.mock.calls[0]?.[1] as RequestInit).headers as Headers;
         expect(headers.get("Accept")).toBe("application/json");
-        expect([...headers.keys()]).toEqual(["accept"]);
+        expect([...headers.keys()].map(name => name.toLowerCase())).toEqual(["accept"]);
+    });
+
+    test("send_WhenNoContentTypeIsSet_ShouldSendTheOneOfTheBodyType", async () => {
+        // Arrange
+        const fetcher = vi.fn().mockResolvedValue(responseOf());
+        const client = new HttpClient(fetcher, () => 0);
+
+        // Act
+        await client.send({
+            method: "POST",
+            url: "https://api.example.com/users",
+            headers: [],
+            body: textBody("{}"),
+        });
+
+        // Assert
+        const headers = (fetcher.mock.calls[0]?.[1] as RequestInit).headers as Headers;
+        expect(headers.get("Content-Type")).toBe("application/json");
+    });
+
+    test("send_WhenTheMethodIsGet_ShouldSendNeitherABodyNorItsContentType", async () => {
+        // Arrange
+        const fetcher = vi.fn().mockResolvedValue(responseOf());
+        const client = new HttpClient(fetcher, () => 0);
+
+        // Act
+        await client.send({
+            method: "GET",
+            url: "https://api.example.com/users",
+            headers: [],
+            body: textBody("{}"),
+        });
+
+        // Assert
+        const init = fetcher.mock.calls[0]?.[1] as RequestInit;
+        expect(init.body).toBeUndefined();
+        expect((init.headers as Headers).has("Content-Type")).toBe(false);
     });
 });

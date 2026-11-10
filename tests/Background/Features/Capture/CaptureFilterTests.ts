@@ -1,7 +1,5 @@
 import { describe, expect, test } from "vitest";
 import { CaptureDecision, CaptureFilter } from "../../../../src/Background/Features/Capture/CaptureFilter";
-import { aSettings, TestUrls } from "../../../TestData";
-import { settingsCacheOf } from "../../BackgroundTestData";
 
 describe("CaptureFilter", () => {
     test.each([
@@ -31,30 +29,13 @@ describe("CaptureFilter", () => {
         ],
     ])("decide_WhenResourceTypeIs(%s)_ShouldKeepApiCallsAndWaitOnDocuments", (resourceType, expected) => {
         // Arrange
-        const filter = new CaptureFilter(settingsCacheOf(aSettings()));
+        const filter = new CaptureFilter();
 
         // Act
-        const decision = filter.decide(TestUrls.UsersProfile, resourceType);
+        const decision = filter.decide(resourceType);
 
         // Assert
         expect(decision).toBe(expected);
-    });
-
-    test("decide_WhenAWhitelistIsSet_ShouldDropOtherDomains", () => {
-        // Arrange
-        const filter = new CaptureFilter(settingsCacheOf(aSettings({
-            domainWhitelist: ["example.com"],
-        })));
-
-        // Act
-        const keepsApi = filter.decide(TestUrls.UsersProfile, "Fetch");
-        const dropsAnalytics = filter.decide("https://www.google-analytics.com/collect", "Fetch");
-        const dropsOtherDocuments = filter.decide("https://jsonplaceholder.typicode.com/posts", "Document");
-
-        // Assert
-        expect(keepsApi).toBe(CaptureDecision.Capture);
-        expect(dropsAnalytics).toBe(CaptureDecision.Skip);
-        expect(dropsOtherDocuments).toBe(CaptureDecision.Skip);
     });
 
     test.each([
@@ -92,7 +73,7 @@ describe("CaptureFilter", () => {
         ],
     ])("isDataResponse_WhenMimeTypeIs(%s)_ShouldKeepOnlyTextualDataThatIsNotAPage", (mimeType, expected) => {
         // Arrange
-        const filter = new CaptureFilter(settingsCacheOf(aSettings()));
+        const filter = new CaptureFilter();
 
         // Act
         const isData = filter.isDataResponse(mimeType);

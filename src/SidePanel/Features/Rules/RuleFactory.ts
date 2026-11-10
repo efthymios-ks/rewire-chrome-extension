@@ -5,7 +5,7 @@ import { OperationKinds } from "../../../Common/Rules/Types/OperationKinds";
 import { RuleTypeRegistry } from "../../../Common/Rules/Types/RuleTypeRegistry";
 import { SafeUrl } from "../../../Common/Urls/SafeUrl";
 import { HeaderNames } from "../../../Contracts/Http/HeaderNames";
-import { MediaTypes } from "../../../Contracts/Http/MediaTypes";
+import { MediaTypeNames } from "../../../Contracts/Http/MediaTypeNames";
 import { StatusCodeLimits } from "../../../Contracts/Http/StatusCodePresets";
 import { CriteriaMatches, type Criterion, CriterionFieldIds, CriterionOperatorIds } from "../../../Contracts/Rules/Criterion";
 import type { Rule } from "../../../Contracts/Rules/Rule";
@@ -80,9 +80,8 @@ export const RuleFactory = {
             action: {
                 ...rule.action,
                 status: summary.statusCode ?? StatusCodeLimits.DefaultMock,
-                contentType: HeaderLookup.find(detail.responseHeaders, HeaderNames.ContentType) ?? MediaTypes.ApplicationJson,
+                contentType: HeaderLookup.find(detail.responseHeaders, HeaderNames.ContentType) ?? MediaTypeNames.ApplicationJson,
                 body: JsonText.format(body),
-                baselineBody: body,
             },
         };
     },

@@ -73,7 +73,6 @@ function interceptionTypeOf(legacy: LegacyInterceptionRule): RuleContent | null 
                 contentType: legacy.mockContentType,
                 headers: [],
                 body: legacy.mockBody,
-                baselineBody: legacy.baselineBody,
             },
         };
     }
@@ -88,7 +87,6 @@ function interceptionTypeOf(legacy: LegacyInterceptionRule): RuleContent | null 
                 contentType: "",
                 headers: [],
                 body: "",
-                baselineBody: "",
             },
         };
     }

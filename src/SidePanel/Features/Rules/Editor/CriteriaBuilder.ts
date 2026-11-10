@@ -3,7 +3,7 @@ import { CriterionOperatorRegistry } from "../../../../Common/Rules/Criteria/Cri
 import { CriteriaMatches, type CriteriaMatch, type Criterion, CriterionFieldIds, type RuleCriteria } from "../../../../Contracts/Rules/Criterion";
 import { buildElement } from "../../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
-import { SuggestionInput } from "../../../Core/Dom/SuggestionInput";
+import { SuggestionInput, type SuggestionSource } from "../../../Core/Dom/SuggestionInput";
 
 const CriterionValueClass = "input criterion-value";
 const CriterionNameClass = "input criterion-name";
@@ -12,7 +12,7 @@ const NamePlaceholder = "Name";
 interface TextInputArguments {
     value: string;
     placeholder: string;
-    suggestions: readonly string[] | undefined;
+    suggestions: SuggestionSource | undefined;
     className: string;
     onInput: (value: string) => void;
 }
@@ -151,11 +151,14 @@ export class CriteriaBuilder {
 
     private valueInputOf(item: Criterion, index: number): HTMLElement {
         const field = CriterionFieldRegistry.get(item.field);
+        const suggestionsFor = field?.valueSuggestionsFor;
 
         return textInputOf({
             value: item.value,
             placeholder: field?.valuePlaceholder ?? "",
-            suggestions: field?.valueSuggestions,
+            suggestions: suggestionsFor === undefined
+                ? field?.valueSuggestions
+                : () => suggestionsFor(this._criteria.items[index]?.name ?? ""),
             className: CriterionValueClass,
             onInput: value => this.changeItem(
                 index,

@@ -6,7 +6,6 @@ import { SearchFields, type SearchQuery } from "../../../src/Contracts/Search/Se
 function aQuery(overrides: Partial<SearchQuery> = {}): SearchQuery {
     return {
         text: "ada",
-        isCaseSensitive: false,
         isRegex: false,
         ...overrides,
     };
@@ -54,17 +53,17 @@ describe("TimelineSearch", () => {
         });
     });
 
-    test("search_WhenCaseMatters_ShouldSkipOtherCases", () => {
+    test("search_WhenTheQueryIsUpperCase_ShouldStillMatchEveryCase", () => {
         // Arrange
         const query = aQuery({
-            isCaseSensitive: true,
+            text: "ADA",
         });
 
         // Act
         const result = TimelineSearch.search([anEntry()], query);
 
         // Assert
-        expect(result.hasErrors ? 0 : result.value[0]?.count).toBe(2);
+        expect(result.hasErrors ? 0 : result.value[0]?.count).toBe(4);
     });
 
     test("search_WhenNoFieldHoldsTheText_ShouldReturnNothing", () => {

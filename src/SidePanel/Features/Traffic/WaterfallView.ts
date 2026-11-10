@@ -117,7 +117,6 @@ export class WaterfallView {
         context.store.select(
             state => [
                 state.entries,
-                state.settings.domainWhitelist,
                 state.contentFilter,
                 state.selectedEntryId,
             ],

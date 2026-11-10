@@ -13,6 +13,7 @@ export interface ICriterionField {
     readonly valuePlaceholder: string;
     readonly valueSuggestions?: readonly string[];
     readonly nameSuggestions?: readonly string[];
+    readonly valueSuggestionsFor?: (name: string) => readonly string[];
     read(
         facts: MatchFacts,
         criterion: Criterion,

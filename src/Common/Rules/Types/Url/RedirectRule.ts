@@ -10,12 +10,12 @@ import { RuleChecks } from "../RuleChecks";
 import { RuleTypeBase } from "../RuleTypeBase";
 import { RegexDestination } from "./RegexDestination";
 
-export interface RedirectStatusOption {
+interface RedirectStatusOption {
     code: number;
     label: string;
 }
 
-export const RedirectStatusOptions: readonly RedirectStatusOption[] = [
+const RedirectStatusOptions: readonly RedirectStatusOption[] = [
     {
         code: 301,
         label: "301 Moved Permanently",

@@ -1,19 +1,16 @@
 import { ErrorText } from "../../../Common/Errors/ErrorText";
 import { Result } from "../../../Common/Results/Result";
 import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import type { ClientExchangeRequest, ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
+import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
 import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-
-const BodylessMethods = [
-    "GET",
-    "HEAD",
-];
+import { ClientBodies } from "./ClientBodies";
+import type { ClientRequest } from "./ClientRequest";
 
 type Fetcher = typeof fetch;
 type Clock = () => number;
 
 export interface IHttpClient {
-    send(request: ClientExchangeRequest): Promise<Result<ClientExchangeResponse>>;
+    send(request: ClientRequest): Promise<Result<ClientExchangeResponse>>;
 }
 
 function headersFrom(response: Response): HeaderEntry[] {
@@ -26,19 +23,21 @@ function headersFrom(response: Response): HeaderEntry[] {
     return list;
 }
 
-function requestInitOf(request: ClientExchangeRequest): RequestInit {
+function requestInitOf(request: ClientRequest): RequestInit {
     const method = request.method.toUpperCase();
+    const sentBody = ClientBodies.sentWith(method, request.body);
     const headers = new Headers();
-    request.headers
-        .filter(header => header.name.trim() !== "")
-        .forEach(header => headers.append(header.name, header.value));
+    ClientBodies
+        .withContentType(request.headers, sentBody)
+        .forEach(header => headers.append(header.name.trim(), header.value));
 
     const init: RequestInit = {
         method,
         headers,
     };
-    if (!BodylessMethods.includes(method) && request.body !== "") {
-        init.body = request.body;
+    const body = ClientBodies.fetchBodyOf(sentBody);
+    if (body !== null) {
+        init.body = body;
     }
 
     return init;
@@ -53,7 +52,7 @@ export class HttpClient implements IHttpClient {
         this._now = clock;
     }
 
-    async send(request: ClientExchangeRequest): Promise<Result<ClientExchangeResponse>> {
+    async send(request: ClientRequest): Promise<Result<ClientExchangeResponse>> {
         if (SafeUrl.parse(request.url) === null) {
             return Result.fail("URL is not valid.");
         }

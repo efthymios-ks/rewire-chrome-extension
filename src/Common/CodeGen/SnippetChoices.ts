@@ -1,7 +1,7 @@
 import { CookieHeader } from "../Rules/Http/CookieHeader";
 import { QueryString } from "../Urls/QueryString";
 import type { RequestSnapshot } from "./RequestSnapshot";
-import { SnippetHeaderNames, SnippetParts } from "./SnippetParts";
+import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
 
 export interface SnippetChoice {
     key: string;
@@ -21,7 +21,7 @@ function sameKeyAndLabel(name: string): SnippetChoice {
 
 export const SnippetChoices = {
     headersOf(snapshot: RequestSnapshot): SnippetChoice[] {
-        return unique(SnippetParts
+        return unique(SnippetHeaders
             .sendable(snapshot.headers)
             .filter(header => header.name.toLowerCase() !== SnippetHeaderNames.Cookie)
             .map(header => ({
@@ -31,7 +31,7 @@ export const SnippetChoices = {
     },
 
     cookiesOf(snapshot: RequestSnapshot): SnippetChoice[] {
-        return unique(SnippetParts
+        return unique(SnippetHeaders
             .sendable(snapshot.headers)
             .filter(header => header.name.toLowerCase() === SnippetHeaderNames.Cookie)
             .flatMap(header => CookieHeader.parse(header.value))

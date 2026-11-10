@@ -1,8 +1,8 @@
+import { HeaderSuggestions } from "../../../../Common/Http/HeaderSuggestions";
 import { JsonText } from "../../../../Common/Json/JsonText";
 import { ActionReader } from "../../../../Common/Rules/Types/ActionReader";
 import { FieldKind, type FieldSpec } from "../../../../Common/Rules/Types/FieldSpec";
 import { OperationKinds, OperationOptions } from "../../../../Common/Rules/Types/OperationKinds";
-import { CommonMediaTypes } from "../../../../Contracts/Http/CommonMediaTypes";
 import type { RuleAction } from "../../../../Contracts/Rules/Rule";
 import { buildElement } from "../../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
@@ -15,6 +15,8 @@ import { StatusCodeSelect } from "./StatusCodeSelect";
 
 const ListSeparator = ",";
 const DefaultRows = 3;
+const ValueKey = "value";
+const ValueLabel = "Value";
 
 export interface FieldControlArguments {
     spec: FieldSpec;
@@ -25,6 +27,7 @@ export interface FieldControlArguments {
 }
 
 type FieldControlBuilder = (args: FieldControlArguments) => HTMLElement;
+
 
 function isCell(entry: [string, unknown]): entry is [string, string | number] {
     return typeof entry[1] === "string" || typeof entry[1] === "number";
@@ -82,6 +85,21 @@ function nameColumn(
         kind: ColumnKind.Suggested,
         placeholder: label,
         suggestions,
+    };
+}
+
+function valueColumn(args: FieldControlArguments, nameKey: string): RowColumn {
+    const suggestionsFor = args.spec.valueSuggestionsFor;
+    if (suggestionsFor === undefined) {
+        return textColumn(ValueKey, ValueLabel);
+    }
+
+    return {
+        key: ValueKey,
+        label: ValueLabel,
+        kind: ColumnKind.Suggested,
+        placeholder: ValueLabel,
+        suggestionsOf: row => suggestionsFor(String(row[nameKey] ?? "")),
     };
 }
 
@@ -179,7 +197,7 @@ const Builders: Record<FieldKind, FieldControlBuilder> = {
                 "key",
                 "Name"
             ),
-            textColumn("value", "Value"),
+            valueColumn(args, "key"),
         ],
         "Add row"
     ).root,
@@ -198,14 +216,14 @@ const Builders: Record<FieldKind, FieldControlBuilder> = {
                 "name",
                 args.spec.nameLabel ?? "Name"
             ),
-            textColumn("value", "Value"),
+            valueColumn(args, "name"),
         ],
         `Add ${(args.spec.nameLabel ?? "row").toLowerCase()}`
     ).root,
     [FieldKind.MediaType]: args => SuggestionInput.build({
         value: ActionReader.text(args.action, args.spec.key),
         placeholder: args.spec.placeholder ?? "",
-        suggestions: CommonMediaTypes,
+        suggestions: HeaderSuggestions.mediaTypes(),
         onInput: args.onChange,
     }),
 };

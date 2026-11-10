@@ -4,7 +4,7 @@ import { ContentFilterId } from "../../../../src/SidePanel/Core/ContentFilterId"
 import type { PanelState } from "../../../../src/SidePanel/Core/PanelState";
 import { PanelStateFactory } from "../../../../src/SidePanel/Core/PanelStateFactory";
 import { VisibleEntries } from "../../../../src/SidePanel/Features/Traffic/VisibleEntries";
-import { aSettings, aSummary } from "../../../TestData";
+import { aSummary } from "../../../TestData";
 
 function aState(overrides: Partial<PanelState>): PanelState {
     return {
@@ -59,24 +59,5 @@ describe("VisibleEntries", () => {
 
         // Assert
         expect(visible.map(entry => entry.id)).toEqual(["graphql"]);
-    });
-
-    test("of_WhenAWhitelistIsSet_ShouldHideOtherDomains", () => {
-        // Arrange
-        const state = aState({
-            entries,
-            settings: aSettings({
-                domainWhitelist: ["example.com"],
-            }),
-        });
-
-        // Act
-        const visible = VisibleEntries.of(state);
-
-        // Assert
-        expect(visible.map(entry => entry.id)).toEqual([
-            "graphql",
-            "json-api",
-        ]);
     });
 });

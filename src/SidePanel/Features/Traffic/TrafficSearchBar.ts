@@ -72,13 +72,6 @@ export class TrafficSearchBar {
             search.step(event.shiftKey ? -1 : 1);
         });
 
-        const caseChip = toggleChip(
-            "Aa",
-            "Match case",
-            () => update({
-                isCaseSensitive: !current().isCaseSensitive,
-            })
-        );
         const regexChip = toggleChip(
             ".*",
             "Regular expression",
@@ -111,7 +104,6 @@ export class TrafficSearchBar {
                 status,
                 previousButton,
                 nextButton,
-                caseChip,
                 regexChip,
             ],
         });
@@ -119,7 +111,6 @@ export class TrafficSearchBar {
         context.store.select(
             state => state.search,
             state => {
-                caseChip.setAttribute("aria-pressed", String(state.query.isCaseSensitive));
                 regexChip.setAttribute("aria-pressed", String(state.query.isRegex));
                 status.classList.toggle("form-error", state.error !== null);
                 status.textContent = SearchStatusText.of(state);

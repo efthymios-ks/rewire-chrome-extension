@@ -11,6 +11,7 @@ import { RuleEditorLauncher } from "./Core/RuleEditorLauncher";
 import { SettingsService } from "./Core/SettingsService";
 import { Store } from "./Core/Store";
 import { ThemeApplier } from "./Core/ThemeApplier";
+import { ViewLauncher } from "./Core/ViewLauncher";
 import { WorkerConnection } from "./Core/WorkerConnection";
 import { CookieClient } from "./Features/Cookies/CookieClient";
 import { EntryDetailLoader } from "./Features/Inspector/EntryDetailLoader";
@@ -42,6 +43,7 @@ async function start(): Promise<void> {
         connection,
         notifier,
         ruleEditor: new RuleEditorLauncher(store),
+        viewLauncher: new ViewLauncher(store),
         clipboardClient: new ClipboardClient(),
         cookieClient: new CookieClient(),
         regexSupportClient: new RegexSupportClient(),

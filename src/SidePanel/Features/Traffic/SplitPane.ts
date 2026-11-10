@@ -1,6 +1,8 @@
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 
 const SplitRatioStorageKey = "rewire.splitRatio";
+const CollapsedStorageKey = "rewire.inspectorCollapsed";
+const CollapsedValue = "true";
 const DefaultSplitRatio = 0.45;
 const MinSplitRatio = 0.15;
 const MaxSplitRatio = 0.85;
@@ -12,6 +14,24 @@ const Orientations = {
     Vertical: "vertical",
     Horizontal: "horizontal",
 } as const;
+
+type Orientation = typeof Orientations[keyof typeof Orientations];
+
+interface ToggleIcon {
+    open: string;
+    collapsed: string;
+}
+
+const ToggleIcons: Record<Orientation, ToggleIcon> = {
+    [Orientations.Vertical]: {
+        open: "\u25BE",
+        collapsed: "\u25B4",
+    },
+    [Orientations.Horizontal]: {
+        open: "\u25B8",
+        collapsed: "\u25C2",
+    },
+};
 
 const KeyboardSteps: Record<string, number> = {
     ArrowUp: -KeyboardStep,
@@ -34,6 +54,22 @@ function loadRatio(): number {
     }
 }
 
+function loadCollapsed(): boolean {
+    try {
+        return localStorage.getItem(CollapsedStorageKey) === CollapsedValue;
+    } catch {
+        return false;
+    }
+}
+
+function saveCollapsed(isCollapsed: boolean): void {
+    try {
+        localStorage.setItem(CollapsedStorageKey, String(isCollapsed));
+    } catch {
+        return;
+    }
+}
+
 function saveRatio(ratio: number): void {
     try {
         localStorage.setItem(SplitRatioStorageKey, String(ratio));
@@ -46,9 +82,21 @@ export class SplitPane {
     readonly root: HTMLDivElement;
 
     private readonly _handle: HTMLDivElement;
+    private readonly _toggle: HTMLButtonElement;
     private _ratio = DefaultSplitRatio;
+    private _isCollapsed = false;
 
     constructor(first: HTMLElement, second: HTMLElement) {
+        this._toggle = buildElement("button", {
+            className: "split-toggle",
+            attributes: {
+                type: "button",
+            },
+            listeners: {
+                pointerdown: event => event.stopPropagation(),
+                click: () => this.setCollapsed(!this._isCollapsed),
+            },
+        });
         this._handle = buildElement("div", {
             className: "split-handle",
             title: "Drag to resize",
@@ -56,6 +104,7 @@ export class SplitPane {
                 role: "separator",
                 tabindex: "0",
             },
+            children: [this._toggle],
         });
         this.root = buildElement("div", {
             className: "split-pane",
@@ -73,14 +122,20 @@ export class SplitPane {
         });
 
         this.applyRatio(loadRatio());
+        this.setCollapsed(loadCollapsed());
         this.listenForDrag();
         this.listenForKeys();
         new ResizeObserver(() => this.updateOrientation()).observe(this.root);
     }
 
+    expand(): void {
+        this.setCollapsed(false);
+    }
+
     private listenForDrag(): void {
         this._handle.addEventListener("pointerdown", downEvent => {
             this._handle.setPointerCapture(downEvent.pointerId);
+            this.setCollapsed(false);
 
             const onMove = (moveEvent: PointerEvent): void => {
                 const bounds = this.root.getBoundingClientRect();
@@ -108,6 +163,7 @@ export class SplitPane {
             }
 
             event.preventDefault();
+            this.setCollapsed(false);
             this.applyRatio(this._ratio + step);
             saveRatio(this._ratio);
         });
@@ -118,6 +174,26 @@ export class SplitPane {
         this.root.style.setProperty("--split-first-size", `${this._ratio * PercentFactor}%`);
     }
 
+    private setCollapsed(isCollapsed: boolean): void {
+        if (this._isCollapsed !== isCollapsed) {
+            saveCollapsed(isCollapsed);
+        }
+
+        this._isCollapsed = isCollapsed;
+        this.root.dataset["collapsed"] = String(isCollapsed);
+        this.updateToggle();
+    }
+
+    private updateToggle(): void {
+        const orientation = this.isHorizontal() ? Orientations.Horizontal : Orientations.Vertical;
+        const icons = ToggleIcons[orientation];
+        const label = this._isCollapsed ? "Show the inspector" : "Hide the inspector";
+        this._toggle.textContent = this._isCollapsed ? icons.collapsed : icons.open;
+        this._toggle.title = label;
+        this._toggle.setAttribute("aria-label", label);
+        this._toggle.setAttribute("aria-expanded", String(!this._isCollapsed));
+    }
+
     private isHorizontal(): boolean {
         return this.root.dataset["orientation"] === Orientations.Horizontal;
     }
@@ -126,5 +202,6 @@ export class SplitPane {
         const orientation = this.root.clientWidth >= WideLayoutMinWidth ? Orientations.Horizontal : Orientations.Vertical;
         this.root.dataset["orientation"] = orientation;
         this._handle.setAttribute("aria-orientation", orientation === Orientations.Horizontal ? Orientations.Vertical : Orientations.Horizontal);
+        this.updateToggle();
     }
 }

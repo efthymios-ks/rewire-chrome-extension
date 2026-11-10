@@ -4,8 +4,12 @@ import type { Store } from "../../Core/Store";
 export const EntrySelection = {
     select(store: Store<PanelState>, entryId: string): void {
         store.update(state => {
+            const selectionCount = state.selectionCount + 1;
             if (state.selectedEntryId === entryId) {
-                return state;
+                return {
+                    ...state,
+                    selectionCount,
+                };
             }
 
             return {
@@ -13,6 +17,7 @@ export const EntrySelection = {
                 selectedEntryId: entryId,
                 selectedEntryDetail: null,
                 detailError: null,
+                selectionCount,
             };
         });
     },

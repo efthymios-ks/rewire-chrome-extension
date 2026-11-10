@@ -34,7 +34,11 @@ Rule exports are JSON files you generate explicitly. By default they omit cookie
 
 ## Client tab
 
-The Client tab sends only the HTTP requests you explicitly compose and submit from it. Those requests are logged into the inspected tab's timeline for your reference.
+The Client tab sends only the HTTP requests you explicitly compose and submit from it. Those requests are logged into the inspected tab's timeline for your reference. Files you attach are logged by name and size only, never their contents.
+
+## JWT tab
+
+The JWT tab decodes the tokens you paste into it, or open from the inspector, entirely inside the panel. Tokens are never sent anywhere.
 
 ## Contact
 

@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -57,13 +57,16 @@ param(
     [string]$Url = 'https://httpbin.org/#/',
 
     [ValidateNotNullOrEmpty()]
-    [string]$ProfilePath = (Join-Path -Path $PSScriptRoot -ChildPath '.debug-profile'),
+    [string]$ProfilePath,
 
     [switch]$NoWatch
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# powershell.exe -File leaves $PSScriptRoot empty in the param defaults of an advanced script.
+if (-not $ProfilePath) { $ProfilePath = Join-Path -Path $PSScriptRoot -ChildPath '.debug-profile' }
 
 $script:DistPath = Join-Path $PSScriptRoot 'dist'
 $script:BuildScript = Join-Path $PSScriptRoot 'scripts/build.mjs'

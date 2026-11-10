@@ -1,12 +1,12 @@
-import { CommonHeaderNames } from "../../../../Contracts/Http/CommonHeaderNames";
 import { HeaderNames } from "../../../../Contracts/Http/HeaderNames";
-import { MediaTypes } from "../../../../Contracts/Http/MediaTypes";
+import { MediaTypeNames } from "../../../../Contracts/Http/MediaTypeNames";
 import { StatusCodeLimits } from "../../../../Contracts/Http/StatusCodePresets";
 import type { RuleCriteria } from "../../../../Contracts/Rules/Criterion";
 import type { RuleAction } from "../../../../Contracts/Rules/Rule";
 import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
 import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
 import type { HeaderEntry } from "../../../../Contracts/Timeline/HeaderEntry";
+import { HeaderSuggestions } from "../../../Http/HeaderSuggestions";
 import type { RuleContext } from "../../Context/RuleContext";
 import { CriteriaEvaluator } from "../../Criteria/CriteriaEvaluator";
 import { CriterionStage } from "../../Criteria/CriterionStage";
@@ -30,10 +30,9 @@ interface MockResponseAction {
     contentType: string;
     headers: KeyValue[];
     body: string;
-    baselineBody: string;
 }
 
-export const MockResponseKeys = {
+const MockResponseKeys = {
     OverrideStatus: "overrideStatus",
     OverrideBody: "overrideBody",
 } as const;
@@ -122,7 +121,7 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             kind: FieldKind.MediaType,
             key: "contentType",
             label: "Content type",
-            placeholder: MediaTypes.ApplicationJson,
+            placeholder: MediaTypeNames.ApplicationJson,
             visibleWhen: isOn(MockResponseKeys.OverrideBody),
         },
         {
@@ -137,7 +136,8 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             kind: FieldKind.KeyValueList,
             key: "headers",
             label: "Headers",
-            nameSuggestions: CommonHeaderNames,
+            nameSuggestions: HeaderSuggestions.names(),
+            valueSuggestionsFor: HeaderSuggestions.valuesFor,
         },
     ];
 
@@ -154,10 +154,9 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             overrideStatus: true,
             status: StatusCodeLimits.DefaultMock,
             overrideBody: true,
-            contentType: MediaTypes.ApplicationJson,
+            contentType: MediaTypeNames.ApplicationJson,
             headers: [],
             body: "{}",
-            baselineBody: "",
         };
     }
 
@@ -181,11 +180,10 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             contentType: ActionReader.text(
                 action,
                 "contentType",
-                MediaTypes.ApplicationJson
+                MediaTypeNames.ApplicationJson
             ),
             headers: keyValues(action, "headers"),
             body: ActionReader.text(action, "body"),
-            baselineBody: ActionReader.text(action, "baselineBody"),
         };
     }
 

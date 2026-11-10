@@ -1,4 +1,4 @@
-#Requires -Version 7.2
+#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -62,7 +62,7 @@
 param(
     [Parameter(Position = 0)]
     [ValidateNotNullOrEmpty()]
-    [string]$Path = (Join-Path -Path $PSScriptRoot -ChildPath 'tests'),
+    [string]$Path,
 
     [ValidateNotNullOrEmpty()]
     [string]$TestName,
@@ -87,6 +87,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# powershell.exe -File leaves $PSScriptRoot empty in the param defaults of an advanced script.
+if (-not $Path) { $Path = Join-Path -Path $PSScriptRoot -ChildPath 'tests' }
 
 $script:NodePackageId = 'OpenJS.NodeJS.LTS'
 $script:TestFilePattern = '*Tests.ts'
@@ -150,6 +153,21 @@ function Test-PackagesCurrent {
     return (Get-Item -LiteralPath $installed).LastWriteTimeUtc -ge (Get-Item -LiteralPath $lock).LastWriteTimeUtc
 }
 
+# $Path below $BasePath, as [System.IO.Path]::GetRelativePath gives it; .NET Framework has
+# no such method. $Path is a full path; one outside $BasePath comes back whole.
+function Get-RelativePath {
+    param(
+        [Parameter(Mandatory)][string]$BasePath,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $base = (Convert-Path -LiteralPath $BasePath).TrimEnd('\', '/')
+    $full = $Path.TrimEnd('\', '/')
+    if ($full -eq $base) { return '.' }
+    if (-not $full.StartsWith("$base\", [System.StringComparison]::OrdinalIgnoreCase)) { return $full }
+    return $full.Substring($base.Length + 1)
+}
+
 function Get-VitestArguments {
     param([Parameter(Mandatory)][string]$RelativePath)
 
@@ -201,7 +219,7 @@ try {
     if (-not (Test-Path -LiteralPath $Path)) { Exit-WithError "test path not found: $Path" 2 }
     $testFiles = @(Get-ChildItem -LiteralPath $Path -Recurse -File -Filter $script:TestFilePattern)
     if ($testFiles.Count -eq 0) { Exit-WithError "no $script:TestFilePattern files under $Path" 2 }
-    $relativePath = [System.IO.Path]::GetRelativePath($PSScriptRoot, (Resolve-Path -LiteralPath $Path).Path) -replace '\\', '/'
+    $relativePath = (Get-RelativePath -BasePath $PSScriptRoot -Path (Resolve-Path -LiteralPath $Path).Path) -replace '\\', '/'
     Write-Note "$($testFiles.Count) test files in $relativePath"
 
     if ($SkipTypeCheck -or $Watch) {

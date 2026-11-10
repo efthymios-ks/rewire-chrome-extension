@@ -43,7 +43,6 @@ export function aRule(overrides: Partial<Rule> = {}): Rule {
             contentType: "application/json",
             headers: [],
             body: "{\"id\":42}",
-            baselineBody: "{\"id\":42,\"name\":\"Ada\"}",
         },
         ...overrides,
     };

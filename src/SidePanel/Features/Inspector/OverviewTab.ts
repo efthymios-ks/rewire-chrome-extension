@@ -1,8 +1,11 @@
 import { HeaderLookup } from "../../../Common/Http/HeaderLookup";
+import { JwtToken } from "../../../Common/Jwt/JwtToken";
 import { CookieHeader } from "../../../Common/Rules/Http/CookieHeader";
 import { HeaderList } from "../../../Common/Rules/Http/HeaderList";
 import { SetCookieHeader } from "../../../Common/Rules/Http/SetCookieHeader";
+import { HeaderNames } from "../../../Contracts/Http/HeaderNames";
 import { ChangeArea } from "../../../Contracts/Rules/ValueChange";
+import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
 import type { SearchQuery } from "../../../Contracts/Search/SearchQuery";
 import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
@@ -16,12 +19,13 @@ import { RuleFactory } from "../Rules/RuleFactory";
 import type { PanelContext } from "../Shell/PanelContext";
 import { AppliedRuleText } from "../Traffic/AppliedRuleText";
 import { ContentKindLabels } from "../Traffic/ContentKindLabels";
-import { DetailSections } from "./DetailSections";
+import { type DefinitionAction, DetailSections } from "./DetailSections";
 import type { IInspectorTab } from "./IInspectorTab";
 import { SectionAccordion } from "./SectionAccordion";
 import { SectionMemory } from "./SectionMemory";
 
 const CookieHeaderName = "Cookie";
+const OpenIcon = "↗";
 const SetCookieHeaderName = "Set-Cookie";
 
 const SectionIds = {
@@ -133,7 +137,8 @@ export class OverviewTab implements IInspectorTab {
                     DetailSections.headers(
                         detail.requestHeaders,
                         changes,
-                        ChangeArea.RequestHeader
+                        ChangeArea.RequestHeader,
+                        header => this.jwtActionOf(header)
                     ),
                     DetailSections.cookies(CookieHeader.parse(HeaderLookup.find(detail.requestHeaders, CookieHeaderName))),
                 ]
@@ -233,5 +238,18 @@ export class OverviewTab implements IInspectorTab {
                 }),
             ],
         });
+    }
+
+    private jwtActionOf(header: HeaderEntry): DefinitionAction | undefined {
+        const isAuthorization = header.name.toLowerCase() === HeaderNames.Authorization.toLowerCase();
+        if (!isAuthorization || !JwtToken.looksLike(header.value)) {
+            return undefined;
+        }
+
+        return {
+            label: "Open in the JWT tab",
+            icon: OpenIcon,
+            run: () => this._context.viewLauncher.openJwt(header.value),
+        };
     }
 }

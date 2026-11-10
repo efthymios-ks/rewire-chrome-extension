@@ -1,7 +1,10 @@
 import { SafeUrl } from "../Urls/SafeUrl";
-import { CookieHeader } from "../Rules/Http/CookieHeader";
-import type { ISnippetGenerator, RequestSnapshot, SnippetOptions } from "./RequestSnapshot";
-import { type SnippetParts as Parts, SnippetHeaderNames, SnippetParts } from "./SnippetParts";
+import { DefaultSnippetParts, type RequestSnapshot, type SnippetOptions } from "./RequestSnapshot";
+import { RequestSnippetBase } from "./RequestSnippetBase";
+import { ShellQuoting } from "./ShellQuoting";
+import { type MultipartPart, type SnippetBody, SnippetBodyKind } from "./SnippetBody";
+import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
+import { type SnippetRequest, SnippetRequests } from "./SnippetRequest";
 
 const Indentation = "    ";
 const CookiePath = "/";
@@ -46,17 +49,19 @@ const ParameterHeaders = [
 
 type Parameter = [string, string | null];
 
+const quote = ShellQuoting.powerShell;
+
 function methodParameter(method: string): Parameter {
     const standard = StandardMethods[method];
 
     return standard === undefined
         ? [
             "CustomMethod",
-            SnippetParts.powerShellQuote(method),
+            quote(method),
         ]
         : [
             "Method",
-            SnippetParts.powerShellQuote(standard),
+            quote(standard),
         ];
 }
 
@@ -65,72 +70,118 @@ function textExpression(text: string): string {
         .split(LineBreakSplitPattern)
         .filter(piece => piece !== "");
     if (pieces.length <= 1) {
-        return SnippetParts.powerShellQuote(text);
+        return quote(text);
     }
 
-    return `(${pieces.map(piece => LineBreakLiterals[piece] ?? SnippetParts.powerShellQuote(piece)).join(" + ")})`;
+    return `(${pieces.map(piece => LineBreakLiterals[piece] ?? quote(piece)).join(" + ")})`;
 }
 
-function sessionBlock(parts: Parts): string[] {
-    if (parts.cookie === null) {
+function sessionBlock(request: SnippetRequest): string[] {
+    if (request.cookies.length === 0) {
         return [];
     }
 
-    const host = SafeUrl.parse(parts.url)?.hostname ?? "";
-    const quote = SnippetParts.powerShellQuote;
+    const host = SafeUrl.parse(request.url)?.hostname ?? "";
 
     return [
         "$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession",
-        ...CookieHeader
-            .parse(parts.cookie)
-            .map(cookie => `$session.Cookies.Add((New-Object System.Net.Cookie(${[
-                quote(cookie.name),
-                quote(cookie.value),
-                quote(CookiePath),
-                quote(host),
-            ].join(", ")})))`),
+        ...request.cookies.map(cookie => `$session.Cookies.Add((New-Object System.Net.Cookie(${[
+            quote(cookie.name),
+            quote(cookie.value),
+            quote(CookiePath),
+            quote(host),
+        ].join(", ")})))`),
     ];
 }
 
-function headersExpression(parts: Parts): string | null {
-    const headers = SnippetParts.merged(SnippetParts.without(parts.headers, ParameterHeaders));
-    if (headers.length === 0) {
-        return null;
-    }
-
-    const quote = SnippetParts.powerShellQuote;
-
+function hashtableOf(entries: Array<[string, string]>): string {
     return [
         "@{",
-        ...headers.map(header => `${Indentation}${Indentation}${quote(header.name)} = ${quote(header.value)}`),
+        ...entries.map(([name, value]) => `${Indentation}${Indentation}${quote(name)} = ${value}`),
         `${Indentation}}`,
     ].join("\n");
 }
 
-export class PowerShellSnippet implements ISnippetGenerator {
-    readonly id = "powershell";
-    readonly label = "PowerShell";
+function headersExpression(request: SnippetRequest): string | null {
+    const headers = SnippetHeaders.merged(SnippetHeaders.without(request.headers, ParameterHeaders));
 
-    generate(snapshot: RequestSnapshot, options: SnippetOptions): string {
-        const parts = SnippetParts.of(snapshot, options);
-        const quote = SnippetParts.powerShellQuote;
-        const contentType = SnippetParts.find(parts.headers, SnippetHeaderNames.ContentType);
-        const userAgent = SnippetParts.find(parts.headers, SnippetHeaderNames.UserAgent);
-        const session = sessionBlock(parts);
-        const body = SnippetParts.isBodyless(parts.method) ? null : parts.body;
+    return headers.length === 0
+        ? null
+        : hashtableOf(headers.map(header => [
+            header.name,
+            quote(header.value),
+        ]));
+}
+
+function formValueOf(part: MultipartPart): string {
+    return part.fileName === null ? quote(part.value) : `Get-Item -LiteralPath ${quote(part.fileName)}`;
+}
+
+function bodyParameter(body: SnippetBody): Parameter {
+    switch (body.kind) {
+        case SnippetBodyKind.Text:
+            return [
+                "Body",
+                `[System.Text.Encoding]::UTF8.GetBytes(${textExpression(body.text)})`,
+            ];
+        case SnippetBodyKind.File:
+            return [
+                "InFile",
+                quote(body.fileName),
+            ];
+        case SnippetBodyKind.Multipart:
+            return [
+                "Form",
+                hashtableOf(body.parts.map(part => [
+                    part.name,
+                    formValueOf(part),
+                ])),
+            ];
+        case SnippetBodyKind.None:
+            return [
+                "Body",
+                null,
+            ];
+    }
+}
+
+export class PowerShellSnippet extends RequestSnippetBase {
+    static readonly id = "powershell";
+    static readonly label = "PowerShell";
+
+    static tryParse(_text: string): PowerShellSnippet | null {
+        return null;
+    }
+
+    static from(snapshot: RequestSnapshot, options: SnippetOptions = DefaultSnippetParts): PowerShellSnippet {
+        return new PowerShellSnippet(SnippetRequests.of(snapshot, options));
+    }
+
+    override toString(): string {
+        const request = this.request;
+        const isMultipart = request.body.kind === SnippetBodyKind.Multipart;
+        const contentType = isMultipart ? undefined : SnippetHeaders.find(request.headers, SnippetHeaderNames.ContentType);
+        const userAgent = SnippetHeaders.find(request.headers, SnippetHeaderNames.UserAgent);
+        const session = sessionBlock(request);
+        const body: Parameter = SnippetRequests.isBodyless(request.method)
+            ? [
+                "Body",
+                null,
+            ]
+            : bodyParameter(request.body);
         const parameters: Parameter[] = [
             [
                 "Uri",
-                quote(parts.url),
+                quote(request.url),
             ],
-            methodParameter(parts.method),
+            methodParameter(request.method),
             [
                 "WebSession",
                 session.length === 0 ? null : "$session",
             ],
             [
                 "Headers",
-                headersExpression(parts),
+                headersExpression(request),
             ],
             [
                 "UserAgent",
@@ -140,10 +191,7 @@ export class PowerShellSnippet implements ISnippetGenerator {
                 "ContentType",
                 contentType === undefined ? null : quote(contentType.value),
             ],
-            [
-                "Body",
-                body === null ? null : `[System.Text.Encoding]::UTF8.GetBytes(${textExpression(body)})`,
-            ],
+            body,
             [
                 "UseBasicParsing",
                 "$true",

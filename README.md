@@ -7,20 +7,21 @@ Rewire traffic with ordered rules: mock responses, add latency, send production 
 ## Contents
 
 - [Overview](docs/Overview.md): runtime, layout, architecture, permissions
-- [Traffic](docs/Traffic.md): timeline, waterfall, search, inspector, code snippets, diff
+- [Traffic](docs/Traffic.md): timeline, waterfall, search, inspector, code snippets
 - [Rules](docs/Rules.md): where rules work and their order, wildcards, operations, editor, testers, import and export
 - [Rule catalog](docs/RuleCatalog.md): every rule type and where it works
 - [Cookie Jar](docs/CookieJar.md): HttpOnly and Secure cookies, cookie rules
-- [Client](docs/Client.md): send your own requests and read the answers
+- [Client](docs/Client.md): send your own requests, paste cURL or Wget commands, read the answers
+- [JWT](docs/Jwt.md): decode tokens and check their expiry
 - [Release](docs/Release.md): Chrome Web Store setup and manual upload
 - [Privacy](docs/Privacy.md): what the extension reads and where it stays
 
 ## Quick start
 
-Needs PowerShell 7.2+.
+Needs Windows PowerShell 5.1.
 
 ```powershell
-pwsh -File .\Start-Debug.ps1
+powershell -File .\Start-Debug.ps1
 ```
 
 Installs Node.js and the npm packages when they're missing, then opens Chrome with its own profile, the extension loaded, and a rebuild on every save.  
@@ -33,12 +34,12 @@ The debug profile keeps it.
 ## Test
 
 ```powershell
-pwsh -File .\Invoke-Test.ps1                                # type check, then every test
-pwsh -File .\Invoke-Test.ps1 -Path .\tests\Common\Rules     # one folder
-pwsh -File .\Invoke-Test.ps1 -TestName 'compile_When'       # by name
-pwsh -File .\Invoke-Test.ps1 -Watch                         # rerun on save
-pwsh -File .\Invoke-Test.ps1 -ResultPath .\testResults.xml  # JUnit XML
-pwsh -File .\Invoke-Test.ps1 -InstallOnly                   # only Node.js and the npm packages
+powershell -File .\Invoke-Test.ps1                                # type check, then every test
+powershell -File .\Invoke-Test.ps1 -Path .\tests\Common\Rules     # one folder
+powershell -File .\Invoke-Test.ps1 -TestName 'compile_When'       # by name
+powershell -File .\Invoke-Test.ps1 -Watch                         # rerun on save
+powershell -File .\Invoke-Test.ps1 -ResultPath .\testResults.xml  # JUnit XML
+powershell -File .\Invoke-Test.ps1 -InstallOnly                   # only Node.js and the npm packages
 ```
 
 Makes sure the tools are there first.  
@@ -62,14 +63,14 @@ Exit codes: `0` passed, `1` type errors or failures, `2` no tests discovered, `3
 ## Debug
 
 ```powershell
-pwsh -File .\Start-Debug.ps1
-pwsh -File .\Start-Debug.ps1 -Browser Edge -Url http://localhost:3000
-pwsh -File .\Start-Debug.ps1 -BrowserPath 'C:\Tools\chrome-for-testing\chrome.exe'
-pwsh -File .\Start-Debug.ps1 -NoWatch
+powershell -File .\Start-Debug.ps1
+powershell -File .\Start-Debug.ps1 -Browser Edge -Url http://localhost:3000
+powershell -File .\Start-Debug.ps1 -BrowserPath 'C:\Tools\chrome-for-testing\chrome.exe'
+powershell -File .\Start-Debug.ps1 -NoWatch
 ```
 
 - After a rebuild, press the reload icon on the extension card in `chrome://extensions`.
-- Side panel DevTools: right-click inside the panel, then Inspect.
+- Side panel DevTools: right-click an empty spot of the panel, outside the timeline and inspector, then Inspect.
 - Worker DevTools: the "service worker" link on the extension card.
 - Source maps are on, so breakpoints work in the TypeScript files.
 
@@ -84,8 +85,8 @@ pwsh -File .\Start-Debug.ps1 -NoWatch
 ## Build and package
 
 ```powershell
-pwsh -File .\Publish-Extension.ps1                   # prompts for the new version
-pwsh -File .\Publish-Extension.ps1 -Version 1.0.1    # non-interactive
+powershell -File .\Publish-Extension.ps1                   # prompts for the new version
+powershell -File .\Publish-Extension.ps1 -Version 1.0.1    # non-interactive
 ```
 
 The suite runs first.  
@@ -113,7 +114,7 @@ Upload the zip by hand in the [Developer Dashboard](https://chrome.google.com/we
 Zips every file git would commit, under one `Rewire` folder, and replaces the previous zip.  
 Deletes nothing.  
 Without git, it leaves out the same folders by name.  
-Runs on Windows PowerShell 5.1 too, so a double-click from Explorer works.
+Like every script here, it runs on Windows PowerShell 5.1, so a double-click from Explorer works.
 
 ## License
 

@@ -1,29 +1,28 @@
-import { DomainList } from "../../../Common/Urls/DomainList";
 import type { ContentFilterId } from "../../Core/ContentFilterId";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { InputSync } from "../../Core/Dom/InputSync";
 import { Equalities } from "../../Core/Equalities";
 import { TrafficLayout } from "../../Core/TrafficLayout";
 import type { PanelContext } from "../Shell/PanelContext";
 import { ContentFilters } from "./ContentFilters";
 import { VisibleEntries } from "./VisibleEntries";
 
+const LayoutLabels: Record<TrafficLayout, string> = {
+    [TrafficLayout.List]: "List",
+    [TrafficLayout.Waterfall]: "Waterfall",
+};
+
+function toolbarRow(children: HTMLElement[]): HTMLElement {
+    return buildElement("div", {
+        className: "traffic-toolbar-row",
+        children,
+    });
+}
+
 export class TrafficToolbar {
     readonly root: HTMLElement;
 
     constructor(context: PanelContext) {
-        const domainInput = FormControls.textInput({
-            value: DomainList.format(context.settingsService.current().domainWhitelist),
-            placeholder: "Only these domains, e.g. api.example.com",
-            className: "input domain-filter",
-            onChange: value => void context.settingsService.update(settings => ({
-                ...settings,
-                domainWhitelist: DomainList.parse(value),
-            })),
-        });
-        domainInput.title = "Comma separated. Subdomains match too. Empty keeps every domain.";
-
         const filterButtons = ContentFilters.map(filter => ({
             filter,
             button: buildElement("button", {
@@ -44,53 +43,50 @@ export class TrafficToolbar {
         const count = buildElement("span", {
             className: "entry-count",
         });
-        const layoutSelect = FormControls.select({
-            value: String(context.store.getState().trafficLayout),
-            options: [
-                {
-                    value: String(TrafficLayout.List),
-                    label: "List",
-                },
-                {
-                    value: String(TrafficLayout.Waterfall),
-                    label: "Waterfall",
-                },
-            ],
-            className: "input layout-select",
-            onChange: value => context.store.update(state => ({
+        const layoutSwitch = FormControls.toggleSwitch({
+            checked: context.store.getState().trafficLayout === TrafficLayout.Waterfall,
+            label: LayoutLabels[context.store.getState().trafficLayout],
+            onChange: checked => context.store.update(state => ({
                 ...state,
-                trafficLayout: Number(value) as TrafficLayout,
+                trafficLayout: checked ? TrafficLayout.Waterfall : TrafficLayout.List,
             })),
         });
-        layoutSelect.setAttribute("aria-label", "Layout");
+        const layoutInput = layoutSwitch.querySelector("input")!;
+        const layoutLabel = layoutSwitch.querySelector("span")!;
+        layoutInput.setAttribute("aria-label", "Waterfall layout");
 
         this.root = buildElement("div", {
             className: "traffic-toolbar",
             children: [
-                domainInput,
-                buildElement("div", {
-                    className: "chip-group",
-                    attributes: {
-                        role: "group",
-                        "aria-label": "Content filter",
-                    },
-                    children: filterButtons.map(item => item.button),
-                }),
-                count,
-                layoutSelect,
-                FormControls.button({
-                    text: "Clear",
-                    variant: ButtonVariants.Ghost,
-                    title: "Clear the timeline of this tab",
-                    onClick: () => void context.timelineSync.clear(),
-                }),
+                toolbarRow([
+                    buildElement("div", {
+                        className: "chip-group",
+                        attributes: {
+                            role: "group",
+                            "aria-label": "Content filter",
+                        },
+                        children: filterButtons.map(item => item.button),
+                    }),
+                    count,
+                ]),
+                toolbarRow([
+                    layoutSwitch,
+                    FormControls.button({
+                        text: "Clear",
+                        variant: ButtonVariants.Ghost,
+                        title: "Clear the timeline of this tab",
+                        onClick: () => void context.timelineSync.clear(),
+                    }),
+                ]),
             ],
         });
 
         context.store.select(
-            state => state.settings.domainWhitelist,
-            whitelist => InputSync.setValue(domainInput, DomainList.format(whitelist)),
-            Equalities.shallowArray
+            state => state.trafficLayout,
+            layout => {
+                layoutInput.checked = layout === TrafficLayout.Waterfall;
+                layoutLabel.textContent = LayoutLabels[layout];
+            }
         );
 
         context.store.select(
@@ -101,7 +97,6 @@ export class TrafficToolbar {
         context.store.select(
             state => [
                 state.entries,
-                state.settings.domainWhitelist,
                 state.contentFilter,
             ],
             () => {

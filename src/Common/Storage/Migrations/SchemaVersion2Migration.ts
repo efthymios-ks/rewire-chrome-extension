@@ -188,7 +188,6 @@ const TypeMigrations: Record<string, TypeMigration> = {
             contentType: "",
             headers: [],
             body: "",
-            baselineBody: "",
         },
     }),
     [RuleTypeIds.RequestHeader]: rule => ({

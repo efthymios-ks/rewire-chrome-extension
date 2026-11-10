@@ -48,7 +48,6 @@ describe("MockResponseRule", () => {
                 },
             ],
             body: "{\"id\":{{userId}}}",
-            baselineBody: "",
         };
 
         // Act

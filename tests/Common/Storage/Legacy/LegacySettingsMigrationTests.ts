@@ -14,7 +14,6 @@ function anInterception(overrides: Partial<LegacyInterceptionRule> = {}): Legacy
         statusCodeOverride: 201,
         mockContentType: "application/json",
         mockBody: "{\"id\":42}",
-        baselineBody: "{\"id\":41}",
         delayInMilliseconds: 300,
         ...overrides,
     };
@@ -52,7 +51,6 @@ describe("LegacySettingsMigration", () => {
             status: 201,
             overrideBody: true,
             body: "{\"id\":42}",
-            baselineBody: "{\"id\":41}",
         });
         expect(rules[1]?.criteria.items.map(item => item.field)).toEqual([
             CriterionFieldIds.Method,

@@ -11,6 +11,7 @@ import type { PanelTheme } from "./PanelTheme";
 import type { RuleEditRequest } from "./RuleEditRequest";
 import type { TrafficLayout } from "./TrafficLayout";
 import type { TrafficSearchState } from "./TrafficSearchState";
+import type { ClientLaunchRequest, JwtLaunchRequest } from "./ViewLaunchRequests";
 import type { ViewId } from "./ViewId";
 
 export interface PanelState {
@@ -19,6 +20,7 @@ export interface PanelState {
     inspection: InspectionStatus;
     entries: TimelineEntrySummary[];
     selectedEntryId: string | null;
+    selectionCount: number;
     selectedEntryDetail: TimelineEntryDetail | null;
     detailVersion: number;
     detailError: string | null;
@@ -30,6 +32,8 @@ export interface PanelState {
     ruleSyncReport: RuleSyncReport | null;
     ruleHits: Record<string, number>;
     ruleEditRequest: RuleEditRequest | null;
+    clientLaunch: ClientLaunchRequest | null;
+    jwtLaunch: JwtLaunchRequest | null;
     notice: Notice | null;
     theme: PanelTheme;
 }

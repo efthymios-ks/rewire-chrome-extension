@@ -1,10 +1,11 @@
+import { ContextMenu } from "../../Core/Dom/ContextMenu";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { EmptyState } from "../../Core/Dom/EmptyState";
 import { RenderScheduler } from "../../Core/Dom/RenderScheduler";
 import type { PanelState } from "../../Core/PanelState";
 import type { PanelContext } from "../Shell/PanelContext";
+import { EntryContextMenu } from "../Traffic/EntryContextMenu";
 import { CodeTab } from "./CodeTab";
-import { DiffTab } from "./DiffTab";
 import type { IInspectorTab } from "./IInspectorTab";
 import { OverviewTab } from "./OverviewTab";
 
@@ -18,14 +19,16 @@ export class InspectorPanel {
     private readonly _tabButtons: HTMLButtonElement[];
     private readonly _body: HTMLElement;
     private readonly _scheduler = new RenderScheduler(() => this.render());
+    private readonly _contextMenu = new ContextMenu();
+    private readonly _entryMenu: EntryContextMenu;
     private _renderedKey = "";
 
     constructor(context: PanelContext) {
         this._context = context;
+        this._entryMenu = new EntryContextMenu(context);
         this._tabs = [
             new OverviewTab(context),
             new CodeTab(context),
-            new DiffTab(),
         ];
         this._tabButtons = this._tabs.map(tab => buildElement("button", {
             className: "tab",
@@ -61,9 +64,28 @@ export class InspectorPanel {
             ],
         });
 
+        this.root.addEventListener("contextmenu", event => this.onContextMenu(event));
+
         context.store.select(
             state => state,
             () => this._scheduler.schedule()
+        );
+    }
+
+    private onContextMenu(event: MouseEvent): void {
+        const state = this._context.store.getState();
+        const summary = state.selectedEntryDetail?.summary ?? state.entries.find(entry => entry.id === state.selectedEntryId);
+        const isEditable = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+        const hasSelection = (window.getSelection()?.toString() ?? "") !== "";
+        if (summary === undefined || isEditable || hasSelection) {
+            return;
+        }
+
+        event.preventDefault();
+        this._contextMenu.open(
+            this._entryMenu.itemsFor(summary),
+            event.clientX,
+            event.clientY
         );
     }
 

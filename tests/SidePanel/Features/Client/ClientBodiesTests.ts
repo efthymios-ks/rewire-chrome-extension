@@ -1,0 +1,260 @@
+import { describe, expect, test } from "vitest";
+import { ClientBodies } from "../../../../src/SidePanel/Features/Client/ClientBodies";
+import { type ClientBody, ClientBodyType } from "../../../../src/SidePanel/Features/Client/ClientRequest";
+
+function aBody(type: ClientBodyType, changes: Partial<ClientBody> = {}): ClientBody {
+    return {
+        ...ClientBodies.empty(),
+        type,
+        ...changes,
+    };
+}
+
+const PhotoFile = new File(
+    ["png-bytes"],
+    "photo.png",
+    {
+        type: "image/png",
+    }
+);
+const UntypedFile = new File(["raw"], "payload.bin");
+
+describe("ClientBodies", () => {
+    test.each([
+        [
+            ClientBodyType.None,
+            null,
+        ],
+        [
+            ClientBodyType.Text,
+            "text/plain",
+        ],
+        [
+            ClientBodyType.Json,
+            "application/json",
+        ],
+        [
+            ClientBodyType.Xml,
+            "application/xml",
+        ],
+        [
+            ClientBodyType.FormUrlEncoded,
+            "application/x-www-form-urlencoded",
+        ],
+        [
+            ClientBodyType.Multipart,
+            null,
+        ],
+        [
+            ClientBodyType.GraphQl,
+            "application/json",
+        ],
+    ])("contentTypeOf_WhenTheTypeIs(%s)_ShouldReturn(%s)", (type, expected) => {
+        // Arrange
+        const body = aBody(type);
+
+        // Act
+        const contentType = ClientBodies.contentTypeOf(body);
+
+        // Assert
+        expect(contentType).toBe(expected);
+    });
+
+    test.each([
+        [
+            PhotoFile,
+            "image/png",
+        ],
+        [
+            UntypedFile,
+            "application/octet-stream",
+        ],
+        [
+            null,
+            null,
+        ],
+    ])("contentTypeOf_WhenABinaryBodyHoldsFile(%s)_ShouldReturn(%s)", (file, expected) => {
+        // Arrange
+        const body = aBody(ClientBodyType.Binary, {
+            file,
+        });
+
+        // Act
+        const contentType = ClientBodies.contentTypeOf(body);
+
+        // Assert
+        expect(contentType).toBe(expected);
+    });
+
+    test("withContentType_WhenTheUserSetOne_ShouldKeepTheirs", () => {
+        // Arrange
+        const headers = [
+            {
+                name: "content-type",
+                value: "application/vnd.api+json",
+            },
+        ];
+
+        // Act
+        const sent = ClientBodies.withContentType(headers, aBody(ClientBodyType.Json));
+
+        // Assert
+        expect(sent).toEqual(headers);
+    });
+
+    test("withContentType_WhenNoneIsSet_ShouldAddTheBodyTypeAndDropBlankRows", () => {
+        // Arrange
+        const headers = [
+            {
+                name: "",
+                value: "",
+            },
+            {
+                name: "Accept",
+                value: "*/*",
+            },
+        ];
+
+        // Act
+        const sent = ClientBodies.withContentType(headers, aBody(ClientBodyType.Xml));
+
+        // Assert
+        expect(sent).toEqual([
+            {
+                name: "Accept",
+                value: "*/*",
+            },
+            {
+                name: "Content-Type",
+                value: "application/xml",
+            },
+        ]);
+    });
+
+    test("fetchBodyOf_WhenTheBodyIsAForm_ShouldEncodeTheNamedRows", () => {
+        // Arrange
+        const body = aBody(ClientBodyType.FormUrlEncoded, {
+            formRows: [
+                {
+                    name: "q",
+                    value: "ada lovelace",
+                },
+                {
+                    name: "",
+                    value: "ignored",
+                },
+            ],
+        });
+
+        // Act
+        const sent = ClientBodies.fetchBodyOf(body);
+
+        // Assert
+        expect(String(sent)).toBe("q=ada+lovelace");
+    });
+
+    test("fetchBodyOf_WhenTheBodyIsMultipart_ShouldSendTextAndPickedFiles", () => {
+        // Arrange
+        const body = aBody(ClientBodyType.Multipart, {
+            multipartRows: [
+                {
+                    name: "title",
+                    value: "Hello",
+                    isFile: false,
+                    file: null,
+                    fileName: "",
+                },
+                {
+                    name: "avatar",
+                    value: "",
+                    isFile: true,
+                    file: PhotoFile,
+                    fileName: "photo.png",
+                },
+                {
+                    name: "missing",
+                    value: "",
+                    isFile: true,
+                    file: null,
+                    fileName: "later.png",
+                },
+            ],
+        });
+
+        // Act
+        const sent = ClientBodies.fetchBodyOf(body) as FormData;
+
+        // Assert
+        expect(sent.get("title")).toBe("Hello");
+        expect((sent.get("avatar") as File).name).toBe("photo.png");
+        expect(sent.has("missing")).toBe(false);
+    });
+
+    test("fetchBodyOf_WhenTheBodyIsGraphQl_ShouldWrapTheQueryInJson", () => {
+        // Arrange
+        const body = aBody(ClientBodyType.GraphQl, {
+            graphQlQuery: "{ users { id } }",
+        });
+
+        // Act
+        const sent = ClientBodies.fetchBodyOf(body);
+
+        // Assert
+        expect(sent).toBe("{\"query\":\"{ users { id } }\"}");
+    });
+
+    test.each([
+        [
+            aBody(ClientBodyType.Binary, {
+                file: PhotoFile,
+            }),
+            "photo.png (9 bytes)",
+        ],
+        [
+            aBody(ClientBodyType.Multipart, {
+                multipartRows: [
+                    {
+                        name: "title",
+                        value: "Hello",
+                        isFile: false,
+                        file: null,
+                        fileName: "",
+                    },
+                    {
+                        name: "avatar",
+                        value: "",
+                        isFile: true,
+                        file: PhotoFile,
+                        fileName: "photo.png",
+                    },
+                ],
+            }),
+            "title: Hello\navatar: photo.png (9 bytes)",
+        ],
+    ])("logTextOf_WhenTheBodyHoldsFiles(%#)_ShouldLogNamesAndSizesInsteadOfContents", (body, expected) => {
+        // Arrange
+        const sent = body;
+
+        // Act
+        const text = ClientBodies.logTextOf(sent);
+
+        // Assert
+        expect(text).toBe(expected);
+    });
+
+    test.each([
+        "GET",
+        "head",
+    ])("sentWith_WhenTheMethodIs(%s)_ShouldSendNoBody", method => {
+        // Arrange
+        const body = aBody(ClientBodyType.Json, {
+            text: "{}",
+        });
+
+        // Act
+        const sent = ClientBodies.sentWith(method, body);
+
+        // Assert
+        expect(sent.type).toBe(ClientBodyType.None);
+    });
+});

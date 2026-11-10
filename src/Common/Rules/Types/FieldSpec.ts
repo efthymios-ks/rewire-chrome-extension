@@ -28,6 +28,7 @@ export interface FieldSpec {
     placeholder?: string;
     nameLabel?: string;
     nameSuggestions?: readonly string[];
+    valueSuggestionsFor?: (name: string) => readonly string[];
     options?: SelectOption[];
     rows?: number;
     min?: number;

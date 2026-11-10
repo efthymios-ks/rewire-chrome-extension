@@ -1,7 +1,6 @@
 import { type Criterion, CriterionFieldIds, CriterionOperatorIds } from "../../../Contracts/Rules/Criterion";
-import { CommonHeaderNames } from "../../../Contracts/Http/CommonHeaderNames";
-import { CommonMediaTypes } from "../../../Contracts/Http/CommonMediaTypes";
 import { HeaderNames } from "../../../Contracts/Http/HeaderNames";
+import { HeaderSuggestions } from "../../Http/HeaderSuggestions";
 import { DomainList } from "../../Urls/DomainList";
 import { RegexText } from "../../Urls/RegexText";
 import { SafeUrl } from "../../Urls/SafeUrl";
@@ -245,7 +244,8 @@ export const CriterionFields: ICriterionField[] = [
             CriterionOperatorIds.Regex,
         ],
         needsName: true,
-        nameSuggestions: CommonHeaderNames,
+        nameSuggestions: HeaderSuggestions.names(),
+        valueSuggestionsFor: HeaderSuggestions.valuesFor,
         valuePlaceholder: "value",
         read: (facts, criterion) => HeaderList.values(facts.request.headers, criterion.name),
         toDnr: inspectedTabOnly("Request header conditions work on the inspected tab only."),
@@ -304,7 +304,8 @@ export const CriterionFields: ICriterionField[] = [
             CriterionOperatorIds.Regex,
         ],
         needsName: true,
-        nameSuggestions: CommonHeaderNames,
+        nameSuggestions: HeaderSuggestions.names(),
+        valueSuggestionsFor: HeaderSuggestions.valuesFor,
         valuePlaceholder: "value",
         read: (facts, criterion) => facts.response === null ? [] : HeaderList.values(facts.response.headers, criterion.name),
         toDnr: inspectedTabOnly("Response header conditions work on the inspected tab only."),
@@ -319,7 +320,7 @@ export const CriterionFields: ICriterionField[] = [
         ],
         needsName: false,
         valuePlaceholder: "*json*",
-        valueSuggestions: CommonMediaTypes,
+        valueSuggestions: HeaderSuggestions.mediaTypes(),
         read: facts => {
             const contentType = facts.response === null ? null : HeaderList.first(facts.response.headers, HeaderNames.ContentType);
 

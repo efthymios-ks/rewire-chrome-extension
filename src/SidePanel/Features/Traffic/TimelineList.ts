@@ -5,7 +5,7 @@ import { EmptyState } from "../../Core/Dom/EmptyState";
 import { RenderScheduler } from "../../Core/Dom/RenderScheduler";
 import { Equalities } from "../../Core/Equalities";
 import type { PanelContext } from "../Shell/PanelContext";
-import { EntryCodeCopier } from "./EntryCodeCopier";
+import { EntryContextMenu } from "./EntryContextMenu";
 import { EntrySelection } from "./EntrySelection";
 import { TimelineRow } from "./TimelineRow";
 import { VisibleEntries } from "./VisibleEntries";
@@ -25,11 +25,11 @@ export class TimelineList {
     private readonly _rows = new Map<string, RenderedRow>();
     private readonly _scheduler = new RenderScheduler(() => this.render());
     private readonly _contextMenu = new ContextMenu();
-    private readonly _codeCopier: EntryCodeCopier;
+    private readonly _entryMenu: EntryContextMenu;
 
     constructor(context: PanelContext) {
         this._context = context;
-        this._codeCopier = new EntryCodeCopier(context);
+        this._entryMenu = new EntryContextMenu(context);
         this._list = buildElement("ul", {
             className: "timeline-list",
             attributes: {
@@ -49,7 +49,6 @@ export class TimelineList {
         context.store.select(
             state => [
                 state.entries,
-                state.settings.domainWhitelist,
                 state.settings.pinnedEndpoints,
                 state.contentFilter,
                 state.selectedEntryId,
@@ -103,7 +102,7 @@ export class TimelineList {
                     x,
                     y
                 ) => this._contextMenu.open(
-                    this._codeCopier.menuFor(selected),
+                    this._entryMenu.itemsFor(selected),
                     x,
                     y
                 ),

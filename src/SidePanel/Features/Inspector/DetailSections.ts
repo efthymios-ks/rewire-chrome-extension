@@ -14,10 +14,43 @@ import { TextHighlighter } from "./TextHighlighter";
 const NoneText = "(none)";
 const ChangedClass = "changed";
 
+export interface DefinitionAction {
+    label: string;
+    icon: string;
+    run: () => void;
+}
+
 export interface DefinitionItem {
     term: string;
     value: string;
     change?: ValueChange | undefined;
+    action?: DefinitionAction | undefined;
+}
+
+export type HeaderActionOf = (header: HeaderEntry) => DefinitionAction | undefined;
+
+function valueChildren(item: DefinitionItem): ElementChild[] {
+    if (item.action === undefined) {
+        return [item.value];
+    }
+
+    const action = item.action;
+
+    return [
+        item.value,
+        buildElement("button", {
+            className: "icon-button detail-action",
+            text: action.icon,
+            attributes: {
+                type: "button",
+                title: action.label,
+                "aria-label": action.label,
+            },
+            listeners: {
+                click: () => action.run(),
+            },
+        }),
+    ];
 }
 
 function changeTitle(change: ValueChange): string {
@@ -138,7 +171,7 @@ export const DetailSections = {
                         }),
                         buildElement("dd", {
                             className,
-                            text: item.value,
+                            children: valueChildren(item),
                             title,
                         }),
                     ];
@@ -149,7 +182,8 @@ export const DetailSections = {
     headers(
         headers: HeaderEntry[],
         changes: ValueChange[],
-        area: ChangeArea
+        area: ChangeArea,
+        actionOf: HeaderActionOf = () => undefined
     ): HTMLElement {
         const items = [
             ...headers.map(header => ({
@@ -160,6 +194,7 @@ export const DetailSections = {
                     area,
                     header.name
                 ),
+                action: actionOf(header),
             })),
             ...removedHeaders(
                 changes,

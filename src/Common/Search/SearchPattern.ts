@@ -3,19 +3,17 @@ import { ErrorText } from "../Errors/ErrorText";
 import { Result } from "../Results/Result";
 import { RegexText } from "../Urls/RegexText";
 
-const GlobalFlag = "g";
-const IgnoreCaseFlag = "i";
+const Flags = "gi";
 
 export const SearchPattern = {
-    create(query: Pick<SearchQuery, "text" | "isCaseSensitive" | "isRegex">): Result<RegExp | null> {
+    create(query: Pick<SearchQuery, "text" | "isRegex">): Result<RegExp | null> {
         if (query.text.length === 0) {
             return Result.ok(null);
         }
 
         const source = query.isRegex ? query.text : RegexText.escape(query.text);
-        const flags = query.isCaseSensitive ? GlobalFlag : `${GlobalFlag}${IgnoreCaseFlag}`;
         try {
-            return Result.ok(new RegExp(source, flags));
+            return Result.ok(new RegExp(source, Flags));
         } catch (error) {
             return Result.fail(`Invalid pattern: ${ErrorText.of(error)}`);
         }

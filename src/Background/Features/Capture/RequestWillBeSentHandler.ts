@@ -99,7 +99,7 @@ export class RequestWillBeSentHandler implements ICdpEventHandler<"Network.reque
             return;
         }
 
-        const decision = captureFilter.decide(event.request.url, event.type);
+        const decision = captureFilter.decide(event.type);
         if (decision === CaptureDecision.CaptureWhenResponseIsData) {
             pendingDocuments.hold(recordFactory.create(tabId, event));
 
