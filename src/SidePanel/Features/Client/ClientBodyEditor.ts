@@ -212,7 +212,7 @@ export class ClientBodyEditor {
                 value: this._body.graphQlQuery,
                 rows: EditorRows,
                 className: "input code-input",
-                placeholder: "query { users { id name } }",
+                placeholder: "query { users { id } }",
                 onInput: value => {
                     this._body.graphQlQuery = value;
                 },

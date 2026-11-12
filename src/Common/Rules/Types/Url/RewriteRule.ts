@@ -34,7 +34,7 @@ export class RewriteRule extends RuleTypeBase<RewriteAction> {
             kind: FieldKind.Text,
             key: "target",
             label: TargetLabel,
-            placeholder: "http://localhost:5000/users/$1",
+            placeholder: "http://localhost:5000/$1",
             hint: "$1 to $9 insert the groups of a URL condition that matches a regex. Can use {{variables}}.",
         },
     ];

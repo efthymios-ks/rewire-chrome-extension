@@ -1,8 +1,11 @@
+import { ActiveProfile } from "../../../Common/Profiles/ActiveProfile";
+import { ProfileVariables } from "../../../Common/Profiles/ProfileVariables";
 import { InMemoryRuleContext } from "../../../Common/Rules/Context/InMemoryRuleContext";
 import type { RuleContext } from "../../../Common/Rules/Context/RuleContext";
 import { RuleEnginePlanner } from "../../../Common/Rules/Engine/RuleEnginePlanner";
 import { type PipelineEntry, PipelineEntries } from "../../../Common/Rules/Engine/RulePipeline";
 import type { RulePlan } from "../../../Common/Rules/Engine/RulePlan";
+import type { ProfileVariable } from "../../../Contracts/Settings/ProfileVariable";
 import type { ISettingsCache } from "../Settings/ISettingsCache";
 import type { IVariableStore } from "./VariableStore";
 import { WorkerRuleContext } from "./WorkerRuleContext";
@@ -30,19 +33,18 @@ export class ActiveRules implements IActiveRules {
     constructor(settingsCache: ISettingsCache, variables: IVariableStore) {
         this._settingsCache = settingsCache;
         this._variables = variables;
-        this._context = new WorkerRuleContext(variables);
+        this._context = new WorkerRuleContext(variables, name => ProfileVariables.valueOf(this.typedVariables(), name));
 
         variables.subscribe(() => {
-            if (JSON.stringify(this._settingsCache.current().rules).includes(VariableMarker)) {
+            if (JSON.stringify(ActiveProfile.rules(this._settingsCache.current())).includes(VariableMarker)) {
                 this.refresh();
             }
         });
     }
 
     refresh(): void {
-        const rules = this._settingsCache
-            .current()
-            .rules
+        const rules = ActiveProfile
+            .rules(this._settingsCache.current())
             .filter(rule => rule.enabled);
         this._plans = RuleEnginePlanner.planAll(rules, this._context);
         this._listeners.forEach(listener => listener());
@@ -61,7 +63,10 @@ export class ActiveRules implements IActiveRules {
     }
 
     simulationContext(): RuleContext {
-        return new InMemoryRuleContext(this._variables.snapshot());
+        return new InMemoryRuleContext(new Map([
+            ...ProfileVariables.mapOf(this.typedVariables()),
+            ...this._variables.snapshot(),
+        ]));
     }
 
     debuggerEntries(): PipelineEntry[] {
@@ -78,5 +83,9 @@ export class ActiveRules implements IActiveRules {
 
     subscribe(listener: () => void): void {
         this._listeners.push(listener);
+    }
+
+    private typedVariables(): ProfileVariable[] {
+        return ActiveProfile.variables(this._settingsCache.current());
     }
 }

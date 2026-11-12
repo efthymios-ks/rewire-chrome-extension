@@ -28,11 +28,11 @@ export class Store<TState> {
         selector: (state: TState) => TSlice,
         listener: (slice: TSlice) => void,
         isEqual: Equality<TSlice> = Object.is
-    ): void {
+    ): () => void {
         let current = selector(this._state);
         listener(current);
 
-        this._listeners.add(state => {
+        const stateListener: StateListener<TState> = state => {
             const next = selector(state);
             if (isEqual(current, next)) {
                 return;
@@ -40,6 +40,11 @@ export class Store<TState> {
 
             current = next;
             listener(next);
-        });
+        };
+        this._listeners.add(stateListener);
+
+        return () => {
+            this._listeners.delete(stateListener);
+        };
     }
 }

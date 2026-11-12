@@ -56,7 +56,7 @@ export class TrafficSearchBar {
 
         const input = FormControls.textInput({
             value: current().text,
-            placeholder: "Search URLs, headers and bodies",
+            placeholder: "Search URLs, headers, bodies",
             className: "input traffic-search",
             onInput: text => update({
                 text,

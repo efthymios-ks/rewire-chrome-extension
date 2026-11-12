@@ -4,8 +4,12 @@ import { RuleTypeRegistry } from "../../../Common/Rules/Types/RuleTypeRegistry";
 import type { Rule } from "../../../Contracts/Rules/Rule";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import type { ISlidePanel } from "../../Core/Dom/ISlidePanel";
 import { FileClient } from "../../Core/FileClient";
 import type { RuleEditRequest } from "../../Core/RuleEditRequest";
+import { ProfilesPanel } from "../Profiles/ProfilesPanel";
+import { ProfileTransferPanel } from "../Profiles/Transfer/ProfileTransferPanel";
+import { VariablesPanel } from "../Profiles/Variables/VariablesPanel";
 import type { PanelContext } from "../Shell/PanelContext";
 import { RuleCatalog } from "./Editor/RuleCatalog";
 import { RuleEditor } from "./Editor/RuleEditor";
@@ -15,7 +19,6 @@ import type { RuleFilter } from "./RuleFilter";
 import { RuleList } from "./RuleList";
 import { RuleScopes } from "./RuleScopes";
 import { RuleTesterPanel } from "./Tester/RuleTesterPanel";
-import { TransferPanel } from "./Transfer/TransferPanel";
 
 export class RulesView {
     readonly root: HTMLElement;
@@ -50,7 +53,7 @@ export class RulesView {
     private toolbar(): HTMLElement {
         const search = FormControls.textInput({
             value: "",
-            placeholder: "Search rules by name",
+            placeholder: "Search by name",
             className: "input rule-search",
             onInput: text => this.setFilter({
                 text,
@@ -81,17 +84,45 @@ export class RulesView {
                             title: "Run a sample request through every enabled rule",
                             onClick: () => this.openGlobalTester(),
                         }),
-                        FormControls.button({
-                            text: "Import / export",
-                            variant: ButtonVariants.Ghost,
-                            onClick: () => this._slideOver.push({
-                                title: "Import / export",
-                                content: new TransferPanel(this._context, this._fileClient).root,
-                            }),
-                        }),
+                        this.slideButton(
+                            "Profiles",
+                            "Create, rename, duplicate or remove profiles",
+                            () => new ProfilesPanel(this._context)
+                        ),
+                        this.slideButton(
+                            "Variables",
+                            "Type {{name}} values for the active profile",
+                            () => new VariablesPanel(this._context)
+                        ),
+                        this.slideButton(
+                            "Import / export",
+                            "Save profiles to a JSON file or load them from one",
+                            () => new ProfileTransferPanel(this._context, this._fileClient)
+                        ),
                     ],
                 }),
             ],
+        });
+    }
+
+    private slideButton(
+        text: string,
+        title: string,
+        create: () => ISlidePanel
+    ): HTMLButtonElement {
+        return FormControls.button({
+            text,
+            variant: ButtonVariants.Ghost,
+            title,
+            onClick: () => {
+                const panel = create();
+                this._slideOver.closeAll();
+                this._slideOver.push({
+                    title: text,
+                    content: panel.root,
+                    onClose: () => panel.dispose(),
+                });
+            },
         });
     }
 
@@ -123,7 +154,7 @@ export class RulesView {
                 input => RuleTester.testAll(
                     RuleScopes.plansOf(settingsService.current()),
                     input,
-                    RuleScopes.contextOf()
+                    RuleScopes.contextOf(settingsService.current())
                 )
             ).root,
         });

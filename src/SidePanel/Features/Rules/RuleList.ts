@@ -1,3 +1,4 @@
+import { ActiveProfile } from "../../../Common/Profiles/ActiveProfile";
 import { RuleTypeRegistry } from "../../../Common/Rules/Types/RuleTypeRegistry";
 import type { Rule } from "../../../Contracts/Rules/Rule";
 import { ConfirmDialog } from "../../Core/Dom/ConfirmDialog";
@@ -40,7 +41,7 @@ export class RuleList {
 
         context.store.select(
             state => [
-                state.settings.rules,
+                ActiveProfile.rules(state.settings),
                 state.ruleHits,
             ],
             () => this._scheduler.schedule(),
@@ -56,9 +57,9 @@ export class RuleList {
     private render(): void {
         const { settingsService, store, ruleEditor } = this._context;
         const state = store.getState();
-        const settings = state.settings;
-        const visible = RuleFilters.apply(settings.rules, this._filter);
-        const indexOf = (rule: Rule): number => settings.rules.findIndex(candidate => candidate.id === rule.id);
+        const rules = ActiveProfile.rules(state.settings);
+        const visible = RuleFilters.apply(rules, this._filter);
+        const indexOf = (rule: Rule): number => rules.findIndex(candidate => candidate.id === rule.id);
 
         this._list.replaceChildren(...visible.map(rule => RuleRow.build(
             {

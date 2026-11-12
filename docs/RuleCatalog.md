@@ -106,5 +106,5 @@ Preflight `OPTIONS` requests skip **Latency**, so CORS checks still pass in time
 | JSONPath | `$`, `.name`, `['name']`, `[0]`, `[-1]` from the end, `.length` of an array or text                                    | `$.items[0].id`                |
 | XPath    | `/` child, `//` any depth, `*`, `[1]` (`[-1]` is the last), `[@name='value']`, `@name`, `text()`; the first match wins | `//item[@kind='primary']/@sku` |
 
-Variables live until the browser restarts.  
+Captured values live until the browser restarts, and win over the ones typed in [Variables](Rules.md#variables).  
 All-tabs rules that use a variable resync when it changes.

@@ -5,6 +5,7 @@ import type { Rule } from "../../../../Contracts/Rules/Rule";
 import { buildElement } from "../../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
 import type { IFileClient } from "../../../Core/FileClient";
+import type { SettingsService } from "../../../Core/SettingsService";
 import type { PanelContext } from "../../Shell/PanelContext";
 import { RuleScopes, ScopeAppearances } from "../RuleScopes";
 import { RuleTesterPanel } from "../Tester/RuleTesterPanel";
@@ -36,6 +37,7 @@ function section(title: string, ...children: HTMLElement[]): HTMLElement {
 export class RuleEditor {
     readonly root: HTMLElement;
 
+    private readonly _settingsService: SettingsService;
     private readonly _scope: HTMLElement;
     private readonly _errors: HTMLElement;
     private readonly _tester: RuleTesterPanel;
@@ -44,6 +46,7 @@ export class RuleEditor {
 
     constructor(args: RuleEditorArguments) {
         this._draft = structuredClone(args.rule);
+        this._settingsService = args.context.settingsService;
         this._scope = buildElement("p", {
             className: "editor-scope",
         });
@@ -56,7 +59,7 @@ export class RuleEditor {
             input => RuleTester.testRule(
                 this.plan(),
                 input,
-                RuleScopes.contextOf()
+                RuleScopes.contextOf(this._settingsService.current())
             )
         );
         this._saveButton = FormControls.button({
@@ -145,10 +148,13 @@ export class RuleEditor {
     }
 
     private plan(): RulePlan {
-        return RuleScopes.planOf({
-            ...this._draft,
-            enabled: true,
-        });
+        return RuleScopes.planOf(
+            {
+                ...this._draft,
+                enabled: true,
+            },
+            RuleScopes.contextOf(this._settingsService.current())
+        );
     }
 
     private refresh(): void {

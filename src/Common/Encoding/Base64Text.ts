@@ -2,7 +2,10 @@ const ByteChunkSize = 0x8000;
 
 export const Base64Text = {
     fromUtf8(text: string): string {
-        const bytes = new TextEncoder().encode(text);
+        return Base64Text.fromBytes(new TextEncoder().encode(text));
+    },
+
+    fromBytes(bytes: Uint8Array): string {
         let binary = "";
         for (let offset = 0; offset < bytes.length; offset += ByteChunkSize) {
             binary += String.fromCharCode(...bytes.subarray(offset, offset + ByteChunkSize));

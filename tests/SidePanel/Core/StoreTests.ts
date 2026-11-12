@@ -78,4 +78,26 @@ describe("Store", () => {
         // Assert
         expect(listener).toHaveBeenCalledTimes(1);
     });
+    test("select_WhenUnsubscribed_ShouldStopNotifying", () => {
+        // Arrange
+        const store = new Store<CounterState>({
+            count: 0,
+            label: "a",
+        });
+        const listener = vi.fn();
+        const unsubscribe = store.select(
+            state => state.count,
+            listener
+        );
+        unsubscribe();
+
+        // Act
+        store.update(state => ({
+            ...state,
+            count: 1,
+        }));
+
+        // Assert
+        expect(listener.mock.calls).toEqual([[0]]);
+    });
 });

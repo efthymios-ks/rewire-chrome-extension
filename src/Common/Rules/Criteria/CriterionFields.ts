@@ -114,7 +114,7 @@ export const CriterionFields: ICriterionField[] = [
             CriterionOperatorIds.Wildcard,
         ],
         needsName: false,
-        valuePlaceholder: "api.example.com, auth.example.com",
+        valuePlaceholder: "api.example.com",
         read: facts => {
             const hostname = urlOf(facts.request.url)?.hostname;
 
@@ -187,7 +187,7 @@ export const CriterionFields: ICriterionField[] = [
         stage: CriterionStage.Request,
         operators: [CriterionOperatorIds.OneOf],
         needsName: false,
-        valuePlaceholder: "js, css, json",
+        valuePlaceholder: "js, css",
         read: facts => {
             const extension = ExtensionPattern.exec(urlOf(facts.request.url)?.pathname ?? "")?.[1];
 
@@ -290,7 +290,7 @@ export const CriterionFields: ICriterionField[] = [
         stage: CriterionStage.Response,
         operators: [CriterionOperatorIds.Range],
         needsName: false,
-        valuePlaceholder: "500-599, 404, 4xx",
+        valuePlaceholder: "404, 5xx",
         read: facts => facts.response === null ? [] : [String(facts.response.status)],
         toDnr: inspectedTabOnly("Response status conditions work on the inspected tab only."),
     },

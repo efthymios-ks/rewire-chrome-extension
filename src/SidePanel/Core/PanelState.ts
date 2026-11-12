@@ -1,6 +1,7 @@
 import type { InspectionStatus } from "../../Contracts/Inspection/InspectionStatus";
 import type { RuleSyncReport } from "../../Contracts/RuleSync/RuleSyncReport";
 import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
+import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
 import type { TimelineEntryDetail } from "../../Contracts/Timeline/TimelineEntryDetail";
 import type { TimelineEntrySummary } from "../../Contracts/Timeline/TimelineEntrySummary";
 import type { ContentFilterId } from "./ContentFilterId";
@@ -31,6 +32,7 @@ export interface PanelState {
     search: TrafficSearchState;
     ruleSyncReport: RuleSyncReport | null;
     ruleHits: Record<string, number>;
+    capturedVariables: ProfileVariable[];
     ruleEditRequest: RuleEditRequest | null;
     clientLaunch: ClientLaunchRequest | null;
     jwtLaunch: JwtLaunchRequest | null;

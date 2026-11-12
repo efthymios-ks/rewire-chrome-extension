@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "vitest";
+import { SearchFields } from "../../../../src/Contracts/Search/SearchQuery";
 import { InspectorPanel } from "../../../../src/SidePanel/Features/Inspector/InspectorPanel";
 import { aDetail, aSummary } from "../../../TestData";
-import { aPanelHarness, nextRender } from "../../PanelTestData";
+import { aPanelHarness, buttonNamed, click, nextRender } from "../../PanelTestData";
 
 function aSelectedHarness(): ReturnType<typeof aPanelHarness> {
     const summary = aSummary({
@@ -28,12 +29,13 @@ function rightClick(element: Element): MouseEvent {
 }
 
 describe("InspectorPanel", () => {
-    afterEach(() => {
+    afterEach(async () => {
+        await nextRender();
         document.body.replaceChildren();
         window.getSelection()?.removeAllRanges();
     });
 
-    test("constructor_WhenBuilt_ShouldOfferInspectAndCodeOnly", () => {
+    test("constructor_WhenBuilt_ShouldOfferOneTabPerPartOfTheCall", () => {
         // Arrange
         const harness = aSelectedHarness();
 
@@ -42,8 +44,59 @@ describe("InspectorPanel", () => {
 
         // Assert
         expect([...panel.root.querySelectorAll(":scope > .inspector-tabs .tab")].map(tab => tab.textContent)).toEqual([
-            "Inspect",
+            "General",
+            "Request Headers",
+            "Request Body",
+            "Response Headers",
+            "Response Body",
             "Code",
+        ]);
+    });
+
+    test("render_WhenATabIsPicked_ShouldShowOnlyThatPart", async () => {
+        // Arrange
+        const harness = aSelectedHarness();
+        const panel = new InspectorPanel(harness.context);
+        await nextRender();
+
+        // Act
+        click(buttonNamed(panel.root, "Response Body"));
+        await nextRender();
+
+        // Assert
+        expect(panel.root.querySelector(".inspector-body .body-tab")).not.toBeNull();
+        expect(panel.root.querySelector(".inspector-body .general-tab")).toBeNull();
+        expect(buttonNamed(panel.root, "Response Body").getAttribute("aria-selected")).toBe("true");
+    });
+
+    test("render_WhenASearchMatchesTheSelectedCall_ShouldMarkTheTabsThatHoldIt", async () => {
+        // Arrange
+        const harness = aSelectedHarness();
+        harness.store.update(state => ({
+            ...state,
+            search: {
+                ...state.search,
+                matches: [
+                    {
+                        entryId: "request-1",
+                        fields: [
+                            SearchFields.Url,
+                            SearchFields.ResponseBody,
+                        ],
+                        count: 2,
+                    },
+                ],
+            },
+        }));
+
+        // Act
+        const panel = new InspectorPanel(harness.context);
+        await nextRender();
+
+        // Assert
+        expect([...panel.root.querySelectorAll(".tab[data-match]")].map(tab => tab.textContent)).toEqual([
+            "General",
+            "Response Body",
         ]);
     });
 

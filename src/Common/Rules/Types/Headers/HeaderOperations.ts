@@ -1,5 +1,6 @@
 import type { HeaderEntry } from "../../../../Contracts/Timeline/HeaderEntry";
 import type { RuleAction } from "../../../../Contracts/Rules/Rule";
+import { SensitiveHeaders } from "../../../Http/SensitiveHeaders";
 import { Result } from "../../../Results/Result";
 import type { RuleContext } from "../../Context/RuleContext";
 import { HeaderList } from "../../Http/HeaderList";
@@ -42,15 +43,6 @@ const BrowserAppendableRequestHeaders = [
     "via",
     "want-digest",
     "x-forwarded-for",
-];
-
-const SensitiveHeaderNames = [
-    "authorization",
-    "proxy-authorization",
-    "cookie",
-    "x-api-key",
-    "api-key",
-    "x-auth-token",
 ];
 
 const BrowserOperations: Record<string, `${chrome.declarativeNetRequest.HeaderOperation}`> = {
@@ -191,7 +183,7 @@ export const HeaderOperations = {
             ...raw,
             [key]: HeaderOperations
                 .read(raw, key)
-                .map(operation => SensitiveHeaderNames.includes(operation.name.trim().toLowerCase())
+                .map(operation => SensitiveHeaders.isSensitive(operation.name)
                     ? {
                         ...operation,
                         value: "",

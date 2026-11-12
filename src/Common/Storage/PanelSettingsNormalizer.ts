@@ -1,7 +1,9 @@
 import { type Criterion, CriteriaMatches, type RuleCriteria } from "../../Contracts/Rules/Criterion";
 import type { Rule } from "../../Contracts/Rules/Rule";
-import { DefaultPanelSettings, SettingsSchema } from "../../Contracts/Settings/DefaultPanelSettings";
+import { DefaultPanelSettings, DefaultProfile, SettingsSchema } from "../../Contracts/Settings/DefaultPanelSettings";
 import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
+import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
+import type { RuleProfile } from "../../Contracts/Settings/RuleProfile";
 import type { LegacySettings } from "./Legacy/LegacySettings";
 import { LegacySettingsMigration } from "./Legacy/LegacySettingsMigration";
 import { SchemaVersion2Migration } from "./Migrations/SchemaVersion2Migration";
@@ -12,6 +14,8 @@ type RawRecord = Record<string, unknown>;
 const RetiredActionKeys = [
     "baselineBody",
 ];
+
+const UnnamedProfile = "Profile";
 
 function isRecord(value: unknown): value is RawRecord {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -109,9 +113,59 @@ function storedRulesOf(record: RawRecord): RawRecord[] {
         ? SchemaVersion2Migration.rulesOf(record)
         : records(record, "rules");
 
-    return Number(record["schemaVersion"] ?? 0) < SettingsSchema.CurrentVersion
+    return Number(record["schemaVersion"] ?? 0) < SettingsSchema.FirstRewriteVersion
         ? SchemaVersion3Migration.migrate(raw)
         : raw;
+}
+
+function variableOf(record: RawRecord): ProfileVariable {
+    return {
+        name: text(record, "name").trim(),
+        value: text(record, "value"),
+    };
+}
+
+function profileOf(record: RawRecord): RuleProfile {
+    return {
+        id: text(record, "id") || crypto.randomUUID(),
+        name: text(record, "name").trim() || UnnamedProfile,
+        rules: records(record, "rules").map(ruleOf),
+        variables: records(record, "variables")
+            .map(variableOf)
+            .filter(variable => variable.name !== ""),
+    };
+}
+
+function hasProfiles(record: RawRecord): boolean {
+    return Number(record["schemaVersion"] ?? 0) >= SettingsSchema.FirstProfilesVersion;
+}
+
+function profilesOf(record: RawRecord): RuleProfile[] {
+    if (hasProfiles(record)) {
+        const profiles = records(record, "profiles").map(profileOf);
+
+        return profiles.length === 0 ? [DefaultProfile] : profiles;
+    }
+
+    const legacy = record as LegacySettings;
+    const migratedRules = LegacySettingsMigration.hasLegacyRules(legacy) ? LegacySettingsMigration.toRules(legacy) : [];
+
+    return [
+        {
+            ...DefaultProfile,
+            rules: [
+                ...storedRulesOf(record).map(ruleOf),
+                ...migratedRules,
+            ],
+        },
+    ];
+}
+
+function activeProfileIdOf(record: RawRecord, profiles: RuleProfile[]): string {
+    const stored = text(record, "activeProfileId");
+    const isKnown = hasProfiles(record) && profiles.some(profile => profile.id === stored);
+
+    return isKnown ? stored : profiles[0]!.id;
 }
 
 export const PanelSettingsNormalizer = {
@@ -128,8 +182,7 @@ export const PanelSettingsNormalizer = {
             return DefaultPanelSettings;
         }
 
-        const legacy = value as LegacySettings;
-        const migratedRules = LegacySettingsMigration.hasLegacyRules(legacy) ? LegacySettingsMigration.toRules(legacy) : [];
+        const profiles = profilesOf(value);
 
         return {
             schemaVersion: SettingsSchema.CurrentVersion,
@@ -143,10 +196,8 @@ export const PanelSettingsNormalizer = {
                 "pinnedEndpoints",
                 []
             ),
-            rules: [
-                ...storedRulesOf(value).map(ruleOf),
-                ...migratedRules,
-            ],
+            activeProfileId: activeProfileIdOf(value, profiles),
+            profiles,
             testerSamples: strings(
                 value,
                 "testerSamples",

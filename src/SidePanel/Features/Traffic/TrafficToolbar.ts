@@ -1,16 +1,68 @@
 import type { ContentFilterId } from "../../Core/ContentFilterId";
+import { ContextMenu, type ContextMenuItem } from "../../Core/Dom/ContextMenu";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
 import { Equalities } from "../../Core/Equalities";
+import { FileClient, type IFileClient } from "../../Core/FileClient";
 import { TrafficLayout } from "../../Core/TrafficLayout";
 import type { PanelContext } from "../Shell/PanelContext";
 import { ContentFilters } from "./ContentFilters";
+import { HarExport } from "./HarExport";
 import { VisibleEntries } from "./VisibleEntries";
 
 const LayoutLabels: Record<TrafficLayout, string> = {
     [TrafficLayout.List]: "List",
     [TrafficLayout.Waterfall]: "Waterfall",
 };
+
+const LayoutChoices = [
+    TrafficLayout.List,
+    TrafficLayout.Waterfall,
+];
+
+function harItems(harExport: HarExport): ContextMenuItem[] {
+    return [
+        {
+            label: "Download HAR",
+            run: () => void harExport.download(false),
+        },
+        {
+            label: "Copy HAR",
+            run: () => void harExport.copy(false),
+        },
+        {
+            label: "Download HAR with cookies and auth headers",
+            run: () => void harExport.download(true),
+        },
+        {
+            label: "Copy HAR with cookies and auth headers",
+            run: () => void harExport.copy(true),
+        },
+    ];
+}
+
+function harButton(harExport: HarExport, menu: ContextMenu): HTMLButtonElement {
+    const button = buildElement("button", {
+        className: ButtonVariants.Ghost,
+        text: "HAR",
+        title: "Download or copy every captured call of this tab as a HAR file",
+        attributes: {
+            type: "button",
+            "aria-haspopup": "menu",
+        },
+    });
+    button.addEventListener("click", event => {
+        event.stopPropagation();
+        const bounds = button.getBoundingClientRect();
+        menu.open(
+            harItems(harExport),
+            bounds.left,
+            bounds.bottom
+        );
+    });
+
+    return button;
+}
 
 function toolbarRow(children: HTMLElement[]): HTMLElement {
     return buildElement("div", {
@@ -22,7 +74,13 @@ function toolbarRow(children: HTMLElement[]): HTMLElement {
 export class TrafficToolbar {
     readonly root: HTMLElement;
 
-    constructor(context: PanelContext) {
+    constructor(context: PanelContext, fileClient: IFileClient = new FileClient()) {
+        const harExport = new HarExport({
+            context,
+            fileClient,
+            versionOf: () => chrome.runtime.getManifest().version,
+            now: () => new Date(),
+        });
         const filterButtons = ContentFilters.map(filter => ({
             filter,
             button: buildElement("button", {
@@ -43,17 +101,19 @@ export class TrafficToolbar {
         const count = buildElement("span", {
             className: "entry-count",
         });
-        const layoutSwitch = FormControls.toggleSwitch({
-            checked: context.store.getState().trafficLayout === TrafficLayout.Waterfall,
-            label: LayoutLabels[context.store.getState().trafficLayout],
-            onChange: checked => context.store.update(state => ({
+        const layoutSelect = FormControls.select({
+            value: String(context.store.getState().trafficLayout),
+            className: "input traffic-layout",
+            options: LayoutChoices.map(layout => ({
+                value: String(layout),
+                label: LayoutLabels[layout],
+            })),
+            onChange: value => context.store.update(state => ({
                 ...state,
-                trafficLayout: checked ? TrafficLayout.Waterfall : TrafficLayout.List,
+                trafficLayout: Number(value) as TrafficLayout,
             })),
         });
-        const layoutInput = layoutSwitch.querySelector("input")!;
-        const layoutLabel = layoutSwitch.querySelector("span")!;
-        layoutInput.setAttribute("aria-label", "Waterfall layout");
+        layoutSelect.setAttribute("aria-label", "Layout");
 
         this.root = buildElement("div", {
             className: "traffic-toolbar",
@@ -70,7 +130,8 @@ export class TrafficToolbar {
                     count,
                 ]),
                 toolbarRow([
-                    layoutSwitch,
+                    layoutSelect,
+                    harButton(harExport, new ContextMenu()),
                     FormControls.button({
                         text: "Clear",
                         variant: ButtonVariants.Ghost,
@@ -84,8 +145,7 @@ export class TrafficToolbar {
         context.store.select(
             state => state.trafficLayout,
             layout => {
-                layoutInput.checked = layout === TrafficLayout.Waterfall;
-                layoutLabel.textContent = LayoutLabels[layout];
+                layoutSelect.value = String(layout);
             }
         );
 

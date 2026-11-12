@@ -18,28 +18,32 @@ describe("TrafficToolbar", () => {
         expect(rows).toHaveLength(2);
         expect(rows[0]?.querySelector(".chip-group")).not.toBeNull();
         expect(rows[0]?.querySelector(".entry-count")).not.toBeNull();
-        expect(rows[1]?.querySelector(".switch")).not.toBeNull();
+        expect(rows[1]?.querySelector(".traffic-layout")).not.toBeNull();
+        expect(rows[1]?.querySelector(".switch")).toBeNull();
+        expect(rows[1]?.textContent).toContain("HAR");
         expect(rows[1]?.textContent).toContain("Clear");
         expect(toolbar.root.querySelector(".domain-filter")).toBeNull();
     });
 
-    test("layoutSwitch_WhenTurnedOn_ShouldShowTheWaterfallAndSaySo", () => {
+    test("layout_WhenWaterfallIsPicked_ShouldShowTheWaterfall", () => {
         // Arrange
         const harness = aPanelHarness();
         const toolbar = new TrafficToolbar(harness.context);
-
-        const layoutSwitch = toolbar.root.querySelector<HTMLInputElement>(".switch input")!;
+        const layout = toolbar.root.querySelector<HTMLSelectElement>(".traffic-layout")!;
 
         // Act
-        layoutSwitch.checked = true;
-        layoutSwitch.dispatchEvent(new Event("change"));
+        layout.value = String(TrafficLayout.Waterfall);
+        layout.dispatchEvent(new Event("change"));
 
         // Assert
         expect(harness.store.getState().trafficLayout).toBe(TrafficLayout.Waterfall);
-        expect(toolbar.root.querySelector(".switch span")?.textContent).toBe("Waterfall");
+        expect([...layout.options].map(option => option.textContent)).toEqual([
+            "List",
+            "Waterfall",
+        ]);
     });
 
-    test("layoutSwitch_WhenTheLayoutChangesElsewhere_ShouldFollowIt", () => {
+    test("layout_WhenTheLayoutChangesElsewhere_ShouldFollowIt", () => {
         // Arrange
         const harness = aPanelHarness({
             trafficLayout: TrafficLayout.Waterfall,
@@ -53,8 +57,7 @@ describe("TrafficToolbar", () => {
         }));
 
         // Assert
-        expect(toolbar.root.querySelector<HTMLInputElement>(".switch input")!.checked).toBe(false);
-        expect(toolbar.root.querySelector(".switch span")?.textContent).toBe("List");
+        expect(toolbar.root.querySelector<HTMLSelectElement>(".traffic-layout")!.selectedOptions[0]?.textContent).toBe("List");
     });
 
     test("count_WhenAContentFilterIsPicked_ShouldCountTheCallsItKeeps", () => {
@@ -78,5 +81,23 @@ describe("TrafficToolbar", () => {
 
         // Assert
         expect(toolbar.root.querySelector(".entry-count")?.textContent).toBe("1 / 2");
+    });
+    test("harButton_WhenClicked_ShouldOfferDownloadAndCopyWithAndWithoutSecrets", () => {
+        // Arrange
+        const harness = aPanelHarness();
+        const toolbar = new TrafficToolbar(harness.context);
+        document.body.append(toolbar.root);
+
+        // Act
+        click(buttonNamed(toolbar.root, "HAR"));
+
+        // Assert
+        expect([...document.querySelectorAll(".context-menu-item")].map(item => item.textContent)).toEqual([
+            "Download HAR",
+            "Copy HAR",
+            "Download HAR with cookies and auth headers",
+            "Copy HAR with cookies and auth headers",
+        ]);
+        document.body.replaceChildren();
     });
 });

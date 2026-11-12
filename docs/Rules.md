@@ -2,7 +2,7 @@
 
 Every change the panel makes to traffic is a rule.  
 A rule is **if** some conditions match, **then** do one action.  
-Rules sit in one ordered list, and the Rules tab edits that list.
+Rules sit in ordered lists, one per [profile](#profiles), and the Rules tab edits the active profile's list.
 
 ## Where rules work
 
@@ -91,7 +91,7 @@ Each row shows: drag handle, on/off switch, name, type, where it works, hit coun
 - **Edit**, **Duplicate** and **Remove**.
   **Remove** asks first, and the notice after it can undo it for 8 seconds.
 - The toolbar's first row holds **Add rule** and the search box, which searches names only.
-  The second row holds **Test rules** and **Import / export**.
+  The second row holds **Test rules**, **Profiles**, **Variables** and **Import / export**.
 - The header switch turns every rule off at once; capture keeps running.
 - Hit counts start at zero with the browser.
   Inspected-tab rules count exactly.
@@ -114,11 +114,11 @@ Content type fields take free text and suggest the common media types, the ones 
 Header name fields do the same with the header names ASP.NET Core lists in `HeaderNames`.  
 Header value fields suggest values for the header named next to them, such as media types for `Content-Type` and `Accept`, and nothing for a header without known values.  
 Suggestions appear as you type, with no dropdown arrow: arrow keys and **Enter** pick one, **Escape** closes the list.  
-Text fields marked so can use `{{name}}` variables, set by a **Set variable** rule.
+Text fields marked so can use `{{name}}` [variables](#variables), typed in **Variables** or set by a **Set variable** rule.
 
 Shortcuts that open the editor already filled in:
 
-- **Mock this** on a request in the inspector.
+- **Mock this** in the inspector's **General** tab.
 - **Make rule** on a cookie in the Cookie Jar.
 
 To send a `User-Agent`, `X-Forwarded-For` or `CF-IPCountry` value, add a **Request header** rule.
@@ -128,47 +128,105 @@ To send a `User-Agent`, `X-Forwarded-For` or `CF-IPCountry` value, add a **Reque
 **Test rules** runs one sample request through every enabled rule, all-tabs rules first.  
 It shows the same report as the editor's tester.
 
+## Profiles
+
+A profile is a named set of rules with its own [variables](#variables).
+Only the active profile's rules run; the others wait, switched off as a whole.
+Pinned endpoints, tester samples and the header switch are shared by every profile.
+
+- The header's profile list switches the active profile from any tab.
+- **Profiles** in the Rules toolbar lists every profile, with how many rules and variables it holds:
+  - **New profile** adds an empty one and makes it active.
+  - The radio button makes a profile active.
+  - The name is a text box; the new name is saved when you leave it.
+  - **Duplicate** places a copy, named `<name> copy`, right after the original.
+  - **Remove** asks first; the last profile can't be removed.
+    Removing the active profile activates the one above it.
+- Undoing a removed rule puts it back in the profile it came from, even after switching.
+
+The first profile is **Default**, with the id `default` on every install, so exports of it merge into a teammate's **Default**.
+
+## Variables
+
+A rule's text fields can use `{{name}}`; the value comes from the active profile.
+
+- **Variables** in the Rules toolbar lists the active profile's variables as name and value rows.
+  **Add variable** adds a row, `×` removes one, and **Save variables** stores the list.
+- Names start with a letter or `_` and use letters, digits, `_`, `.` and `-`; a name can appear once.
+  An empty row is skipped.
+- A value a **Set variable** rule captures wins over the typed one, until the browser restarts.
+  **Captured this session** lists those values, read-only.
+- Switching profiles swaps the typed values; captured ones stay.
+- Testers use the typed values too.
+- A `{{name}}` with no value stays as written.
+
 ## Import and export
 
-**Import / export** in the toolbar:
+**Import / export** in the toolbar reads and writes one JSON file, `schemaVersion` 5, holding any number of profiles.
 
-- **Copy JSON** puts every rule on the clipboard, and **Download JSON** saves them to a file, as `schemaVersion` 4.
-  `Authorization`, `Cookie`, API key headers and cookie values are blanked unless **Include cookie values and auth headers** is ticked.
-- **Choose file** reads a JSON export and shows how many rules it holds before importing.
-  **Merge** adds new rules and replaces rules with the same id.
-  **Replace** swaps every rule.
-  `schemaVersion` 2 and 3 files are converted as described under [Upgrading](#upgrading).
-  Other versions, or unknown rule types, are refused.
+**Export**:
+
+- Every profile is listed with a checkbox, all ticked; untick the ones to leave out.
+- **Copy JSON** puts the ticked profiles on the clipboard, and **Download JSON** saves them as `rewire-profiles.json`.
+- Unless **Include cookie values, auth headers and secret variables** is ticked:
+  - `Authorization`, `Cookie`, `Set-Cookie` and API key header values are blanked, and so are cookie rule values.
+  - Variables whose name holds `auth`, `cookie`, `key`, `pass`, `secret`, `session` or `token` are blanked.
+
+**Import**:
+
+- **Choose file** reads a file and lists its profiles, all ticked, with how many rules and variables each holds.
+  A profile with the same id as one of yours says so.
+- Pick the mode, then **Import** brings in the ticked profiles:
+
+| Mode    | Effect                                                                                                   |
+| ------- | -------------------------------------------------------------------------------------------------------- |
+| Merge   | Adds new profiles. A profile with the same id is patched: its name is taken, rules with the same id are replaced and new ones added, variables with the same name are replaced and new ones added. |
+| Replace | Asks first, then deletes every profile and keeps only the imported ones. The active profile stays active when it is among them; otherwise the first imported one becomes active. |
+
+- Rules exports from `schemaVersion` 2 to 4 import as the **Default** profile, converted as described under [Upgrading](#upgrading).
+- Other versions, files with no profiles, or unknown rule types are refused.
 
 ```json
 {
-  "schemaVersion": 4,
-  "rules": [
+  "schemaVersion": 5,
+  "profiles": [
     {
-      "id": "6c1f0a52-0b7e-4b0e-9a55-2f4f5c2f7d10",
-      "name": "Users mock",
-      "enabled": true,
-      "type": "mockResponse",
-      "criteria": {
-        "match": "all",
-        "items": [
-          {
-            "field": "url",
-            "op": "wildcard",
-            "name": "",
-            "value": "*/api/v1/users/*",
-            "negate": false
+      "id": "default",
+      "name": "Default",
+      "rules": [
+        {
+          "id": "6c1f0a52-0b7e-4b0e-9a55-2f4f5c2f7d10",
+          "name": "Users mock",
+          "enabled": true,
+          "type": "mockResponse",
+          "criteria": {
+            "match": "all",
+            "items": [
+              {
+                "field": "url",
+                "op": "wildcard",
+                "name": "",
+                "value": "*/api/v1/users/*",
+                "negate": false
+              }
+            ]
+          },
+          "action": {
+            "overrideStatus": true,
+            "status": 200,
+            "overrideBody": true,
+            "contentType": "application/json",
+            "headers": [],
+            "body": "{\"id\":{{userId}}}"
           }
-        ]
-      },
-      "action": {
-        "overrideStatus": true,
-        "status": 200,
-        "overrideBody": true,
-        "contentType": "application/json",
-        "headers": [],
-        "body": "{\"id\":42}"
-      }
+        }
+      ],
+      "variables": [
+        {
+          "name": "userId",
+          "value": "42"
+        }
+      ]
     }
   ]
 }
@@ -178,6 +236,10 @@ It shows the same report as the editor's tester.
 
 Older settings are converted once, on first load, and the old keys are removed.
 
+From `schemaVersion` 4:
+
+- The rules become the **Default** profile, with no variables, and it is the active one.
+
 From `schemaVersion` 3:
 
 - **Redirect** with status **Default** becomes **Rewrite**; a redirect with a status stays **Redirect**.
@@ -185,7 +247,7 @@ From `schemaVersion` 3:
 
 From `schemaVersion` 2:
 
-- Profiles are gone: the active profile's rules stay as they were, and the other profiles' rules are kept switched off.
+- The old profiles merge into the **Default** profile: the active profile's rules stay as they were, and the other profiles' rules are kept switched off.
 - **Regex redirect** becomes **Rewrite** and **Redirect with status** becomes **Redirect**; a regex redirect's regex becomes a URL condition that matches regex.
 - **Add or replace query params** and **Remove query params** become **Query params**.
 - **Status override** becomes a **Mock response** that overrides the status only.

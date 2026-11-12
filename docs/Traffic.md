@@ -17,7 +17,9 @@ The arrow button on the handle slides the inspector away, down or to the right, 
 
 Each row shows method, status, path, host, content kind, a **Rules** badge when rules acted on it, and duration.  
 Newest calls come first, up to 500 per tab.  
-Switching tabs inspects the tab you switch to; the one you left is detached and its timeline cleared.  
+Switching tabs inspects the tab you switch to; the one you left is detached, and its timeline is kept, so switching back shows it again with the new calls on top.  
+Up to 5 tabs you left keep their timeline; leaving a sixth drops the oldest.  
+Closing a tab clears its timeline, and closing the panel clears them all.  
 Navigating keeps the timeline.  
 When the debugger can't attach, as on `chrome://` pages, the panel tries again once the tab moves to another address.
 
@@ -29,11 +31,29 @@ When the debugger can't attach, as on `chrome://` pages, the panel tries again o
 ## Toolbar
 
 The first row holds the content filter chips and the call count.  
-The second row holds the layout switch and **Clear**.
+The second row holds the layout list, **HAR** and **Clear**.
+
+## HAR export
+
+**HAR** in the toolbar opens a menu:
+
+| Item                                         | Effect                                                     |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| Download HAR                                 | saves `<host>-<UTC time>.har`, such as `api.example.com-2026-11-12T10-30-45.har` |
+| Copy HAR                                     | puts the same file on the clipboard                        |
+| Download HAR with cookies and auth headers   | the same file, secrets kept                                |
+| Copy HAR with cookies and auth headers       | the same, on the clipboard                                 |
+
+- The file is HAR 1.2 and holds every captured call of this tab, oldest first, whatever the content filter shows.
+- Without secrets, `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and API key header values are blanked, and so are cookie values.
+- Each entry carries headers, query, cookies, the request body as `postData`, the response body as `content.text`, and the duration as `wait`.
+  Sizes are in bytes; header sizes and the HTTP version are not captured, so they are `-1` and empty.
+- A failed call keeps its error in `_error`, and every entry its resource type in `_resourceType`.
+- Bodies that weren't captured, such as binary ones, keep the reason in `content.comment`.
 
 ## Waterfall
 
-The layout switch reads **List** when off and **Waterfall** when on.
+The layout list in the toolbar switches between **List** and **Waterfall**.
 
 - One bar per call, sorted by start time, then duration.
 - Bars are colored by status or by resource type.
@@ -55,7 +75,7 @@ It always ignores case.
 | `↑`, `↓`    | Select the previous or next match; `Shift+Enter` and `Enter` do the same.   |
 | `.*`        | Treat the text as a regular expression.                                     |
 
-While a search is active, the inspector shows bodies as raw text with the matches highlighted.
+While a search is active, the inspector shows bodies as raw text with the matches highlighted, and a dot marks the inspector tabs that hold a match for the selected call.
 
 ## Pinned endpoints
 
@@ -74,26 +94,28 @@ Click a pin to select that call.
 
 ## Inspector
 
-**Inspect** shows, in order:
+The inspector has one tab per part of the call; the picked tab stays picked from call to call.
 
-1. **General**: URL, method, status with its reason phrase, type, timing, redirect and error, plus the rules that acted on the call.
-   HTTP/2 answers carry no reason phrase, so the standard one is shown, such as `404 Not Found`.
-2. **Request headers**, with the `Cookie` header split into a table.
-3. **Request body**.
-4. **Response headers**, with each `Set-Cookie` parsed into name, value, domain, path, expiry and flags.
-5. **Response body**.
+| Tab              | Shows                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| General          | **Mock this**, **Pin** and **Copy URL**; URL, method, status with its reason phrase, type, start, duration, redirect and error; the rules that acted on the call |
+| Request Headers  | the headers that went over the wire, then the `Cookie` header split into one row per cookie        |
+| Request Body     | **Copy request body** and the body                                                                 |
+| Response Headers | the headers the page got, then each `Set-Cookie` with its name, value, domain, path, expiry and flags |
+| Response Body    | **Copy response body** and the body, or why it wasn't captured                                     |
+| Code             | the call as a command or a script                                                                  |
 
-- Sections start collapsed, and one opens at a time; opening another closes the one before.
-  The open section stays open while the same call updates.
-- Request headers are the ones that went over the wire, `Cookie` included.
-  Response headers are the ones the page got, so all-tabs rules show in them, with `Set-Cookie` added back from the wire.
+- Values show in full and wrap, so any header or cookie value can be selected and copied by hand.
+- HTTP/2 answers carry no reason phrase, so the standard one is shown, such as `404 Not Found`.
+- Response headers are the ones the page got, so all-tabs rules show in them, with `Set-Cookie` added back from the wire.
 - Times show in UTC, as `2026-11-06T18:33:48Z`.
 - JSON bodies show as a tree; switch to **Raw** for the text.
   **Wrap** breaks long values onto new lines, in the tree and in the text; off, they scroll sideways.
   It is on by default.
-- Values a rule added, updated or removed are highlighted, name and value; hover one to see what it was before.
+- A value a rule added, updated or removed gets a **Modified** tag next to its name; hover the tag to see what it was before.
+  A removed header shows `(removed)`, and a body a rule changed gets the tag above it.
 - An `Authorization` header that holds a JWT gets an open icon that opens it in the [JWT](Jwt.md) tab.
-- Actions: **Mock this**, **Pin**, **Copy URL**, **Copy response body**.
+- On a narrow panel the tabs wrap onto a second row.
 
 **Code** turns the call into a command or a script.
 

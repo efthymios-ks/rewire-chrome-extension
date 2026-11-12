@@ -11,7 +11,10 @@ import { ClientForm } from "./ClientForm";
 import type { ClientRequest } from "./ClientRequest";
 import { ClientRequestDraft } from "./ClientRequestDraft";
 import { ClientResponseView } from "./ClientResponseView";
+import { ClientRoutes } from "./ClientRoutes";
+import { DebuggerHttpClient } from "./DebuggerHttpClient";
 import { HttpClient, type IHttpClient } from "./HttpClient";
+import { RoutedHttpClient } from "./RoutedHttpClient";
 
 const DefaultMethod = "GET";
 
@@ -34,7 +37,7 @@ export class ClientView {
     private readonly _sendButton: HTMLButtonElement;
     private _isBusy = false;
 
-    constructor(context: PanelContext, httpClient: IHttpClient = new HttpClient()) {
+    constructor(context: PanelContext, httpClient: IHttpClient = new RoutedHttpClient(new HttpClient(), new DebuggerHttpClient(context.connection))) {
         this._context = context;
         this._httpClient = httpClient;
         this._form = new ClientForm({
@@ -124,7 +127,7 @@ export class ClientView {
             return;
         }
 
-        const sentBody = ClientBodies.sentWith(request.method, request.body);
+        const sentBody = ClientRoutes.bodySent(request);
         void this._context.connection.send({
             type: PanelCommandType.LogClientExchange,
             entryId: `client-${crypto.randomUUID()}`,

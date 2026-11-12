@@ -1,3 +1,5 @@
+import { ActiveProfile } from "../../../Common/Profiles/ActiveProfile";
+import { ProfileVariables } from "../../../Common/Profiles/ProfileVariables";
 import { InMemoryRuleContext } from "../../../Common/Rules/Context/InMemoryRuleContext";
 import { CriteriaEvaluator } from "../../../Common/Rules/Criteria/CriteriaEvaluator";
 import { RuleEnginePlanner } from "../../../Common/Rules/Engine/RuleEnginePlanner";
@@ -34,18 +36,20 @@ export const ScopeAppearances: Record<RuleEngine, ScopeAppearance> = {
 const EveryRequestText = "Every request";
 
 export const RuleScopes = {
-    contextOf(): InMemoryRuleContext {
-        return new InMemoryRuleContext();
+    contextOf(settings: PanelSettings): InMemoryRuleContext {
+        return new InMemoryRuleContext(ProfileVariables.mapOf(ActiveProfile.variables(settings)));
     },
 
-    planOf(rule: Rule): RulePlan {
-        return RuleEnginePlanner.plan(rule, RuleScopes.contextOf());
+    planOf(rule: Rule, context: InMemoryRuleContext = new InMemoryRuleContext()): RulePlan {
+        return RuleEnginePlanner.plan(rule, context);
     },
 
     plansOf(settings: PanelSettings): RulePlan[] {
-        const rules = settings.rules.filter(rule => rule.enabled);
+        const rules = ActiveProfile
+            .rules(settings)
+            .filter(rule => rule.enabled);
 
-        return RuleEnginePlanner.planAll(rules, RuleScopes.contextOf());
+        return RuleEnginePlanner.planAll(rules, RuleScopes.contextOf(settings));
     },
 
     criteriaSummary(rule: Rule): string {

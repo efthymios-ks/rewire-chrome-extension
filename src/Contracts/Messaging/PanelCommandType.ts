@@ -5,4 +5,6 @@ export enum PanelCommandType {
     KeepAlive = 4,
     SearchTimeline = 5,
     LogClientExchange = 6,
+    GetTimelineDetails = 7,
+    SendClientRequest = 8,
 }

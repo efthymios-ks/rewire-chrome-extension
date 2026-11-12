@@ -10,6 +10,7 @@ import { RuleFactory } from "../Rules/RuleFactory";
 import type { PanelContext } from "../Shell/PanelContext";
 import type { CookieDraft } from "./CookieDraft";
 import { CookieDrafts } from "./CookieDrafts";
+import { CookieFilter } from "./CookieFilter";
 import { CookieForm } from "./CookieForm";
 
 const SupportedProtocols = [
@@ -21,6 +22,8 @@ const MillisecondsPerSecond = 1000;
 const RefreshDelayInMilliseconds = 300;
 const SessionText = "Session";
 const LeadingDotPattern = /^\./;
+const SearchLabel = "Search cookie names and values";
+const SearchPlaceholder = "Search name or value";
 
 const CookieGroupName = "cookie";
 const YesText = "Yes";
@@ -106,6 +109,8 @@ export class CookiesView {
     private readonly _content: HTMLElement;
     private readonly _pageLabel: HTMLElement;
     private _pageUrl: URL | null = null;
+    private _cookies: chrome.cookies.Cookie[] = [];
+    private _searchText = "";
     private _isActive = false;
     private _refreshTimer: ReturnType<typeof setTimeout> | null = null;
     private _openCookieKey: string | null = null;
@@ -121,6 +126,16 @@ export class CookiesView {
         this._pageLabel = buildElement("span", {
             className: "muted code-text",
         });
+        const search = FormControls.textInput({
+            value: "",
+            placeholder: SearchPlaceholder,
+            className: "input cookie-search",
+            onInput: text => {
+                this._searchText = text;
+                this.render();
+            },
+        });
+        search.setAttribute("aria-label", SearchLabel);
         this.root = buildElement("section", {
             className: "settings-view",
             children: [
@@ -148,6 +163,7 @@ export class CookiesView {
                         }),
                     ],
                 }),
+                search,
                 this._formHost,
                 this._content,
             ],
@@ -215,8 +231,20 @@ export class CookiesView {
             return;
         }
 
-        if (cookies.value.length === 0) {
+        this._cookies = cookies.value;
+        this.render();
+    }
+
+    private render(): void {
+        if (this._cookies.length === 0) {
             this._content.replaceChildren(EmptyState.build("This page has no cookies."));
+
+            return;
+        }
+
+        const visible = CookieFilter.apply(this._cookies, this._searchText);
+        if (visible.length === 0) {
+            this._content.replaceChildren(EmptyState.build(`No cookie name or value contains "${this._searchText.trim()}".`));
 
             return;
         }
@@ -233,7 +261,7 @@ export class CookiesView {
                         text: column.title,
                     })),
                 }),
-                ...cookies.value.map(cookie => this.itemFor(cookie)),
+                ...visible.map(cookie => this.itemFor(cookie)),
             ],
         }));
     }

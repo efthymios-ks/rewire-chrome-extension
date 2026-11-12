@@ -1,19 +1,20 @@
 # Rewire
 
 A Chromium side-panel extension to watch HTTP traffic and rewire it.  
-Watch the API calls of a tab, search them, turn any of them into code, or send your own from the Client tab.  
-Rewire traffic with ordered rules: mock responses, add latency, send production calls to localhost, set headers, query params and cookies.
+Watch the API calls of a tab, search them, export them as HAR, turn any of them into code, or send your own from the Client tab.  
+Rewire traffic with ordered rules, grouped in profiles with their own variables: mock responses, add latency, send production calls to localhost, set headers, query params and cookies.
 
 ## Contents
 
 - [Overview](docs/Overview.md): runtime, layout, architecture, permissions
-- [Traffic](docs/Traffic.md): timeline, waterfall, search, inspector, code snippets
-- [Rules](docs/Rules.md): where rules work and their order, wildcards, operations, editor, testers, import and export
+- [Traffic](docs/Traffic.md): timeline, waterfall, search, HAR export, inspector, code snippets
+- [Rules](docs/Rules.md): where rules work and their order, wildcards, operations, editor, testers, profiles, variables, import and export
 - [Rule catalog](docs/RuleCatalog.md): every rule type and where it works
 - [Cookie Jar](docs/CookieJar.md): HttpOnly and Secure cookies, cookie rules
 - [Client](docs/Client.md): send your own requests, paste cURL or Wget commands, read the answers
 - [JWT](docs/Jwt.md): decode tokens and check their expiry
 - [Release](docs/Release.md): Chrome Web Store setup and manual upload
+- [Store listing](docs/StoreListing.md): the Chrome Web Store description
 - [Privacy](docs/Privacy.md): what the extension reads and where it stays
 
 ## Quick start

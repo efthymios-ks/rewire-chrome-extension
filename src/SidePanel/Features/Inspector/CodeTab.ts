@@ -70,6 +70,7 @@ const PartGroups: PartGroup[] = [
 export class CodeTab implements IInspectorTab {
     readonly id = InspectorTabId.Code;
     readonly label = "Code";
+    readonly searchFields = [];
 
     private readonly _context: PanelContext;
 

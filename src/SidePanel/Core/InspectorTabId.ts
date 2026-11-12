@@ -1,4 +1,8 @@
 export enum InspectorTabId {
-    Overview = 1,
-    Code = 2,
+    General = 1,
+    RequestHeaders = 2,
+    RequestBody = 3,
+    ResponseHeaders = 4,
+    ResponseBody = 5,
+    Code = 6,
 }

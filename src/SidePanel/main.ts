@@ -2,6 +2,7 @@ import { ConsoleLogger } from "../Common/Logging/ConsoleLogger";
 import { RegexSupportClient } from "../Common/NetworkRules/RegexSupportClient";
 import { RuleHitsClient } from "../Common/Storage/RuleHitsClient";
 import { RuleSyncReportClient } from "../Common/Storage/RuleSyncReportClient";
+import { RuleVariablesClient } from "../Common/Storage/RuleVariablesClient";
 import { SettingsStorageClient } from "../Common/Storage/SettingsStorageClient";
 import { ClipboardClient } from "./Core/ClipboardClient";
 import { InspectedTabTracker } from "./Core/InspectedTabTracker";
@@ -15,6 +16,7 @@ import { ViewLauncher } from "./Core/ViewLauncher";
 import { WorkerConnection } from "./Core/WorkerConnection";
 import { CookieClient } from "./Features/Cookies/CookieClient";
 import { EntryDetailLoader } from "./Features/Inspector/EntryDetailLoader";
+import { CapturedVariablesSync } from "./Features/Profiles/Variables/CapturedVariablesSync";
 import { RuleHitsSync } from "./Features/Rules/RuleHitsSync";
 import { AppShell } from "./Features/Shell/AppShell";
 import type { PanelContext } from "./Features/Shell/PanelContext";
@@ -58,6 +60,11 @@ async function start(): Promise<void> {
     await new RuleHitsSync(
         store,
         new RuleHitsClient(),
+        logger
+    ).start();
+    await new CapturedVariablesSync(
+        store,
+        new RuleVariablesClient(),
         logger
     ).start();
     ThemeApplier.start(store);

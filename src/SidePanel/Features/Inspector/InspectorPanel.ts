@@ -6,10 +6,15 @@ import type { PanelState } from "../../Core/PanelState";
 import type { PanelContext } from "../Shell/PanelContext";
 import { EntryContextMenu } from "../Traffic/EntryContextMenu";
 import { CodeTab } from "./CodeTab";
+import { GeneralTab } from "./GeneralTab";
 import type { IInspectorTab } from "./IInspectorTab";
-import { OverviewTab } from "./OverviewTab";
+import { RequestBodyTab } from "./RequestBodyTab";
+import { RequestHeadersTab } from "./RequestHeadersTab";
+import { ResponseBodyTab } from "./ResponseBodyTab";
+import { ResponseHeadersTab } from "./ResponseHeadersTab";
 
 const NoSelectionKey = "none";
+const MatchAttribute = "data-match";
 
 export class InspectorPanel {
     readonly root: HTMLElement;
@@ -27,7 +32,11 @@ export class InspectorPanel {
         this._context = context;
         this._entryMenu = new EntryContextMenu(context);
         this._tabs = [
-            new OverviewTab(context),
+            new GeneralTab(context),
+            new RequestHeadersTab(context),
+            new RequestBodyTab(context),
+            new ResponseHeadersTab(),
+            new ResponseBodyTab(context),
             new CodeTab(context),
         ];
         this._tabButtons = this._tabs.map(tab => buildElement("button", {
@@ -92,7 +101,12 @@ export class InspectorPanel {
     private render(): void {
         const state = this._context.store.getState();
         const activeTab = this._tabs.find(tab => tab.id === state.inspectorTab) ?? this._tabs[0]!;
-        this._tabs.forEach((tab, index) => this._tabButtons[index]?.setAttribute("aria-selected", String(tab === activeTab)));
+        const matchedFields = state.search.matches.find(match => match.entryId === state.selectedEntryId)?.fields ?? [];
+        this._tabs.forEach((tab, index) => {
+            const button = this._tabButtons[index];
+            button?.setAttribute("aria-selected", String(tab === activeTab));
+            button?.toggleAttribute(MatchAttribute, tab.searchFields.some(field => matchedFields.includes(field)));
+        });
 
         const key = this.keyOf(state, activeTab);
         if (key === this._renderedKey) {

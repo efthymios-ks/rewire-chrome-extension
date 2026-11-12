@@ -1,3 +1,4 @@
+import { ActiveProfile } from "../../../Common/Profiles/ActiveProfile";
 import { ViewId } from "../../Core/ViewId";
 import { ClientView } from "../Client/ClientView";
 import { CookiesView } from "../Cookies/CookiesView";
@@ -20,7 +21,10 @@ export const ViewDefinitions: ViewDefinition[] = [
     {
         id: ViewId.Rules,
         label: "Rules",
-        badgeOf: state => countBadge(state.settings.rules.filter(rule => rule.enabled).length),
+        badgeOf: state => countBadge(ActiveProfile
+            .rules(state.settings)
+            .filter(rule => rule.enabled)
+            .length),
         create: context => new RulesView(context).root,
     },
     {

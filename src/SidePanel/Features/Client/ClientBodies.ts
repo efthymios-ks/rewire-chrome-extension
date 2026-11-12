@@ -123,6 +123,10 @@ export const ClientBodies = {
         return BodylessMethods.includes(method.toUpperCase()) ? ClientBodies.empty() : body;
     },
 
+    dropsBody(method: string, body: ClientBody): boolean {
+        return BodylessMethods.includes(method.toUpperCase()) && body.type !== ClientBodyType.None;
+    },
+
     contentTypeOf(body: ClientBody): string | null {
         return ContentTypes[body.type](body);
     },

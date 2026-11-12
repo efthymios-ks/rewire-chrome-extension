@@ -35,4 +35,19 @@ describe("Base64Text", () => {
         // Assert
         expect(encoded).toBe("aGVsbG8=");
     });
+    test("fromBytes_WhenGivenBinaryBytes_ShouldMatchStandardBase64", () => {
+        // Arrange
+        const bytes = new Uint8Array([
+            0,
+            255,
+            128,
+            10,
+        ]);
+
+        // Act
+        const encoded = Base64Text.fromBytes(bytes);
+
+        // Assert
+        expect(encoded).toBe("AP+ACg==");
+    });
 });

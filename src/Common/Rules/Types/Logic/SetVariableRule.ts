@@ -9,6 +9,7 @@ import { SafeUrl } from "../../../Urls/SafeUrl";
 import type { RuleContext } from "../../Context/RuleContext";
 import { RegexCache } from "../../Criteria/RegexCache";
 import type { RequestDraft, ResponseDraft } from "../../Drafts/Drafts";
+import { VariableNames } from "../../Templates/VariableNames";
 import { CookieHeader } from "../../Http/CookieHeader";
 import { HeaderList } from "../../Http/HeaderList";
 import { ActionReader } from "../ActionReader";
@@ -27,8 +28,6 @@ export const VariableSources = {
     RequestBodyXml: "requestBodyXml",
     ResponseBodyXml: "responseBodyXml",
 } as const;
-
-const VariableNamePattern = /^[A-Za-z_][\w.-]*$/;
 
 const ResponseSources: string[] = [
     VariableSources.ResponseHeader,
@@ -200,14 +199,14 @@ export class SetVariableRule extends RuleTypeBase<SetVariableAction> {
             kind: FieldKind.Text,
             key: "key",
             label: "Name",
-            placeholder: "Parameter, header or cookie name",
+            placeholder: "Name",
             visibleWhen: action => KeyedSources.includes(sourceOf(action)),
         },
         {
             kind: FieldKind.Text,
             key: "path",
             label: PathLabel,
-            placeholder: "$.items[0].id  or  /root/items/item[1]/@id",
+            placeholder: "$.items[0].id",
             hint: "JSONPath for JSON sources ($.a.b[0], $.items[-1].sku, $.user['first-name']). XPath for XML (/root/elem[1]/@attr, //note/text(), /root/items[@kind='primary']).",
             visibleWhen: action => isPathBodySource(sourceOf(action)),
         },
@@ -250,7 +249,7 @@ export class SetVariableRule extends RuleTypeBase<SetVariableAction> {
 
     protected override check(action: SetVariableAction): string[] {
         return [
-            ...(VariableNamePattern.test(action.variable) ? [] : ["Variable names start with a letter or _ and use letters, digits, _ . -."]),
+            ...(VariableNames.isValid(action.variable) ? [] : [VariableNames.Rule]),
             ...(KeyedSources.includes(action.source) ? RuleChecks.required(action.key, "Name") : []),
             ...this.pathErrors(action),
             ...(action.pattern.trim() === "" || isPathBodySource(action.source) ? [] : RuleChecks.regex(action.pattern, "Regex")),

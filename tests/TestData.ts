@@ -3,8 +3,9 @@ import type { RequestDraft, ResponseDraft } from "../src/Common/Rules/Drafts/Dra
 import { CriteriaMatches, type Criterion } from "../src/Contracts/Rules/Criterion";
 import type { Rule } from "../src/Contracts/Rules/Rule";
 import { RuleTypeIds } from "../src/Contracts/Rules/RuleTypeIds";
-import { DefaultPanelSettings } from "../src/Contracts/Settings/DefaultPanelSettings";
+import { DefaultPanelSettings, DefaultProfile } from "../src/Contracts/Settings/DefaultPanelSettings";
 import type { PanelSettings } from "../src/Contracts/Settings/PanelSettings";
+import type { RuleProfile } from "../src/Contracts/Settings/RuleProfile";
 import { ContentKind } from "../src/Contracts/Timeline/ContentKind";
 import type { TimelineEntryDetail } from "../src/Contracts/Timeline/TimelineEntryDetail";
 import { TimelineEntryState } from "../src/Contracts/Timeline/TimelineEntryState";
@@ -53,6 +54,24 @@ export function aSettings(overrides: Partial<PanelSettings> = {}): PanelSettings
         ...DefaultPanelSettings,
         ...overrides,
     };
+}
+
+export function aProfile(overrides: Partial<RuleProfile> = {}): RuleProfile {
+    return {
+        ...DefaultProfile,
+        ...overrides,
+    };
+}
+
+export function aSettingsWithRules(rules: Rule[], overrides: Partial<PanelSettings> = {}): PanelSettings {
+    return aSettings({
+        profiles: [
+            aProfile({
+                rules,
+            }),
+        ],
+        ...overrides,
+    });
 }
 
 export function aRuleContext(): InMemoryRuleContext {

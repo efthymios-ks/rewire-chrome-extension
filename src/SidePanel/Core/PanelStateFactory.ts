@@ -23,7 +23,7 @@ export const PanelStateFactory = {
             detailVersion: 0,
             detailError: null,
             activeView: ViewId.Traffic,
-            inspectorTab: InspectorTabId.Overview,
+            inspectorTab: InspectorTabId.General,
             contentFilter: ContentFilterId.All,
             trafficLayout: TrafficLayout.List,
             search: {
@@ -37,6 +37,7 @@ export const PanelStateFactory = {
             },
             ruleSyncReport: null,
             ruleHits: {},
+            capturedVariables: [],
             ruleEditRequest: null,
             clientLaunch: null,
             jwtLaunch: null,

@@ -4,7 +4,10 @@ The **Client** tab sends a request from the panel and shows the answer.
 
 - Pick the method, type the URL, add headers and a body, then **Send**.
 - The request leaves from the panel, not the page, so inspected-tab rules don't act on it.
-- Headers the browser forbids in `fetch`, such as `Cookie` or `Host`, are dropped.
+- Most requests go out with the panel's own `fetch`.
+  A body on `GET` or `HEAD`, or a `Cookie`, `Origin`, `Referer` or `User-Agent` header, which `fetch` refuses or drops, goes out through the debugger instead, exactly as typed, the way Postman or cURL would send it.
+  The debugger attaches to the side panel for that, so Chrome's "started debugging this browser" bar shows.
+- Other headers the browser controls, such as `Host` or `Content-Length`, are set by the browser.
 
 ## Fill it in
 
@@ -37,7 +40,7 @@ Tabs pick the body type.
 | GraphQL          | one query box, sent as `{"query": "..."}` | `application/json`                                         |
 
 - A `Content-Type` header you add yourself wins over the one the body type sets.
-- `GET` and `HEAD` send no body.
+- `GET` and `HEAD` send their body too, through the debugger.
 - Files are sent as they are, never read as text.
 
 ## Answer

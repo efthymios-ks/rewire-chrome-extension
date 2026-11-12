@@ -4,6 +4,7 @@ import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
 import { InputSync } from "../../Core/Dom/InputSync";
 import type { InspectedTab } from "../../Core/InspectedTab";
+import { ProfileSwitcher } from "../Profiles/ProfileSwitcher";
 import type { PanelContext } from "./PanelContext";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -69,6 +70,7 @@ export class HeaderBar {
                         reattachButton,
                     ],
                 }),
+                new ProfileSwitcher(context).root,
                 new ThemeToggle(context).root,
                 killSwitch,
             ],

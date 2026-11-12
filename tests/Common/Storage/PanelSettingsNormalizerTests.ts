@@ -1,8 +1,15 @@
 import { describe, expect, test } from "vitest";
+import { ActiveProfile } from "../../../src/Common/Profiles/ActiveProfile";
 import { PanelSettingsNormalizer } from "../../../src/Common/Storage/PanelSettingsNormalizer";
+import type { Rule } from "../../../src/Contracts/Rules/Rule";
 import { RuleTypeIds } from "../../../src/Contracts/Rules/RuleTypeIds";
-import { DefaultPanelSettings, SettingsSchema } from "../../../src/Contracts/Settings/DefaultPanelSettings";
+import { DefaultPanelSettings, DefaultProfile, SettingsSchema } from "../../../src/Contracts/Settings/DefaultPanelSettings";
+import type { PanelSettings } from "../../../src/Contracts/Settings/PanelSettings";
 import { aRule } from "../../TestData";
+
+function rulesOf(settings: PanelSettings): Rule[] {
+    return ActiveProfile.rules(settings);
+}
 
 describe("PanelSettingsNormalizer", () => {
     test.each([
@@ -33,11 +40,12 @@ describe("PanelSettingsNormalizer", () => {
 
         // Assert
         expect(settings.interceptionEnabled).toBe(false);
-        expect(settings.rules).toEqual([]);
+        expect(settings.profiles).toEqual([DefaultProfile]);
+        expect(settings.activeProfileId).toBe(DefaultProfile.id);
         expect(settings.testerSamples).toEqual(DefaultPanelSettings.testerSamples);
     });
 
-    test("normalize_WhenStoredSettingsAreSchemaVersion2_ShouldMigrateRulesAndDropProfiles", () => {
+    test("normalize_WhenStoredSettingsAreSchemaVersion2_ShouldMigrateRulesIntoTheDefaultProfile", () => {
         // Arrange
         const stored = {
             schemaVersion: SettingsSchema.FirstRulesVersion,
@@ -65,10 +73,10 @@ describe("PanelSettingsNormalizer", () => {
         const settings = PanelSettingsNormalizer.normalize(stored);
 
         // Assert
-        expect(settings).not.toHaveProperty("profiles");
-        expect(settings).not.toHaveProperty("activeProfileId");
+        expect(settings.profiles.map(profile => profile.id)).toEqual([DefaultProfile.id]);
+        expect(settings.activeProfileId).toBe(DefaultProfile.id);
         expect(settings).not.toHaveProperty("theme");
-        expect(settings.rules).toEqual([
+        expect(rulesOf(settings)).toEqual([
             {
                 ...aRule(),
                 type: RuleTypeIds.QueryParams,
@@ -101,21 +109,29 @@ describe("PanelSettingsNormalizer", () => {
         });
         const stored = {
             schemaVersion: SettingsSchema.CurrentVersion,
-            rules: [rule],
+            activeProfileId: "local",
+            profiles: [
+                {
+                    id: "local",
+                    name: "Local",
+                    rules: [rule],
+                    variables: [],
+                },
+            ],
         };
 
         // Act
         const settings = PanelSettingsNormalizer.normalize(stored);
 
         // Assert
-        expect(settings.rules).toEqual([rule]);
+        expect(rulesOf(settings)).toEqual([rule]);
     });
 
     test("normalize_WhenAMockStillStoresItsBaselineBody_ShouldDropIt", () => {
         // Arrange
         const rule = aRule();
         const stored = {
-            schemaVersion: SettingsSchema.CurrentVersion,
+            schemaVersion: 4,
             domainWhitelist: ["example.com"],
             rules: [
                 {
@@ -132,7 +148,7 @@ describe("PanelSettingsNormalizer", () => {
         const settings = PanelSettingsNormalizer.normalize(stored);
 
         // Assert
-        expect(settings.rules[0]?.action).toEqual(rule.action);
+        expect(rulesOf(settings)[0]?.action).toEqual(rule.action);
         expect(settings).not.toHaveProperty("domainWhitelist");
     });
 
@@ -169,7 +185,7 @@ describe("PanelSettingsNormalizer", () => {
         const settings = PanelSettingsNormalizer.normalize(stored);
 
         // Assert
-        expect(settings.rules.map(rule => rule.type)).toEqual([RuleTypeIds.Rewrite]);
+        expect(rulesOf(settings).map(rule => rule.type)).toEqual([RuleTypeIds.Rewrite]);
         expect(settings).not.toHaveProperty("redirectRules");
         expect(settings.schemaVersion).toBe(SettingsSchema.CurrentVersion);
     });
@@ -210,7 +226,7 @@ describe("PanelSettingsNormalizer", () => {
         const settings = PanelSettingsNormalizer.normalize(stored);
 
         // Assert
-        expect(settings.rules.map(rule => [
+        expect(rulesOf(settings).map(rule => [
             rule.id,
             rule.type,
         ])).toEqual([
@@ -229,12 +245,128 @@ describe("PanelSettingsNormalizer", () => {
         ]);
     });
 
+    test("normalize_WhenStoredSettingsAreSchemaVersion4_ShouldMoveRulesIntoTheDefaultProfile", () => {
+        // Arrange
+        const redirect = aRule({
+            id: "moved",
+            type: RuleTypeIds.Redirect,
+            action: {
+                target: "https://example.com/moved",
+                status: 308,
+            },
+        });
+        const stored = {
+            schemaVersion: 4,
+            rules: [redirect],
+        };
+
+        // Act
+        const settings = PanelSettingsNormalizer.normalize(stored);
+
+        // Assert
+        expect(settings.profiles).toEqual([
+            {
+                ...DefaultProfile,
+                rules: [redirect],
+            },
+        ]);
+        expect(settings.activeProfileId).toBe(DefaultProfile.id);
+    });
+
+    test("normalize_WhenTheActiveProfileIsUnknown_ShouldActivateTheFirstProfile", () => {
+        // Arrange
+        const stored = {
+            schemaVersion: SettingsSchema.CurrentVersion,
+            activeProfileId: "gone",
+            profiles: [
+                {
+                    id: "local",
+                    name: "Local",
+                },
+                {
+                    id: "staging",
+                    name: "Staging",
+                },
+            ],
+        };
+
+        // Act
+        const settings = PanelSettingsNormalizer.normalize(stored);
+
+        // Assert
+        expect(settings.activeProfileId).toBe("local");
+    });
+
+    test("normalize_WhenTheProfileListIsEmpty_ShouldFallBackToTheDefaultProfile", () => {
+        // Arrange
+        const stored = {
+            schemaVersion: SettingsSchema.CurrentVersion,
+            profiles: [],
+        };
+
+        // Act
+        const settings = PanelSettingsNormalizer.normalize(stored);
+
+        // Assert
+        expect(settings.profiles).toEqual([DefaultProfile]);
+        expect(settings.activeProfileId).toBe(DefaultProfile.id);
+    });
+
+    test("normalize_WhenAProfileHasOddVariables_ShouldTrimNamesAndDropNamelessOnes", () => {
+        // Arrange
+        const stored = {
+            schemaVersion: SettingsSchema.CurrentVersion,
+            profiles: [
+                {
+                    id: "local",
+                    name: " ",
+                    variables: [
+                        {
+                            name: " baseUrl ",
+                            value: "http://localhost:5000",
+                        },
+                        {
+                            name: "",
+                            value: "orphan",
+                        },
+                        {
+                            name: "count",
+                            value: 3,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        // Act
+        const settings = PanelSettingsNormalizer.normalize(stored);
+
+        // Assert
+        expect(settings.profiles[0]?.name).toBe("Profile");
+        expect(settings.profiles[0]?.variables).toEqual([
+            {
+                name: "baseUrl",
+                value: "http://localhost:5000",
+            },
+            {
+                name: "count",
+                value: "",
+            },
+        ]);
+    });
+
     test.each([
         [
             {
                 schemaVersion: SettingsSchema.CurrentVersion,
             },
             false,
+        ],
+        [
+            {
+                schemaVersion: 4,
+            },
+            true,
         ],
         [
             {

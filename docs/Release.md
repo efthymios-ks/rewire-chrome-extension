@@ -11,7 +11,7 @@ Packaging is local and uploads are manual: `Publish-Extension.ps1` runs the test
    ```
    Press Enter at the prompt to accept the suggested version.
 3. In the dashboard, **Add new item** and upload `artifacts\Rewire-<version>.zip`.
-4. Fill the listing: name, short and detailed description, category, a 128×128 icon, at least one 1280×800 or 640×400 screenshot, and a privacy policy URL (see [Privacy](Privacy.md)).
+4. Fill the listing: name, short and detailed description (see [Store listing](StoreListing.md)), category, a 128×128 icon, at least one 1280×800 or 640×400 screenshot, and a privacy policy URL (see [Privacy](Privacy.md)).
 5. Under **Permission justifications**, explain `debugger`, `declarativeNetRequest` and `host_permissions` in one or two sentences each. Vague answers get rejected.
 6. Submit for review. First-time reviews take longer; subsequent updates are usually minutes to hours.
 

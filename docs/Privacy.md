@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated:** 2026-11-08
+**Last updated:** 2026-11-12
 
 ## Summary
 
@@ -15,9 +15,9 @@ While you have the side panel open on a tab you choose, Rewire can see:
 
 While you use the extension, Rewire stores the following locally in your browser profile:
 
-- Your rules and panel settings — in `chrome.storage.local`.
+- Your profiles, with their rules and the variables you type, and your panel settings — in `chrome.storage.local`.
 - Rule hit counts and captured variable values — in `chrome.storage.session`, cleared when you restart the browser.
-- Captured request and response data — in the service worker's memory, cleared when the tab is detached, the panel closes, or the browser restarts.
+- Captured request and response data — in the service worker's memory, for the inspected tab and up to 5 tabs inspected before it, cleared when the tab closes, the panel closes, or the browser restarts.
 
 ## What Rewire does not do
 
@@ -30,7 +30,7 @@ While you use the extension, Rewire stores the following locally in your browser
 
 ## Exports
 
-Rule exports are JSON files you generate explicitly. By default they omit cookie values and `Authorization` headers; you can opt in to include them via the **Include cookie values and auth headers** toggle. Export files stay on your disk unless you share them.
+Profile exports and HAR files are files you generate explicitly. By default they omit cookie values, `Authorization` headers and API keys, and profile exports also blank variables whose names look secret; you can opt in to include them. Export files stay on your disk unless you share them.
 
 ## Client tab
 

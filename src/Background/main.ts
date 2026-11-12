@@ -1,5 +1,6 @@
 import { BackgroundTask } from "../Common/Async/BackgroundTask";
 import { ContentKindClassifier } from "../Common/Content/ContentKindClassifier";
+import { ActiveProfile } from "../Common/Profiles/ActiveProfile";
 import { ConsoleLogger } from "../Common/Logging/ConsoleLogger";
 import { RegexSupportClient } from "../Common/NetworkRules/RegexSupportClient";
 import { RuleHitsClient } from "../Common/Storage/RuleHitsClient";
@@ -9,11 +10,13 @@ import { PanelPortName } from "../Contracts/Messaging/PanelPortName";
 import { WorkerEventType } from "../Contracts/Messaging/WorkerEventType";
 import { ClearTimelineEndpoint } from "./Endpoints/ClearTimeline/ClearTimelineEndpoint";
 import { GetEntryDetailEndpoint } from "./Endpoints/GetEntryDetail/GetEntryDetailEndpoint";
+import { GetTimelineDetailsEndpoint } from "./Endpoints/GetTimelineDetails/GetTimelineDetailsEndpoint";
 import { InspectTabEndpoint } from "./Endpoints/InspectTab/InspectTabEndpoint";
 import { KeepAliveEndpoint } from "./Endpoints/KeepAlive/KeepAliveEndpoint";
 import { LogClientExchangeEndpoint } from "./Endpoints/LogClientExchange/LogClientExchangeEndpoint";
 import { PanelEndpointRouter } from "./Endpoints/PanelEndpointRouter";
 import { SearchTimelineEndpoint } from "./Endpoints/SearchTimeline/SearchTimelineEndpoint";
+import { SendClientRequestEndpoint } from "./Endpoints/SendClientRequest/SendClientRequestEndpoint";
 import { BrowserRuleSimulator } from "./Features/Capture/BrowserRuleSimulator";
 import { CaptureFilter } from "./Features/Capture/CaptureFilter";
 import { LoadingFailedHandler } from "./Features/Capture/LoadingFailedHandler";
@@ -28,6 +31,8 @@ import { TimelineAdmission } from "./Features/Capture/TimelineAdmission";
 import { TimelineRecordClassifier } from "./Features/Capture/TimelineRecordClassifier";
 import { TimelineRecordFactory } from "./Features/Capture/TimelineRecordFactory";
 import { TimelineStore } from "./Features/Capture/TimelineStore";
+import { ClientRequestSender } from "./Features/ClientSending/ClientRequestSender";
+import { PanelTargetClient } from "./Features/ClientSending/PanelTargetClient";
 import { CdpEventDispatcher } from "./Features/Debugging/CdpEventDispatcher";
 import { DebuggerClient } from "./Features/Debugging/DebuggerClient";
 import { InspectionService } from "./Features/Inspection/InspectionService";
@@ -59,6 +64,7 @@ const timelineStore = new TimelineStore();
 const contentKindClassifier = new ContentKindClassifier();
 const recordClassifier = new TimelineRecordClassifier(contentKindClassifier);
 const browserRuleSimulator = new BrowserRuleSimulator(activeRules);
+const clientRequestSender = new ClientRequestSender(new PanelTargetClient(), logger);
 
 const inspectionService = new InspectionService({
     debuggerClient,
@@ -122,10 +128,12 @@ const cdpEventDispatcher = new CdpEventDispatcher()
 const endpointRouter = new PanelEndpointRouter()
     .register(new InspectTabEndpoint(inspectionService, timelineStore))
     .register(new GetEntryDetailEndpoint(timelineStore))
+    .register(new GetTimelineDetailsEndpoint(timelineStore))
     .register(new ClearTimelineEndpoint(timelineStore, connectionHub))
     .register(new SearchTimelineEndpoint(timelineStore))
     .register(new KeepAliveEndpoint())
-    .register(new LogClientExchangeEndpoint(timelineStore, contentKindClassifier));
+    .register(new LogClientExchangeEndpoint(timelineStore, contentKindClassifier))
+    .register(new SendClientRequestEndpoint(clientRequestSender));
 
 activeRules.subscribe(() => {
     BackgroundTask.run(
@@ -187,7 +195,8 @@ timelineStore.subscribe(entry => connectionHub.publishToTab(
 settingsCache.watch(
     settings => ({
         interceptionEnabled: settings.interceptionEnabled,
-        rules: settings.rules,
+        rules: ActiveProfile.rules(settings),
+        variables: ActiveProfile.variables(settings),
     }),
     () => activeRules.refresh()
 );
@@ -222,26 +231,46 @@ chrome.debugger.onEvent.addListener((
     source,
     method,
     params
-) => BackgroundTask.run(
-    logger,
-    method,
-    async () => {
-        await settingsReady;
-        await cdpEventDispatcher.dispatch(
-            source.tabId,
+) => {
+    if (source.targetId !== undefined) {
+        clientRequestSender.handleEvent(
+            source.targetId,
             method,
             params
         );
+
+        return;
     }
-));
+
+    BackgroundTask.run(
+        logger,
+        method,
+        async () => {
+            await settingsReady;
+            await cdpEventDispatcher.dispatch(
+                source.tabId,
+                method,
+                params
+            );
+        }
+    );
+});
 
 chrome.debugger.onDetach.addListener((source, reason) => {
+    if (source.targetId !== undefined) {
+        clientRequestSender.handleDetach(source.targetId);
+
+        return;
+    }
+
     if (source.tabId === undefined) {
         return;
     }
 
     inspectionService.handleDetach(source.tabId, reason);
 });
+
+chrome.tabs.onRemoved.addListener(tabId => inspectionService.forget(tabId));
 
 chrome.runtime.onConnect.addListener(port => {
     if (port.name !== PanelPortName) {

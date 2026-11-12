@@ -257,4 +257,38 @@ describe("ClientBodies", () => {
         // Assert
         expect(sent.type).toBe(ClientBodyType.None);
     });
+    test.each([
+        [
+            "GET",
+            ClientBodyType.FormUrlEncoded,
+            true,
+        ],
+        [
+            "head",
+            ClientBodyType.Text,
+            true,
+        ],
+        [
+            "GET",
+            ClientBodyType.None,
+            false,
+        ],
+        [
+            "POST",
+            ClientBodyType.Json,
+            false,
+        ],
+    ])("dropsBody_WhenTheMethodIs(%s)AndTheBodyType(%s)_ShouldReturn(%s)", (method, type, expected) => {
+        // Arrange
+        const body = {
+            ...ClientBodies.empty(),
+            type,
+        };
+
+        // Act
+        const drops = ClientBodies.dropsBody(method, body);
+
+        // Assert
+        expect(drops).toBe(expected);
+    });
 });

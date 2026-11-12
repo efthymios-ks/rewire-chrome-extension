@@ -73,7 +73,7 @@ export class ClientForm {
         this._methodSelect = this.methodSelect();
         this._urlInput = FormControls.textInput({
             value: args.initial.url,
-            placeholder: "https://api.example.com/users/42 or paste a cURL or Wget command",
+            placeholder: "URL, cURL or Wget",
             className: "input client-url",
         });
         this._urlInput.setAttribute("aria-label", "URL");
@@ -151,15 +151,19 @@ export class ClientForm {
     }
 
     fill(request: ClientRequest): void {
-        this._method = request.method.toUpperCase();
-        const select = this.methodSelect();
-        this._methodSelect.replaceWith(select);
-        this._methodSelect = select;
+        this.useMethod(request.method.toUpperCase());
         this._urlInput.value = request.url;
         this._headers.setRows(request.headers.map(header => ({
             ...header,
         })));
         this._body.fill(request.body);
+    }
+
+    private useMethod(method: string): void {
+        this._method = method;
+        const select = this.methodSelect();
+        this._methodSelect.replaceWith(select);
+        this._methodSelect = select;
     }
 
     private methodSelect(): HTMLSelectElement {

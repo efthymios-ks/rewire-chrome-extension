@@ -1,17 +1,24 @@
 import type { ILogger } from "../../Common/Logging/ILogger";
+import { ActiveProfile } from "../../Common/Profiles/ActiveProfile";
+import { ProfileEdits } from "../../Common/Profiles/ProfileEdits";
+import type { ImportMode } from "../../Common/Profiles/Transfer/ProfileBundle";
+import { ProfileTransfer } from "../../Common/Profiles/Transfer/ProfileTransfer";
 import { Result } from "../../Common/Results/Result";
 import { RuleListEdits } from "../../Common/Rules/Editing/RuleListEdits";
-import type { ImportMode, RuleBundle } from "../../Common/Rules/Transfer/RuleBundle";
-import { RuleTransfer } from "../../Common/Rules/Transfer/RuleTransfer";
 import type { ISettingsStorageClient } from "../../Common/Storage/ISettingsStorageClient";
 import type { Rule } from "../../Contracts/Rules/Rule";
 import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
+import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
+import type { RuleProfile } from "../../Contracts/Settings/RuleProfile";
 import type { Notifier } from "./Notifier";
 import { PanelLimits } from "./PanelLimits";
 import type { PanelState } from "./PanelState";
 import type { Store } from "./Store";
 
 const UndoLabel = "Undo";
+const LastProfileMessage = "Keep at least one profile.";
+
+type RulesChange = (rules: Rule[]) => Rule[];
 
 export interface SettingsServiceDependencies {
     store: Store<PanelState>;
@@ -68,78 +75,80 @@ export class SettingsService {
         return saved;
     }
 
+    private updateRules(change: RulesChange): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.changeActive(settings, profile => ({
+            ...profile,
+            rules: change(profile.rules),
+        })));
+    }
+
+    activeRules(): Rule[] {
+        return ActiveProfile.rules(this.current());
+    }
+
     saveRule(rule: Rule): Promise<Result<void>> {
-        return this.update(settings => ({
-            ...settings,
-            rules: RuleListEdits.replace(settings.rules, rule),
-        }));
+        return this.updateRules(rules => RuleListEdits.replace(rules, rule));
     }
 
     setRuleEnabled(ruleId: string, enabled: boolean): Promise<Result<void>> {
-        return this.update(settings => ({
-            ...settings,
-            rules: settings.rules.map(rule => rule.id === ruleId
-                ? {
-                    ...rule,
-                    enabled,
-                }
-                : rule),
-        }));
+        return this.updateRules(rules => rules.map(rule => rule.id === ruleId
+            ? {
+                ...rule,
+                enabled,
+            }
+            : rule));
     }
 
     duplicateRule(ruleId: string): Promise<Result<void>> {
-        return this.update(settings => {
-            const rule = settings.rules.find(candidate => candidate.id === ruleId);
+        return this.updateRules(rules => {
+            const rule = rules.find(candidate => candidate.id === ruleId);
             if (rule === undefined) {
-                return settings;
+                return rules;
             }
 
-            return {
-                ...settings,
-                rules: RuleListEdits.insertAfter(
-                    settings.rules,
-                    RuleListEdits.duplicate(rule, crypto.randomUUID()),
-                    ruleId
-                ),
-            };
+            return RuleListEdits.insertAfter(
+                rules,
+                RuleListEdits.duplicate(rule, crypto.randomUUID()),
+                ruleId
+            );
         });
     }
 
     moveRule(ruleId: string, targetIndex: number): Promise<Result<void>> {
-        return this.update(settings => ({
-            ...settings,
-            rules: RuleListEdits.move(
-                settings.rules,
-                ruleId,
-                targetIndex
-            ),
-        }));
+        return this.updateRules(rules => RuleListEdits.move(
+            rules,
+            ruleId,
+            targetIndex
+        ));
     }
 
     async removeRule(ruleId: string): Promise<Result<void>> {
-        const index = this.current().rules.findIndex(rule => rule.id === ruleId);
-        const rule = this.current().rules[index];
+        const profileId = ActiveProfile.of(this.current()).id;
+        const rules = this.activeRules();
+        const index = rules.findIndex(rule => rule.id === ruleId);
+        const rule = rules[index];
         if (rule === undefined) {
             return Result.done();
         }
 
-        const removed = await this.update(settings => ({
-            ...settings,
-            rules: RuleListEdits.remove(settings.rules, ruleId),
-        }));
+        const removed = await this.updateRules(current => RuleListEdits.remove(current, ruleId));
         if (!removed.hasErrors) {
             this._dependencies.notifier.show(
                 `Removed "${rule.name}".`,
                 {
                     label: UndoLabel,
-                    run: () => void this.update(settings => ({
-                        ...settings,
-                        rules: RuleListEdits.restore(
-                            settings.rules,
-                            rule,
-                            index
-                        ),
-                    })),
+                    run: () => void this.update(settings => ProfileEdits.change(
+                        settings,
+                        profileId,
+                        profile => ({
+                            ...profile,
+                            rules: RuleListEdits.restore(
+                                profile.rules,
+                                rule,
+                                index
+                            ),
+                        })
+                    )),
                 }
             );
         }
@@ -147,12 +156,54 @@ export class SettingsService {
         return removed;
     }
 
-    importBundle(bundle: RuleBundle, mode: ImportMode): Promise<Result<void>> {
-        return this.update(settings => RuleTransfer.apply(
+    importProfiles(profiles: RuleProfile[], mode: ImportMode): Promise<Result<void>> {
+        return this.update(settings => ProfileTransfer.apply(
             settings,
-            bundle,
+            profiles,
             mode
         ));
+    }
+
+    createProfile(): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.create(settings, crypto.randomUUID()));
+    }
+
+    renameProfile(profileId: string, name: string): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.rename(
+            settings,
+            profileId,
+            name
+        ));
+    }
+
+    duplicateProfile(profileId: string): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.duplicate(
+            settings,
+            profileId,
+            crypto.randomUUID(),
+            () => crypto.randomUUID()
+        ));
+    }
+
+    async removeProfile(profileId: string): Promise<Result<void>> {
+        if (!ProfileEdits.canRemove(this.current())) {
+            this._dependencies.notifier.show(LastProfileMessage);
+
+            return Result.fail(LastProfileMessage);
+        }
+
+        return this.update(settings => ProfileEdits.remove(settings, profileId));
+    }
+
+    switchProfile(profileId: string): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.switchTo(settings, profileId));
+    }
+
+    saveVariables(variables: ProfileVariable[]): Promise<Result<void>> {
+        return this.update(settings => ProfileEdits.changeActive(settings, profile => ({
+            ...profile,
+            variables,
+        })));
     }
 
     async togglePin(endpointKey: string): Promise<Result<void>> {

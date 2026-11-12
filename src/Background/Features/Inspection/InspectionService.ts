@@ -4,12 +4,14 @@ import { InspectionState } from "../../../Contracts/Inspection/InspectionState";
 import type { InspectionStatus } from "../../../Contracts/Inspection/InspectionStatus";
 import { WorkerEventType } from "../../../Contracts/Messaging/WorkerEventType";
 import type { ITimelineStore } from "../Capture/ITimelineStore";
+import { TimelineLimits } from "../Capture/TimelineLimits";
 import type { IDebuggerClient } from "../Debugging/IDebuggerClient";
 import { FetchPatternBuilder } from "../Interception/FetchPatternBuilder";
 import type { IPanelConnectionHub } from "../PanelConnections/PanelConnectionHub";
 import type { IActiveRules } from "../Rules/ActiveRules";
 import { DetachReasonMessages } from "./DetachReasonMessages";
 import type { IInspectionService } from "./IInspectionService";
+import { KeptTimelines } from "./KeptTimelines";
 
 export interface InspectionDependencies {
     debuggerClient: IDebuggerClient;
@@ -23,6 +25,7 @@ export class InspectionService implements IInspectionService {
     private readonly _dependencies: InspectionDependencies;
     private readonly _attachedTabs = new Set<number>();
     private readonly _failures = new Map<number, string>();
+    private readonly _keptTimelines = new KeptTimelines(TimelineLimits.MaxKeptTabs);
 
     constructor(dependencies: InspectionDependencies) {
         this._dependencies = dependencies;
@@ -31,8 +34,10 @@ export class InspectionService implements IInspectionService {
     async inspect(connectionId: string, tabId: number): Promise<Result<void>> {
         const previousTabId = this._dependencies.connectionHub.inspect(connectionId, tabId);
         if (previousTabId !== null && previousTabId !== tabId) {
-            await this.detachIfUnused(previousTabId);
+            await this.park(previousTabId);
         }
+
+        this._keptTimelines.resume(tabId);
 
         if (this._attachedTabs.has(tabId)) {
             return Result.done();
@@ -61,11 +66,21 @@ export class InspectionService implements IInspectionService {
     }
 
     async release(tabId: number | null): Promise<void> {
-        if (tabId === null) {
-            return;
+        if (tabId !== null && await this.detachIfUnused(tabId)) {
+            this._dependencies.timelineStore.clear(tabId);
         }
 
-        await this.detachIfUnused(tabId);
+        if (!this._dependencies.connectionHub.hasConnections()) {
+            this._keptTimelines
+                .takeAll()
+                .forEach(keptTabId => this._dependencies.timelineStore.clear(keptTabId));
+        }
+    }
+
+    forget(tabId: number): void {
+        this._keptTimelines.resume(tabId);
+        this._failures.delete(tabId);
+        this._dependencies.timelineStore.clear(tabId);
     }
 
     async refreshInterception(): Promise<void> {
@@ -165,19 +180,30 @@ export class InspectionService implements IInspectionService {
         return Result.done();
     }
 
-    private async detachIfUnused(tabId: number): Promise<void> {
-        const { connectionHub, debuggerClient, timelineStore, logger } = this._dependencies;
-        if (connectionHub.isTabInspected(tabId) || !this._attachedTabs.has(tabId)) {
+    private async park(tabId: number): Promise<void> {
+        if (!await this.detachIfUnused(tabId)) {
             return;
         }
 
+        this._keptTimelines
+            .keep(tabId)
+            .forEach(droppedTabId => this._dependencies.timelineStore.clear(droppedTabId));
+    }
+
+    private async detachIfUnused(tabId: number): Promise<boolean> {
+        const { connectionHub, debuggerClient, logger } = this._dependencies;
+        if (connectionHub.isTabInspected(tabId) || !this._attachedTabs.has(tabId)) {
+            return false;
+        }
+
         this._attachedTabs.delete(tabId);
-        timelineStore.clear(tabId);
 
         const detached = await debuggerClient.detach(tabId);
         if (detached.hasErrors) {
             logger.warn(`Detaching from tab ${tabId} failed.`, detached.error);
         }
+
+        return true;
     }
 
     private publish(tabId: number, status: InspectionStatus): void {

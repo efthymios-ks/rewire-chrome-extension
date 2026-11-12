@@ -66,7 +66,7 @@ export class RedirectRule extends RuleTypeBase<RedirectAction> {
             kind: FieldKind.Text,
             key: "target",
             label: TargetLabel,
-            placeholder: "https://api.example.com/users/$1",
+            placeholder: "https://example.com/$1",
             hint: "$1 to $9 insert the groups of a URL condition that matches a regex. Can use {{variables}}.",
         },
         {

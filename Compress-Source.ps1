@@ -32,7 +32,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:Root = $PSScriptRoot.TrimEnd('\')
-$script:ZipPath = Join-Path $script:Root 'Rewire.zip'
+$script:ZipPath = Join-Path $script:Root 'rewire-chrome-extension.zip'
 # Left out of the zip by name when git can't say what it ignores; mirrors .gitignore.
 $script:FallbackExcludedFolders = @('node_modules', 'dist', 'artifacts', '.debug-profile', '.git')
 $script:FallbackExcludedPatterns = @('*.log', '*.zip', 'testResults.xml')

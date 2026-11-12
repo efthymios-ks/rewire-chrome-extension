@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { CriteriaMatches } from "../../../../src/Contracts/Rules/Criterion";
 import { RuleEngine } from "../../../../src/Contracts/Rules/RuleEngine";
 import { RuleScopes } from "../../../../src/SidePanel/Features/Rules/RuleScopes";
-import { aCriterion, aRule, aSettings } from "../../../TestData";
+import { aCriterion, aProfile, aRule, aSettings, aSettingsWithRules } from "../../../TestData";
 
 describe("RuleScopes", () => {
     test("criteriaSummary_WhenThereAreNoConditions_ShouldSayEveryRequest", () => {
@@ -55,22 +55,41 @@ describe("RuleScopes", () => {
 
     test("plansOf_WhenRulesAreDisabled_ShouldSkipThem", () => {
         // Arrange
-        const settings = aSettings({
-            rules: [
-                aRule({
-                    id: "on",
-                }),
-                aRule({
-                    id: "off",
-                    enabled: false,
-                }),
-            ],
-        });
+        const settings = aSettingsWithRules([
+            aRule({
+                id: "on",
+            }),
+            aRule({
+                id: "off",
+                enabled: false,
+            }),
+        ]);
 
         // Act
         const plans = RuleScopes.plansOf(settings);
 
         // Assert
         expect(plans.map(plan => plan.rule.id)).toEqual(["on"]);
+    });
+    test("contextOf_WhenTheActiveProfileHasVariables_ShouldRenderThem", () => {
+        // Arrange
+        const settings = aSettings({
+            profiles: [
+                aProfile({
+                    variables: [
+                        {
+                            name: "env",
+                            value: "staging",
+                        },
+                    ],
+                }),
+            ],
+        });
+
+        // Act
+        const rendered = RuleScopes.contextOf(settings).render("x-{{env}}-{{missing}}");
+
+        // Assert
+        expect(rendered).toBe("x-staging-{{missing}}");
     });
 });

@@ -12,7 +12,9 @@ import { JsonTreeView } from "./JsonTreeView";
 import { TextHighlighter } from "./TextHighlighter";
 
 const NoneText = "(none)";
-const ChangedClass = "changed";
+const RemovedText = "(removed)";
+const ModifiedText = "Modified";
+const EmptyBodyText = "No body.";
 
 export interface DefinitionAction {
     label: string;
@@ -54,7 +56,19 @@ function valueChildren(item: DefinitionItem): ElementChild[] {
 }
 
 function changeTitle(change: ValueChange): string {
-    return change.before === null ? "Added by a rule." : `Updated by a rule. Was: ${change.before}`;
+    if (change.before === null) {
+        return "Added by a rule.";
+    }
+
+    return change.after === null ? `Removed by a rule. Was: ${change.before}` : `Updated by a rule. Was: ${change.before}`;
+}
+
+function modifiedTag(title: string): HTMLElement {
+    return buildElement("span", {
+        className: "modified-tag",
+        text: ModifiedText,
+        title,
+    });
 }
 
 function changeOf(
@@ -75,35 +89,9 @@ function removedHeaders(
         .filter(change => !headers.some(header => header.name.toLowerCase() === change.name.toLowerCase()))
         .map(change => ({
             term: change.name,
-            value: `Removed (was ${change.before ?? NoneText})`,
+            value: RemovedText,
             change,
         }));
-}
-
-function table(columns: string[], rows: string[][]): HTMLElement {
-    return buildElement("table", {
-        className: "grid",
-        children: [
-            buildElement("thead", {
-                children: [
-                    buildElement("tr", {
-                        children: columns.map(column => buildElement("th", {
-                            text: column,
-                        })),
-                    }),
-                ],
-            }),
-            buildElement("tbody", {
-                children: rows.map(row => buildElement("tr", {
-                    children: row.map(cell => buildElement("td", {
-                        className: "cell-truncate",
-                        text: cell,
-                        title: cell,
-                    })),
-                })),
-            }),
-        ],
-    });
 }
 
 function flagsOf(cookie: SetCookie): string {
@@ -135,47 +123,22 @@ function bodyContent(
 }
 
 export const DetailSections = {
-    section(
-        id: string,
-        title: string,
-        content: ElementChild[]
-    ): HTMLDetailsElement {
-        const details = buildElement("details", {
-            className: "detail-section",
-            children: [
-                buildElement("summary", {
-                    text: title,
-                }),
-                ...content,
-            ],
-        });
-        details.dataset["section"] = id;
-
-        return details;
-    },
-
     definitions(items: DefinitionItem[]): HTMLDListElement {
         return buildElement("dl", {
             className: "definitions",
             children: items
                 .filter(item => item.value !== "")
-                .flatMap(item => {
-                    const className = item.change === undefined ? "" : ChangedClass;
-                    const title = item.change === undefined ? "" : changeTitle(item.change);
-
-                    return [
-                        buildElement("dt", {
-                            className,
-                            text: item.term,
-                            title,
-                        }),
-                        buildElement("dd", {
-                            className,
-                            children: valueChildren(item),
-                            title,
-                        }),
-                    ];
-                }),
+                .flatMap(item => [
+                    buildElement("dt", {
+                        children: [
+                            item.term,
+                            item.change === undefined ? null : modifiedTag(changeTitle(item.change)),
+                        ],
+                    }),
+                    buildElement("dd", {
+                        children: valueChildren(item),
+                    }),
+                ]),
         });
     },
 
@@ -223,16 +186,10 @@ export const DetailSections = {
                 buildElement("h4", {
                     text: `Cookies (${pairs.length})`,
                 }),
-                table(
-                    [
-                        "Name",
-                        "Value",
-                    ],
-                    pairs.map(pair => [
-                        pair.name,
-                        pair.value,
-                    ])
-                ),
+                DetailSections.definitions(pairs.map(pair => ({
+                    term: pair.name,
+                    value: pair.value === "" ? NoneText : pair.value,
+                }))),
             ],
         });
     },
@@ -248,24 +205,37 @@ export const DetailSections = {
                 buildElement("h4", {
                     text: `Set-Cookie (${cookies.length})`,
                 }),
-                table(
-                    [
-                        "Name",
-                        "Value",
-                        "Domain",
-                        "Path",
-                        "Expires",
-                        "Flags",
+                ...cookies.map(cookie => buildElement("div", {
+                    className: "set-cookie",
+                    children: [
+                        DetailSections.definitions([
+                            {
+                                term: "Name",
+                                value: cookie.name,
+                            },
+                            {
+                                term: "Value",
+                                value: cookie.value === "" ? NoneText : cookie.value,
+                            },
+                            {
+                                term: "Domain",
+                                value: cookie.domain,
+                            },
+                            {
+                                term: "Path",
+                                value: cookie.path,
+                            },
+                            {
+                                term: "Expires",
+                                value: cookie.maxAge === "" ? UtcText.ofText(cookie.expires) : `Max-Age ${cookie.maxAge}`,
+                            },
+                            {
+                                term: "Flags",
+                                value: flagsOf(cookie),
+                            },
+                        ]),
                     ],
-                    cookies.map(cookie => [
-                        cookie.name,
-                        cookie.value,
-                        cookie.domain,
-                        cookie.path,
-                        cookie.maxAge === "" ? UtcText.ofText(cookie.expires) : `Max-Age ${cookie.maxAge}`,
-                        flagsOf(cookie),
-                    ])
-                ),
+                })),
             ],
         });
     },
@@ -294,9 +264,10 @@ export const DetailSections = {
         };
         render();
 
+        const isEmpty = body === null || body === "";
+
         return buildElement("div", {
-            className: change === undefined ? "body-view" : "body-view changed",
-            title: change === undefined ? "" : "Updated by a rule.",
+            className: "body-view",
             children: [
                 note === null
                     ? null
@@ -304,11 +275,18 @@ export const DetailSections = {
                         className: "muted",
                         text: note,
                     }),
-                body === null || body === ""
+                isEmpty && note === null
+                    ? buildElement("p", {
+                        className: "muted",
+                        text: EmptyBodyText,
+                    })
+                    : null,
+                isEmpty
                     ? null
                     : buildElement("div", {
                         className: "body-tools",
                         children: [
+                            change === undefined ? null : modifiedTag("Changed by a rule."),
                             FormControls.select({
                                 value: String(CurrentInspectorPreferences.bodyMode),
                                 options: [

@@ -85,4 +85,23 @@ describe("ClientView", () => {
         expect(view.root.querySelector<HTMLSelectElement>(".client-method")!.value).toBe("PUT");
         expect(view.root.querySelector<HTMLTextAreaElement>(".client-body-editor textarea")!.value).toBe("{\"name\":\"Ada\"}");
     });
+    test("send_WhenAGetCarriesABody_ShouldLogTheBodyItSent", async () => {
+        // Arrange
+        const harness = aPanelHarness({
+            inspectedTab: InspectedTab,
+        });
+        const view = new ClientView(harness.context, anHttpClient());
+        typeInto(view.root.querySelector<HTMLInputElement>(".client-url")!, "https://login.example.com/token");
+        click(buttonNamed(view.root, "Text"));
+        typeInto(view.root.querySelector<HTMLTextAreaElement>(".client-body-editor textarea")!, "grant_type=client_credentials");
+
+        // Act
+        click(buttonNamed(view.root, "Send"));
+        await nextRender();
+
+        // Assert
+        const logged = sentOf(harness, PanelCommandType.LogClientExchange) as LogClientExchangeCommand[];
+        expect(logged[0]?.request.method).toBe("GET");
+        expect(logged[0]?.request.body).toBe("grant_type=client_credentials");
+    });
 });

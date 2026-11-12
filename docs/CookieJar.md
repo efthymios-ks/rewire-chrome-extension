@@ -6,6 +6,7 @@ The page's address shows next to the title.
 - Each row shows name, domain, path, expiry, HttpOnly, Secure and SameSite; on a narrow panel, one line per field.
   A cookie the server sent without SameSite shows **Not set (Lax)**, which is how Chrome treats it.
   Expiry shows in UTC, as `2027-12-11T18:37:25Z`.
+- The search box keeps the cookies whose name or value contains the text, ignoring case.
 - Click a row to open it: its value and actions appear below it.
   One row is open at a time.
 - **Edit** opens the cookie in a form; the name stays fixed.

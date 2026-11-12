@@ -6,6 +6,34 @@ const HourInSeconds = 3600;
 const NowInSeconds = Now.getTime() / 1000;
 
 describe("JwtClaims", () => {
+    test.each([
+        [
+            "iat",
+            true,
+        ],
+        [
+            "nbf",
+            true,
+        ],
+        [
+            "exp",
+            true,
+        ],
+        [
+            "sub",
+            false,
+        ],
+    ])("isTimeClaim_WhenTheNameIs(%s)_ShouldReturn(%s)", (name, expected) => {
+        // Arrange
+        const claim = name;
+
+        // Act
+        const isTimeClaim = JwtClaims.isTimeClaim(claim);
+
+        // Assert
+        expect(isTimeClaim).toBe(expected);
+    });
+
     test("timesOf_WhenThePayloadHasTimeClaims_ShouldTurnSecondsIntoDates", () => {
         // Arrange
         const payload = {

@@ -46,7 +46,7 @@ export class TesterForm {
                     "URL",
                     FormControls.textInput({
                         value: url,
-                        placeholder: "https://api.example.com/v1/users",
+                        placeholder: "https://api.example.com/users",
                         onInput: value => this.change(() => {
                             this._input.url = value;
                         }),

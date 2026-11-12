@@ -1,14 +1,20 @@
+import { JsonText } from "../../../Common/Json/JsonText";
 import { JwtClaims, JwtValidity } from "../../../Common/Jwt/JwtClaims";
-import { type DecodedJwt, JwtToken } from "../../../Common/Jwt/JwtToken";
+import { type DecodedJwt, type JwtObject, JwtToken } from "../../../Common/Jwt/JwtToken";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { FormControls } from "../../Core/Dom/FormControls";
-import { UtcText } from "../../Core/Formatting/UtcText";
 import type { JwtLaunchRequest } from "../../Core/ViewLaunchRequests";
 import type { PanelContext } from "../Shell/PanelContext";
+import { type JwtField, JwtFields } from "./JwtFields";
 import { JwtStatusText } from "./JwtStatusText";
 
 const TokenRows = 5;
-const JsonIndentation = 2;
+const NoneText = "None.";
+
+export enum JwtViewMode {
+    List = 1,
+    Raw = 2,
+}
 
 const ValidityClasses: Record<JwtValidity, string> = {
     [JwtValidity.Valid]: "status-ok",
@@ -17,42 +23,61 @@ const ValidityClasses: Record<JwtValidity, string> = {
     [JwtValidity.NoExpiry]: "status-redirect",
 };
 
-function jsonBlock(title: string, value: object): HTMLElement {
+type PartRenderer = (part: JwtObject) => HTMLElement;
+
+function fieldList(fields: JwtField[], className: string): HTMLElement {
+    return buildElement("dl", {
+        className,
+        children: fields.flatMap(field => [
+            buildElement("dt", {
+                text: field.name,
+            }),
+            buildElement("dd", {
+                className: "code-text",
+                children: field.children.length === 0 ? [field.value] : [fieldList(field.children, "definitions nested-definitions")],
+            }),
+        ]),
+    });
+}
+
+function listOf(part: JwtObject): HTMLElement {
+    const fields = JwtFields.of(part);
+    if (fields.length === 0) {
+        return buildElement("p", {
+            className: "muted",
+            text: NoneText,
+        });
+    }
+
+    return fieldList(fields, "definitions");
+}
+
+function rawOf(part: JwtObject): HTMLElement {
+    return buildElement("pre", {
+        className: "code-block wrap",
+        text: JsonText.stringify(part),
+    });
+}
+
+const PartRenderers: Record<JwtViewMode, PartRenderer> = {
+    [JwtViewMode.List]: listOf,
+    [JwtViewMode.Raw]: rawOf,
+};
+
+function partBlock(
+    title: string,
+    part: JwtObject,
+    render: PartRenderer
+): HTMLElement {
     return buildElement("section", {
-        className: "client-section",
+        className: "client-section jwt-part",
         children: [
             buildElement("h3", {
                 className: "client-section-title",
                 text: title,
             }),
-            buildElement("pre", {
-                className: "code-block wrap",
-                text: JSON.stringify(
-                    value,
-                    null,
-                    JsonIndentation
-                ),
-            }),
+            render(part),
         ],
-    });
-}
-
-function timesOf(decoded: DecodedJwt): HTMLElement | null {
-    const times = JwtClaims.timesOf(decoded.payload);
-    if (times.length === 0) {
-        return null;
-    }
-
-    return buildElement("dl", {
-        className: "definitions",
-        children: times.flatMap(time => [
-            buildElement("dt", {
-                text: time.label,
-            }),
-            buildElement("dd", {
-                text: UtcText.of(time.at),
-            }),
-        ]),
     });
 }
 
@@ -61,13 +86,14 @@ export class JwtView {
 
     private readonly _input: HTMLTextAreaElement;
     private readonly _output: HTMLElement;
+    private _mode = JwtViewMode.List;
 
     constructor(context: PanelContext) {
         this._input = FormControls.textArea({
             value: "",
             rows: TokenRows,
             className: "input code-input jwt-input",
-            placeholder: "Paste a JWT, with or without the Bearer prefix",
+            placeholder: "Paste a JWT",
             onInput: () => this.render(),
         });
         this._input.setAttribute("aria-label", "JWT");
@@ -128,15 +154,56 @@ export class JwtView {
             return;
         }
 
+        this._output.replaceChildren(...this.decodedParts(decoded.value));
+    }
+
+    private decodedParts(decoded: DecodedJwt): HTMLElement[] {
         const now = new Date();
-        this._output.replaceChildren(
+        const render = PartRenderers[this._mode];
+
+        return [
             buildElement("p", {
-                className: `status ${ValidityClasses[JwtClaims.validityOf(decoded.value.payload, now)]}`,
-                text: JwtStatusText.of(decoded.value.payload, now),
+                className: `status ${ValidityClasses[JwtClaims.validityOf(decoded.payload, now)]}`,
+                text: JwtStatusText.of(decoded.payload, now),
             }),
-            timesOf(decoded.value) ?? "",
-            jsonBlock("Header", decoded.value.header),
-            jsonBlock("Claims", decoded.value.payload)
-        );
+            this.modeSelect(),
+            partBlock(
+                "Header",
+                decoded.header,
+                render
+            ),
+            partBlock(
+                "Claims",
+                decoded.payload,
+                render
+            ),
+        ];
+    }
+
+    private modeSelect(): HTMLElement {
+        const select = FormControls.select({
+            value: String(this._mode),
+            className: "input jwt-mode",
+            options: [
+                {
+                    value: String(JwtViewMode.List),
+                    label: "List",
+                },
+                {
+                    value: String(JwtViewMode.Raw),
+                    label: "Raw",
+                },
+            ],
+            onChange: value => {
+                this._mode = Number(value) as JwtViewMode;
+                this.render();
+            },
+        });
+        select.setAttribute("aria-label", "Show the header and claims as");
+
+        return buildElement("div", {
+            className: "body-tools",
+            children: [select],
+        });
     }
 }

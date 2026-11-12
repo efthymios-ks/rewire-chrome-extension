@@ -43,6 +43,10 @@ function dateOf(payload: JwtObject, claim: string): Date | null {
 }
 
 export const JwtClaims = {
+    isTimeClaim(name: string): boolean {
+        return TimeClaims.some(definition => definition.claim === name);
+    },
+
     timesOf(payload: JwtObject): JwtTime[] {
         return TimeClaims.flatMap(definition => {
             const at = dateOf(payload, definition.claim);
