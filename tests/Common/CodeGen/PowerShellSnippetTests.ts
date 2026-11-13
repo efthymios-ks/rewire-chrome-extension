@@ -113,6 +113,7 @@ describe("PowerShellSnippet", () => {
         // Assert
         expect(text).toContain("GetBytes('it\u2019\u2019s')");
     });
+
     test("tryParse_WhenGivenAnyText_ShouldReturnNull", () => {
         // Arrange
         const text = "Invoke-WebRequest -Uri 'https://api.example.com/users'";

@@ -112,7 +112,7 @@ describe("InspectorPanel", () => {
 
         // Assert
         expect(event.defaultPrevented).toBe(true);
-        expect(document.querySelector(".context-menu-item")?.textContent).toBe("Open in Client");
+        expect(document.querySelector(".context-menu-item")?.textContent).toBe("Open in HTTP Client");
     });
 
     test("contextMenu_WhenNothingIsSelected_ShouldKeepTheBrowserMenu", () => {

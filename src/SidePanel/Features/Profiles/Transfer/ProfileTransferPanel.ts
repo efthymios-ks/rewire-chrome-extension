@@ -1,3 +1,4 @@
+import { JsonCodeBlock } from "../../../../Common/Json/JsonCodeBlock";
 import { JsonText } from "../../../../Common/Json/JsonText";
 import { ImportMode } from "../../../../Common/Profiles/Transfer/ProfileBundle";
 import { ProfileTransfer } from "../../../../Common/Profiles/Transfer/ProfileTransfer";
@@ -9,6 +10,7 @@ import type { ISlidePanel } from "../../../Core/Dom/ISlidePanel";
 import type { IFileClient } from "../../../Core/FileClient";
 import { CountText } from "../../../Core/Formatting/CountText";
 import type { PanelContext } from "../../Shell/PanelContext";
+import { RuleFormatGuide } from "./RuleFormatGuide";
 
 const JsonMimeType = "application/json";
 const JsonAccept = ".json,application/json";
@@ -68,6 +70,7 @@ export class ProfileTransferPanel implements ISlidePanel {
     private readonly _fileClient: IFileClient;
     private readonly _exportList: HTMLElement;
     private readonly _preview: HTMLElement;
+    private readonly _pasteBox: HTMLTextAreaElement;
     private readonly _exportIds: Set<string>;
     private readonly _importIds = new Set<string>();
     private _includeSecrets = false;
@@ -87,6 +90,12 @@ export class ProfileTransferPanel implements ISlidePanel {
         this._exportList.setAttribute("aria-label", "Profiles to export");
         this._preview = buildElement("div", {
             className: "import-preview",
+        });
+        this._pasteBox = FormControls.textArea({
+            value: "",
+            rows: 4,
+            className: "input code-input import-paste",
+            placeholder: "Paste profiles JSON",
         });
 
         this.root = buildElement("div", {
@@ -130,11 +139,47 @@ export class ProfileTransferPanel implements ISlidePanel {
                             className: "editor-section-title",
                             text: "Import",
                         }),
-                        FormControls.button({
-                            text: "Choose file",
-                            onClick: () => void this.pickFile(),
+                        this._pasteBox,
+                        buildElement("div", {
+                            className: "actions",
+                            children: [
+                                FormControls.button({
+                                    text: "Choose file",
+                                    onClick: () => void this.pickFile(),
+                                }),
+                                FormControls.button({
+                                    text: "Read pasted JSON",
+                                    onClick: () => this.readPasted(),
+                                }),
+                            ],
                         }),
                         this._preview,
+                    ],
+                }),
+                buildElement("section", {
+                    className: "editor-section",
+                    children: [
+                        buildElement("h3", {
+                            className: "editor-section-title",
+                            text: "Write rules with AI",
+                        }),
+                        buildElement("p", {
+                            className: "muted",
+                            text: "Copies how rules are written as JSON, with examples. None of your rules are in it.",
+                        }),
+                        buildElement("p", {
+                            className: "muted",
+                            text: "Paste it into an AI chat with what you need, then paste the answer under Import.",
+                        }),
+                        buildElement("div", {
+                            className: "actions",
+                            children: [
+                                FormControls.button({
+                                    text: "Copy rule format",
+                                    onClick: () => void this.copyRuleFormat(),
+                                }),
+                            ],
+                        }),
                     ],
                 }),
             ],
@@ -194,7 +239,22 @@ export class ProfileTransferPanel implements ISlidePanel {
             return;
         }
 
-        const parsed = ProfileTransfer.parse(picked.value);
+        this.load(picked.value);
+    }
+
+    private readPasted(): void {
+        const text = JsonCodeBlock.of(this._pasteBox.value);
+        if (text === "") {
+            this.showError("Paste the JSON first.");
+
+            return;
+        }
+
+        this.load(text);
+    }
+
+    private load(text: string): void {
+        const parsed = ProfileTransfer.parse(text);
         if (parsed.hasErrors) {
             this.showError(parsed.error);
 
@@ -202,6 +262,11 @@ export class ProfileTransferPanel implements ISlidePanel {
         }
 
         this.showPreview(parsed.value.profiles);
+    }
+
+    private async copyRuleFormat(): Promise<void> {
+        const copied = await this._context.clipboardClient.copy(RuleFormatGuide.text());
+        this._context.notifier.show(copied.hasErrors ? copied.error : "Rule format copied.");
     }
 
     private showPreview(profiles: RuleProfile[]): void {
@@ -269,6 +334,7 @@ export class ProfileTransferPanel implements ISlidePanel {
 
         this._context.notifier.show(`Imported ${CountText.of(profiles.length, "profile")}.`);
         this._pending = [];
+        this._pasteBox.value = "";
         this._preview.replaceChildren();
     }
 

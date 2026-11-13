@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Rewire",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Inspect HTTP traffic in a side panel and rewire it with ordered rules: mock, redirect, rewrite, set headers. HAR, cURL, JWT.",
-  "minimum_chrome_version": "120",
+  "minimum_chrome_version": "126",
   "permissions": [
     "sidePanel",
     "debugger",

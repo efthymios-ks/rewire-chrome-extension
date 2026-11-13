@@ -37,7 +37,10 @@ const buildOptions = {
     outdir: outputDirectory,
     bundle: true,
     format: "esm",
-    target: "chrome120",
+    target: "chrome126",
+    loader: {
+        ".md": "text",
+    },
     sourcemap: true,
     logLevel: "info",
 };

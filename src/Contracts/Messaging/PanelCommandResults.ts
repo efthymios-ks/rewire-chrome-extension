@@ -1,4 +1,5 @@
 import type { InspectionStatus } from "../Inspection/InspectionStatus";
+import type { LiveSnapshot } from "../Live/LiveSnapshot";
 import type { SearchMatch } from "../Search/SearchQuery";
 import type { TimelineEntryDetail } from "../Timeline/TimelineEntryDetail";
 import type { TimelineEntrySummary } from "../Timeline/TimelineEntrySummary";
@@ -8,6 +9,7 @@ import { PanelCommandType } from "./PanelCommandType";
 export interface InspectTabResult {
     status: InspectionStatus;
     entries: TimelineEntrySummary[];
+    live: LiveSnapshot;
 }
 
 export interface PanelCommandResults {
@@ -19,4 +21,7 @@ export interface PanelCommandResults {
     [PanelCommandType.LogClientExchange]: void;
     [PanelCommandType.GetTimelineDetails]: TimelineEntryDetail[];
     [PanelCommandType.SendClientRequest]: ClientExchangeResponse;
+    [PanelCommandType.SendPostMessage]: void;
+    [PanelCommandType.RemoveLiveChannels]: void;
+    [PanelCommandType.SetLiveListening]: void;
 }

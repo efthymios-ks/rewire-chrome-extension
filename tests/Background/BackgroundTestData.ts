@@ -42,6 +42,7 @@ export function createDebuggerClientMock(): DebuggerClientMock {
         attach: vi.fn().mockResolvedValue(Result.done()),
         detach: vi.fn().mockResolvedValue(Result.done()),
         send,
+        sendToSession: vi.fn().mockResolvedValue(Result.ok({})),
     } as unknown as IDebuggerClient;
 
     return {

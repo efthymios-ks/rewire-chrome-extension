@@ -1,3 +1,4 @@
+import { type MultipartPart, type SnippetBody, SnippetBodies } from "../../../Common/CodeGen/SnippetBody";
 import { MediaTypeNames } from "../../../Contracts/Http/MediaTypeNames";
 import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
 import { type ClientBody, ClientBodyType, type KeyValueRow, type MultipartRow } from "./ClientRequest";
@@ -71,6 +72,28 @@ function multipartLineOf(row: MultipartRow): string {
     return row.file === null ? `${row.name}: ${NoFileText}` : `${row.name}: ${fileText(row.file.name, row.file.size)}`;
 }
 
+function snippetPartOf(row: MultipartRow): MultipartPart | null {
+    if (!row.isFile) {
+        return SnippetBodies.textPart(row.name, row.value);
+    }
+
+    const fileName = row.file?.name ?? row.fileName;
+
+    return fileName === ""
+        ? null
+        : SnippetBodies.filePart(
+            row.name,
+            fileName,
+            row.file?.type ?? ""
+        );
+}
+
+function snippetFileOf(body: ClientBody): SnippetBody {
+    const fileName = body.file?.name ?? body.fileName;
+
+    return fileName === "" ? SnippetBodies.none() : SnippetBodies.file(fileName);
+}
+
 const ContentTypes: Record<ClientBodyType, BodyReader<string | null>> = {
     [ClientBodyType.None]: () => null,
     [ClientBodyType.Text]: () => MediaTypeNames.TextPlain,
@@ -106,6 +129,19 @@ const LogTexts: Record<ClientBodyType, BodyReader<string>> = {
     [ClientBodyType.GraphQl]: body => graphQlBodyOf(body.graphQlQuery),
 };
 
+const SnippetBodyReaders: Record<ClientBodyType, BodyReader<SnippetBody>> = {
+    [ClientBodyType.None]: () => SnippetBodies.none(),
+    [ClientBodyType.Text]: body => SnippetBodies.text(body.text),
+    [ClientBodyType.Json]: body => SnippetBodies.text(body.text),
+    [ClientBodyType.Xml]: body => SnippetBodies.text(body.text),
+    [ClientBodyType.FormUrlEncoded]: body => SnippetBodies.text(formParametersOf(body.formRows).toString()),
+    [ClientBodyType.Multipart]: body => SnippetBodies.multipart(namedRows(body.multipartRows)
+        .map(snippetPartOf)
+        .filter((part): part is MultipartPart => part !== null)),
+    [ClientBodyType.Binary]: snippetFileOf,
+    [ClientBodyType.GraphQl]: body => SnippetBodies.text(graphQlBodyOf(body.graphQlQuery)),
+};
+
 export const ClientBodies = {
     empty(): ClientBody {
         return {
@@ -137,6 +173,10 @@ export const ClientBodies = {
 
     logTextOf(body: ClientBody): string {
         return LogTexts[body.type](body);
+    },
+
+    snippetBodyOf(body: ClientBody): SnippetBody {
+        return SnippetBodyReaders[body.type](body);
     },
 
     withContentType(headers: HeaderEntry[], body: ClientBody): HeaderEntry[] {

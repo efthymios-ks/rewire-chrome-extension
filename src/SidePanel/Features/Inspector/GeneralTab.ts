@@ -108,19 +108,25 @@ export class GeneralTab implements IInspectorTab {
         const { settingsService, clipboardClient, notifier, ruleEditor } = this._context;
         const isPinned = settingsService.current().pinnedEndpoints.includes(detail.summary.endpointKey);
 
+        const features = this._context.trafficFeatures;
+
         return buildElement("div", {
             className: "actions",
             children: [
-                FormControls.button({
-                    text: "Mock this",
-                    variant: ButtonVariants.Primary,
-                    title: "Open a mock rule prefilled from this response",
-                    onClick: () => ruleEditor.open(RuleFactory.mockOf(detail), true),
-                }),
-                FormControls.button({
-                    text: isPinned ? "Unpin" : "Pin",
-                    onClick: () => void settingsService.togglePin(detail.summary.endpointKey),
-                }),
+                features.canMock
+                    ? FormControls.button({
+                        text: "Mock this",
+                        variant: ButtonVariants.Primary,
+                        title: "Open a mock rule prefilled from this response",
+                        onClick: () => ruleEditor.open(RuleFactory.mockOf(detail), true),
+                    })
+                    : null,
+                features.canPin
+                    ? FormControls.button({
+                        text: isPinned ? "Unpin" : "Pin",
+                        onClick: () => void settingsService.togglePin(detail.summary.endpointKey),
+                    })
+                    : null,
                 FormControls.button({
                     text: "Copy URL",
                     variant: ButtonVariants.Ghost,

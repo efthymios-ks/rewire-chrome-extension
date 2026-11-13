@@ -29,6 +29,7 @@ export interface ITimelineStore {
         baseId: string,
         make: (legId: string) => TimelineRecord
     ): void;
+    remove(tabId: number, entryId: string): void;
     clear(tabId: number): void;
     subscribe(listener: (summary: TimelineEntrySummary) => void): void;
 }

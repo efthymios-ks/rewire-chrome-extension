@@ -200,6 +200,7 @@ describe("CurlBashSnippet", () => {
         // Assert
         expect(text).not.toMatch(/--data/);
     });
+
     test("tryParse_WhenChromeCopiedTheCommand_ShouldReadEveryPart", () => {
         // Arrange
         const text = [

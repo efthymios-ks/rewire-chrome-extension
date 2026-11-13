@@ -1,10 +1,10 @@
 import { DefaultSnippetParts } from "../../../Common/CodeGen/RequestSnapshot";
-import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
 import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
 import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
 import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
 import type { ContextMenuItem } from "../../Core/Dom/ContextMenu";
 import { DetailSnippets } from "../Inspector/DetailSnippets";
+import { SnippetMenuItems } from "../Inspector/SnippetMenuItems";
 import type { PanelContext } from "../Shell/PanelContext";
 
 export class EntryContextMenu {
@@ -17,15 +17,10 @@ export class EntryContextMenu {
     itemsFor(entry: TimelineEntrySummary): ContextMenuItem[] {
         return [
             {
-                label: "Open in Client",
+                label: "Open in HTTP Client",
                 run: () => void this.openInClient(entry),
             },
-            ...RequestSnippets
-                .all()
-                .map(type => ({
-                    label: `Copy as ${type.label}`,
-                    run: () => void this.copy(entry, type.id),
-                })),
+            ...SnippetMenuItems.of(snippetId => void this.copy(entry, snippetId)),
         ];
     }
 
@@ -69,6 +64,6 @@ export class EntryContextMenu {
             DefaultSnippetParts
         );
         const copied = await this._context.clipboardClient.copy(snippet);
-        this._context.notifier.show(copied.hasErrors ? copied.error : `${RequestSnippets.get(snippetId).label} snippet copied.`);
+        this._context.notifier.show(copied.hasErrors ? copied.error : SnippetMenuItems.copiedText(snippetId));
     }
 }

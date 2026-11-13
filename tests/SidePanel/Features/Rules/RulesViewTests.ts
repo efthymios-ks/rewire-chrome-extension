@@ -51,6 +51,7 @@ describe("RulesView", () => {
         expect(names).toHaveLength(2);
         expect(names.every(name => name.includes("Users"))).toBe(true);
     });
+
     test.each([
         [
             "Profiles",

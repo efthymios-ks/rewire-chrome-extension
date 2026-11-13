@@ -6,6 +6,7 @@ import { RuleEngine } from "../../../../src/Contracts/Rules/RuleEngine";
 import { ChangeArea } from "../../../../src/Contracts/Rules/ValueChange";
 import type { TimelineAnnotation } from "../../../../src/Contracts/Timeline/TimelineAnnotation";
 import { aSummary } from "../../../TestData";
+import { aTimelineRecord } from "../../BackgroundTestData";
 
 function aRecord(id: string, tabId: number = 7): TimelineRecord {
     return {
@@ -274,5 +275,26 @@ describe("TimelineStore", () => {
         // Assert
         expect(store.list(7)).toEqual([]);
         expect(store.list(8)).toHaveLength(1);
+    });
+
+    test("remove_WhenACallIsRemoved_ShouldKeepTheOthers", () => {
+        // Arrange
+        const store = new TimelineStore();
+        store.add(aTimelineRecord({
+            summary: aSummary({
+                id: "stream",
+            }),
+        }));
+        store.add(aTimelineRecord({
+            summary: aSummary({
+                id: "call",
+            }),
+        }));
+
+        // Act
+        store.remove(7, "stream");
+
+        // Assert
+        expect(store.list(7).map(entry => entry.id)).toEqual(["call"]);
     });
 });

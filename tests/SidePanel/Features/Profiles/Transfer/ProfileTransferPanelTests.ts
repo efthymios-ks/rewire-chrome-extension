@@ -4,6 +4,7 @@ import type { ProfileBundle } from "../../../../../src/Common/Profiles/Transfer/
 import { SettingsSchema } from "../../../../../src/Contracts/Settings/DefaultPanelSettings";
 import type { IFileClient } from "../../../../../src/SidePanel/Core/FileClient";
 import { ProfileTransferPanel } from "../../../../../src/SidePanel/Features/Profiles/Transfer/ProfileTransferPanel";
+import { RuleFormatGuide } from "../../../../../src/SidePanel/Features/Profiles/Transfer/RuleFormatGuide";
 import { aProfile, aRule, aSettings } from "../../../../TestData";
 import { aPanelHarness, buttonNamed, click, nextRender } from "../../../PanelTestData";
 
@@ -34,6 +35,7 @@ function aFileClient(picked: string | null = null): IFileClient {
     return {
         download: vi.fn(),
         pickText: vi.fn().mockResolvedValue(Result.ok(picked)),
+        pickNamedText: vi.fn(),
     };
 }
 
@@ -181,5 +183,47 @@ describe("ProfileTransferPanel", () => {
 
         // Assert
         expect(panel.root.querySelector(".import-preview .form-error")?.textContent).toBe("The file isn't valid JSON.");
+    });
+
+    test("readPastedJson_WhenAnAiAnswerIsPasted_ShouldListItsProfiles", async () => {
+        // Arrange
+        const harness = aTransferHarness();
+        const panel = new ProfileTransferPanel(harness.context, aFileClient());
+        const fence = "```";
+        panel.root.querySelector<HTMLTextAreaElement>(".import-paste")!.value = `Here you go:\n\n${fence}json\n${JSON.stringify(ImportedFile)}\n${fence}\n`;
+
+        // Act
+        click(buttonNamed(panel.root, "Read pasted JSON"));
+        await nextRender();
+
+        // Assert
+        expect(panel.root.querySelector("[aria-label='Profiles to import']")).not.toBeNull();
+    });
+
+    test("readPastedJson_WhenNothingIsPasted_ShouldAskForIt", () => {
+        // Arrange
+        const harness = aTransferHarness();
+        const panel = new ProfileTransferPanel(harness.context, aFileClient());
+
+        // Act
+        click(buttonNamed(panel.root, "Read pasted JSON"));
+
+        // Assert
+        expect(panel.root.querySelector(".form-error")?.textContent).toBe("Paste the JSON first.");
+    });
+
+    test("copyRuleFormat_WhenClicked_ShouldCopyTheRuleJsonGuideAndNoRules", async () => {
+        // Arrange
+        const harness = aTransferHarness();
+        const panel = new ProfileTransferPanel(harness.context, aFileClient());
+
+        // Act
+        click(buttonNamed(panel.root, "Copy rule format"));
+        await nextRender();
+
+        // Assert
+        expect(harness.copied).toEqual([RuleFormatGuide.text()]);
+        expect(harness.copied[0]).toMatch(/^# Rule JSON/);
+        expect(harness.noticeText()).toBe("Rule format copied.");
     });
 });

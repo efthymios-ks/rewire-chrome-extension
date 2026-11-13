@@ -3,6 +3,7 @@ export const RuleTypeIds = {
     ResponseHeader: "responseHeader",
     Cors: "cors",
     SecurityHeaders: "securityHeaders",
+    AllowEmbedding: "allowEmbedding",
     RequestCookie: "requestCookie",
     ResponseCookie: "responseCookie",
     Redirect: "redirect",

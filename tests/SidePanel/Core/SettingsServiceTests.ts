@@ -90,6 +90,7 @@ describe("SettingsService", () => {
             "Users mock",
         ]);
     });
+
     test("saveRule_WhenAnotherProfileIsActive_ShouldOnlyChangeTheActiveProfile", async () => {
         // Arrange
         const { service } = setUp(aSettings({

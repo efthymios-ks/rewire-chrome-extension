@@ -78,6 +78,7 @@ describe("Store", () => {
         // Assert
         expect(listener).toHaveBeenCalledTimes(1);
     });
+
     test("select_WhenUnsubscribed_ShouldStopNotifying", () => {
         // Arrange
         const store = new Store<CounterState>({

@@ -1,6 +1,6 @@
-# Client
+# HTTP Client
 
-The **Client** tab sends a request from the panel and shows the answer.
+The **HTTP Client** tab sends a request from the panel and shows the answer.
 
 - Pick the method, type the URL, add headers and a body, then **Send**.
 - The request leaves from the panel, not the page, so inspected-tab rules don't act on it.
@@ -13,7 +13,7 @@ The **Client** tab sends a request from the panel and shows the answer.
 
 - Paste a cURL (bash or cmd) or Wget command into the URL field, and the method, URL, headers, body type and body fill in.
   Single-line and multi-line commands work, with `\`, `^` or `` ` `` line continuations, bare line breaks or Windows line endings.
-- Right-click a call in the Traffic timeline or inspector and pick **Open in Client** to fill it from that call, as sent after rules.
+- Right-click a call in the Traffic timeline or inspector and pick **Open in HTTP Client** to fill it from that call, as sent after rules.
 - Files a command names can't be read by the browser, so their fields come empty with a **Pick** hint; pick each file before sending.
 
 ## Headers
@@ -42,6 +42,18 @@ Tabs pick the body type.
 - A `Content-Type` header you add yourself wins over the one the body type sets.
 - `GET` and `HEAD` send their body too, through the debugger.
 - Files are sent as they are, never read as text.
+
+## Copy as
+
+**Copy as**, next to **Send**, copies the request in the form as a command or a script, in the same formats as the Traffic menu: cURL (bash), cURL (cmd), Wget, Fetch (browser), Fetch (Node.js) and PowerShell.
+
+- The copy holds the method, the URL, every header typed, `If-None-Match` and `If-Modified-Since` included, and the body.
+- The body type's `Content-Type` is added unless a `Content-Type` header is typed, as when sending.
+- A multipart form copies its text fields and its files by name, such as `-F 'photo=@photo.png;type=image/png'`; a binary body copies its file by name, such as `--data-binary '@payload.bin'`.
+  Each file must sit next to where the command runs.
+- A body on `GET` or `HEAD` is copied too, except by Fetch and PowerShell, which refuse it.
+- [Traffic](Traffic.md#inspector) describes what each format runs in.
+- With no URL, a notice asks for one.
 
 ## Answer
 

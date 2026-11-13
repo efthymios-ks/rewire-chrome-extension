@@ -14,7 +14,7 @@ const ActivationKeys = [
 
 export interface TimelineRowActions {
     onSelect(entry: TimelineEntrySummary): void;
-    onTogglePin(entry: TimelineEntrySummary): void;
+    onTogglePin: ((entry: TimelineEntrySummary) => void) | null;
     onContextMenu(
         entry: TimelineEntrySummary,
         x: number,
@@ -47,7 +47,8 @@ export const TimelineRow = {
         actions: TimelineRowActions
     ): HTMLLIElement {
         const appliedRules = AppliedRuleText.unique(entry.appliedRules);
-        const pinButton = buildElement("button", {
+        const togglePin = actions.onTogglePin;
+        const pinButton = togglePin === null ? null : buildElement("button", {
             className: "pin-toggle",
             text: isPinned ? PinnedGlyph : UnpinnedGlyph,
             title: isPinned ? "Unpin endpoint" : "Pin endpoint",
@@ -58,7 +59,7 @@ export const TimelineRow = {
             listeners: {
                 click: event => {
                     event.stopPropagation();
-                    actions.onTogglePin(entry);
+                    togglePin(entry);
                 },
             },
         });

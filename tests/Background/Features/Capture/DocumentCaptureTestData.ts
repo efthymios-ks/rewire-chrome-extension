@@ -7,6 +7,7 @@ import { TimelineAdmission } from "../../../../src/Background/Features/Capture/T
 import { TimelineRecordClassifier } from "../../../../src/Background/Features/Capture/TimelineRecordClassifier";
 import { TimelineRecordFactory } from "../../../../src/Background/Features/Capture/TimelineRecordFactory";
 import { TimelineStore } from "../../../../src/Background/Features/Capture/TimelineStore";
+import { FrameRegistry } from "../../../../src/Background/Features/Frames/FrameRegistry";
 import { ContentKindClassifier } from "../../../../src/Common/Content/ContentKindClassifier";
 
 export const DocumentUrl = "https://jsonplaceholder.typicode.com/posts";
@@ -35,7 +36,7 @@ export function captureParts(): CaptureParts {
         admission: new TimelineAdmission(timelineStore, browserRuleSimulator),
         captureFilter: new CaptureFilter(),
         recordClassifier,
-        recordFactory: new TimelineRecordFactory(recordClassifier),
+        recordFactory: new TimelineRecordFactory(recordClassifier, new FrameRegistry()),
         browserRuleSimulator,
     };
 }

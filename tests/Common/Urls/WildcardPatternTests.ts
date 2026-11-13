@@ -190,6 +190,7 @@ describe("WildcardPattern", () => {
         // Assert
         expect(source).toBe("^http.*google\\.com.*users.*58$");
     });
+
     test.each([
         [
             "page",

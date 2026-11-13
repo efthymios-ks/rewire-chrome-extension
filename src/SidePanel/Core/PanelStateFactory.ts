@@ -1,6 +1,8 @@
 import { InspectionState } from "../../Contracts/Inspection/InspectionState";
+import { NoLiveListening } from "../../Contracts/Live/LiveListening";
 import { DefaultPanelSettings } from "../../Contracts/Settings/DefaultPanelSettings";
 import { ContentFilterId } from "./ContentFilterId";
+import { FrameFilters } from "./FrameFilters";
 import { InspectorTabId } from "./InspectorTabId";
 import type { PanelState } from "./PanelState";
 import { PanelThemes } from "./PanelTheme";
@@ -17,6 +19,12 @@ export const PanelStateFactory = {
                 message: "",
             },
             entries: [],
+            live: {
+                channels: [],
+                messages: [],
+                postMessages: [],
+            },
+            liveListening: NoLiveListening,
             selectedEntryId: null,
             selectionCount: 0,
             selectedEntryDetail: null,
@@ -25,6 +33,7 @@ export const PanelStateFactory = {
             activeView: ViewId.Traffic,
             inspectorTab: InspectorTabId.General,
             contentFilter: ContentFilterId.All,
+            frameFilter: FrameFilters.All,
             trafficLayout: TrafficLayout.List,
             search: {
                 query: {

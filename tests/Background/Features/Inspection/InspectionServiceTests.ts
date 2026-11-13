@@ -1,20 +1,45 @@
 import { describe, expect, test, vi } from "vitest";
 import { TimelineLimits } from "../../../../src/Background/Features/Capture/TimelineLimits";
 import { TimelineStore } from "../../../../src/Background/Features/Capture/TimelineStore";
+import { DebuggerSessions } from "../../../../src/Background/Features/Debugging/DebuggerSessions";
+import { FrameRegistry } from "../../../../src/Background/Features/Frames/FrameRegistry";
+import { LiveStore } from "../../../../src/Background/Features/Live/LiveStore";
 import { InspectionService } from "../../../../src/Background/Features/Inspection/InspectionService";
 import { PanelConnectionHub } from "../../../../src/Background/Features/PanelConnections/PanelConnectionHub";
+import { InterceptionSessionStep } from "../../../../src/Background/Features/Sessions/InterceptionSessionStep";
+import { SessionPreparer } from "../../../../src/Background/Features/Sessions/SessionPreparer";
+import { Result } from "../../../../src/Common/Results/Result";
 import { aSummary } from "../../../TestData";
 import { activeRulesOf, aTimelineRecord, createDebuggerClientMock, createLogger } from "../../BackgroundTestData";
 
 function setUp() {
     const debuggerMock = createDebuggerClientMock();
+    debuggerMock.send.mockImplementation(async (_tabId, command) => command === "Page.getFrameTree"
+        ? Result.ok({
+            frameTree: {
+                frame: {
+                    id: "top-frame",
+                },
+            },
+        })
+        : Result.ok({}));
     const connectionHub = new PanelConnectionHub(createLogger());
     const timelineStore = new TimelineStore();
+    const interception = new InterceptionSessionStep(debuggerMock.client, activeRulesOf([]));
+    const sessions = new DebuggerSessions();
+    const frameRegistry = new FrameRegistry();
     const service = new InspectionService({
         debuggerClient: debuggerMock.client,
-        activeRules: activeRulesOf([]),
+        preparer: new SessionPreparer([interception], createLogger()),
+        interception,
+        sessions,
+        frameRegistry,
         connectionHub,
         timelineStore,
+        liveStore: new LiveStore(),
+        liveListening: {
+            forget: vi.fn(),
+        },
         logger: createLogger(),
     });
     const connection = connectionHub.add({
@@ -23,6 +48,8 @@ function setUp() {
 
     return {
         debuggerClient: debuggerMock.client,
+        sessions,
+        frameRegistry,
         connectionHub,
         connectionId: connection.id,
         timelineStore,
@@ -120,5 +147,55 @@ describe("InspectionService", () => {
 
         // Assert
         expect(timelineStore.list(1)).toEqual([]);
+    });
+
+    test("inspect_WhenAttaching_ShouldRecordTheTopFrame", async () => {
+        // Arrange
+        const { frameRegistry, connectionId, service } = setUp();
+
+        // Act
+        await service.inspect(connectionId, 1);
+
+        // Assert
+        expect(frameRegistry.frameOf(
+            1,
+            "top-frame",
+            "https://app.example.com/"
+        )?.isTop).toBe(true);
+        expect(frameRegistry.frameOf(
+            1,
+            "iframe-1",
+            "https://widget.example.com/"
+        )?.isTop).toBe(false);
+    });
+
+    test("refreshInterception_WhenTheTabHasIframes_ShouldUpdateEverySession", async () => {
+        // Arrange
+        const { debuggerClient, sessions, connectionId, service } = setUp();
+        await service.inspect(connectionId, 1);
+        sessions.addChild(1, "session-a");
+        vi.mocked(debuggerClient.sendToSession).mockClear();
+
+        // Act
+        await service.refreshInterception();
+
+        // Assert
+        expect(vi.mocked(debuggerClient.sendToSession).mock.calls.map(call => call[1])).toEqual([
+            null,
+            "session-a",
+        ]);
+    });
+
+    test("handleDetach_WhenChromeDetaches_ShouldForgetTheIframeSessions", async () => {
+        // Arrange
+        const { sessions, connectionId, service } = setUp();
+        await service.inspect(connectionId, 1);
+        sessions.addChild(1, "session-a");
+
+        // Act
+        service.handleDetach(1, "target_closed");
+
+        // Assert
+        expect(sessions.childrenOf(1)).toEqual([]);
     });
 });

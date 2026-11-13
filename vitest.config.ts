@@ -1,4 +1,14 @@
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
+
+const MarkdownSuffix = ".md";
+
+const markdownAsText: Plugin = {
+    name: "markdown-as-text",
+    transform(code, id) {
+        return id.endsWith(MarkdownSuffix) ? `export default ${JSON.stringify(code)};` : null;
+    },
+};
 
 export default defineConfig({
     test: {
@@ -14,6 +24,7 @@ export default defineConfig({
                 },
             },
             {
+                plugins: [markdownAsText],
                 test: {
                     name: "panel",
                     include: ["tests/SidePanel/**/*Tests.ts"],

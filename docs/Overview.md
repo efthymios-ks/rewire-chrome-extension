@@ -1,9 +1,9 @@
 # Overview
 
-A Manifest V3 extension for Chromium browsers 120+.  
+A Manifest V3 extension for Chromium browsers 126+.  
 The side panel shows and edits; the service worker captures traffic and runs the rules.
 
-- **Runtime:** Chromium 120+, Manifest V3
+- **Runtime:** Chromium 126+, Manifest V3, for iframe debugger sessions and streamed event-stream bodies
 - **Source:** TypeScript, no UI framework, bundled by esbuild
 - **Tests:** Vitest
 
@@ -11,19 +11,28 @@ The side panel shows and edits; the service worker captures traffic and runs the
 
 ```mermaid
 flowchart LR
-    panel["Side panel"] -- "port: inspect, detail, HAR details, search, clear, keep-alive" --> worker["Service worker"]
-    worker -- "timeline events" --> panel
+    panel["Side panel"] -- "port: inspect, detail, HAR details, search, clear, keep-alive, postMessage send" --> worker["Service worker"]
+    worker -- "timeline, socket, stream and postMessage events" --> panel
     panel -- "settings and profiles" --> storage[("chrome.storage")]
     storage -- "changes, hit counts" --> worker
-    worker -- "Network and Fetch domains" --> debugger["chrome.debugger on the inspected tab"]
-    worker -- "dynamic rules" --> dnr["declarativeNetRequest, every tab"]
+    worker -- "Network, Fetch, Target and Runtime domains" --> debugger["chrome.debugger on the inspected tab and its iframes"]
+    worker -- "dynamic rules, every tab" --> dnr["declarativeNetRequest"]
+    panel -- "session rules for own socket headers" --> dnr
+    panel -- "own sockets and streams" --> sites["Target sites"]
 ```
 
 | Feature                      | Engine                                | Scope                        |
 | ---------------------------- | ------------------------------------- | ---------------------------- |
 | Timeline, bodies, search     | `chrome.debugger`, Network domain     | the tab the panel inspects; up to 5 tabs it left keep their timeline |
+| Cross-origin iframes         | `chrome.debugger`, Target domain, one flat session per iframe | the iframes of the inspected tab |
+| Page sockets and streams     | `chrome.debugger`, Network domain     | the tab the panel inspects and its iframes, while their listen switch is on |
+| postMessage capture          | `chrome.debugger`, Runtime binding and Page script | the tab the panel inspects and its iframes, while its listen switch is on |
+| postMessage send             | `chrome.debugger`, Runtime domain     | the page or iframe you pick  |
+| Own sockets and streams      | `WebSocket` and streaming `fetch` in the panel | the URL you type     |
+| Own socket handshake headers | `declarativeNetRequest` session rules | that socket URL, until the socket closes |
+| HAR Inspector                | the panel alone                       | the opened file              |
 | Rules marked `Inspected tab` | `chrome.debugger`, Fetch domain       | the tab the panel inspects   |
-| Client requests `fetch` can't send | `chrome.debugger`, Fetch domain | the side panel itself, while it sends |
+| HTTP Client requests `fetch` can't send | `chrome.debugger`, Fetch domain | the side panel itself, while it sends |
 | Rules marked `All tabs`      | `declarativeNetRequest` dynamic rules | every tab, panel open or not |
 | Cookie Jar                   | `chrome.cookies`                      | the inspected page's URL     |
 
@@ -51,15 +60,15 @@ Rewire/
 │  ├─ Background/         # service worker
 │  │  ├─ main.ts          # composition root
 │  │  ├─ Endpoints/       # one folder per panel command
-│  │  └─ Features/        # Capture, Interception, NetworkRules, Rules, Inspection, ...
+│  │  └─ Features/        # Capture, Interception, NetworkRules, Rules, Inspection, Sessions, Frames, Live, PostMessages, ...
 │  └─ SidePanel/          # side panel
 │     ├─ main.ts          # composition root
 │     ├─ Core/            # store, worker connection, DOM helpers
-│     └─ Features/        # Shell, Traffic, Inspector, Rules, Profiles, Cookies, Client, Jwt
+│     └─ Features/        # Shell, Traffic, Inspector, Rules, Profiles, Cookies, Client, WsClient, SseClient, PostMessages, HarInspector, Live, Frames, Jwt
 ├─ tests/                 # mirrors src, one *Tests.ts per type
 ├─ public/                # manifest.json and icons
 ├─ scripts/build.mjs      # esbuild bundle to dist/
-├─ docs/
+├─ docs/                  # RuleJson.md also ships in the panel as the rule format; a test checks it against the code
 ├─ Invoke-Test.ps1        # type check and tests
 ├─ Start-Debug.ps1        # watch build and a browser profile that loads it
 ├─ Publish-Extension.ps1  # test, bump the version, build, zip for manual upload
@@ -80,14 +89,15 @@ Rewire/
 
 The panel follows the system theme each time it opens.  
 The header's sun or moon button switches to the other theme until the panel closes.  
-Below 420 px the header, rows and tables reflow to one column.
+Below 420 px the header, rows and tables reflow to one column.  
+When the tabs don't fit, the tab bar scrolls sideways, with the mouse wheel too, under a thin scrollbar.
 
 ## Permissions
 
 | Permission                      | Why                                                            |
 | ------------------------------- | -------------------------------------------------------------- |
-| `debugger`                      | Read request and response bodies, run inspected-tab rules, and send Client requests that `fetch` refuses, such as `GET` with a body. |
-| `declarativeNetRequest`         | Run all-tabs rules.                                            |
+| `debugger`                      | Read request and response bodies, follow the page's iframes, sockets, event streams and postMessage messages, run inspected-tab rules, and send HTTP Client requests that `fetch` refuses, such as `GET` with a body. |
+| `declarativeNetRequest`         | Run all-tabs rules, and set the handshake headers of your own sockets. |
 | `declarativeNetRequestFeedback` | Count hits of all-tabs rules and name them in the timeline.    |
 | `alarms`                        | Resync rules with a time window every minute.                  |
 | `cookies`                       | Read and edit HttpOnly and Secure cookies.                     |

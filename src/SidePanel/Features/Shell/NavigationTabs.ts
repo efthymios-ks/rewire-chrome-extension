@@ -1,4 +1,5 @@
 import { buildElement } from "../../Core/Dom/ElementBuilder";
+import { HorizontalWheel } from "../../Core/Dom/HorizontalWheel";
 import { Equalities } from "../../Core/Equalities";
 import type { PanelContext } from "./PanelContext";
 import type { ViewDefinition } from "./ViewDefinition";
@@ -43,6 +44,7 @@ export class NavigationTabs {
             },
             children: tabs.map(item => item.tab),
         });
+        HorizontalWheel.attach(this.root);
 
         context.store.select(
             state => tabs.map(item => item.definition.badgeOf(state)),

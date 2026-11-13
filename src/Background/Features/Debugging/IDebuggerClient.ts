@@ -9,4 +9,10 @@ export interface IDebuggerClient {
         command: TCommandName,
         ...params: CdpCommandParams<TCommandName>
     ): Promise<Result<CdpCommandReturn<TCommandName>>>;
+    sendToSession<TCommandName extends CdpCommandName>(
+        tabId: number,
+        sessionId: string | null,
+        command: TCommandName,
+        ...params: CdpCommandParams<TCommandName>
+    ): Promise<Result<CdpCommandReturn<TCommandName>>>;
 }

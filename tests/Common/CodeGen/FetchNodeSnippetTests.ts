@@ -23,6 +23,7 @@ describe("FetchNodeSnippet", () => {
         expect(text).not.toContain("Accept-Encoding");
         expect(text).not.toContain("credentials");
     });
+
     test("tryParse_WhenGivenAnyText_ShouldReturnNull", () => {
         // Arrange
         const text = "await fetch(\"https://api.example.com/users\");";

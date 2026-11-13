@@ -6,6 +6,7 @@ import { HeaderNames } from "../../../Contracts/Http/HeaderNames";
 import { ContentKind } from "../../../Contracts/Timeline/ContentKind";
 import { TimelineEntryState } from "../../../Contracts/Timeline/TimelineEntryState";
 import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
+import type { IFrameRegistry } from "../Frames/FrameRegistry";
 import { Durations } from "./Durations";
 import type { ITimelineRecordClassifier } from "./TimelineRecordClassifier";
 import type { TimelineRecord } from "./TimelineRecord";
@@ -39,9 +40,11 @@ export interface ITimelineRecordFactory {
 
 export class TimelineRecordFactory implements ITimelineRecordFactory {
     private readonly _recordClassifier: ITimelineRecordClassifier;
+    private readonly _frameRegistry: IFrameRegistry;
 
-    constructor(recordClassifier: ITimelineRecordClassifier) {
+    constructor(recordClassifier: ITimelineRecordClassifier, frameRegistry: IFrameRegistry) {
         this._recordClassifier = recordClassifier;
+        this._frameRegistry = frameRegistry;
     }
 
     create(tabId: number, event: Protocol.Network.RequestWillBeSentEvent): TimelineRecord {
@@ -64,6 +67,11 @@ export class TimelineRecordFactory implements ITimelineRecordFactory {
                 isAnsweredByRule: false,
                 redirectedFromUrl: null,
                 errorText: null,
+                frame: this._frameRegistry.frameOf(
+                    tabId,
+                    event.frameId,
+                    event.documentURL
+                ),
             },
             requestHeaders,
             rawRequestHeaders: null,

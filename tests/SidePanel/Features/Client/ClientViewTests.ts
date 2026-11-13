@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Result } from "../../../../src/Common/Results/Result";
 import type { LogClientExchangeCommand } from "../../../../src/Contracts/Messaging/Commands/LogClientExchangeCommand";
 import { PanelCommandType } from "../../../../src/Contracts/Messaging/PanelCommandType";
@@ -25,6 +25,10 @@ const InspectedTab = {
 };
 
 describe("ClientView", () => {
+    afterEach(() => {
+        document.body.replaceChildren();
+    });
+
     test("send_WhenTheUrlIsEmpty_ShouldAskForOne", async () => {
         // Arrange
         const harness = aPanelHarness();
@@ -85,6 +89,7 @@ describe("ClientView", () => {
         expect(view.root.querySelector<HTMLSelectElement>(".client-method")!.value).toBe("PUT");
         expect(view.root.querySelector<HTMLTextAreaElement>(".client-body-editor textarea")!.value).toBe("{\"name\":\"Ada\"}");
     });
+
     test("send_WhenAGetCarriesABody_ShouldLogTheBodyItSent", async () => {
         // Arrange
         const harness = aPanelHarness({
@@ -103,5 +108,38 @@ describe("ClientView", () => {
         const logged = sentOf(harness, PanelCommandType.LogClientExchange) as LogClientExchangeCommand[];
         expect(logged[0]?.request.method).toBe("GET");
         expect(logged[0]?.request.body).toBe("grant_type=client_credentials");
+    });
+
+    test("copyAs_WhenAFormatIsPicked_ShouldCopyTheFormAsThatSnippet", async () => {
+        // Arrange
+        const harness = aPanelHarness();
+        const view = new ClientView(harness.context, anHttpClient());
+        document.body.append(view.root);
+        typeInto(view.root.querySelector<HTMLInputElement>(".client-url")!, "https://api.example.com/users");
+
+        // Act
+        click(buttonNamed(view.root, "Copy as"));
+        click(buttonNamed(document.body, "Copy as cURL (bash)"));
+        await nextRender();
+
+        // Assert
+        expect(harness.copied).toEqual(["curl 'https://api.example.com/users'"]);
+        expect(harness.noticeText()).toBe("cURL (bash) snippet copied.");
+    });
+
+    test("copyAs_WhenTheUrlIsEmpty_ShouldAskForOne", async () => {
+        // Arrange
+        const harness = aPanelHarness();
+        const view = new ClientView(harness.context, anHttpClient());
+        document.body.append(view.root);
+
+        // Act
+        click(buttonNamed(view.root, "Copy as"));
+        click(buttonNamed(document.body, "Copy as Wget"));
+        await nextRender();
+
+        // Assert
+        expect(harness.copied).toEqual([]);
+        expect(harness.noticeText()).toBe("Enter a URL first.");
     });
 });

@@ -65,6 +65,7 @@ export class LogClientExchangeEndpoint implements IPanelEndpoint<PanelCommandTyp
                 isAnsweredByRule: false,
                 redirectedFromUrl: null,
                 errorText: command.error,
+                frame: null,
             },
             requestHeaders: command.request.headers,
             rawRequestHeaders: null,

@@ -71,6 +71,7 @@ describe("RequestSnippets", () => {
         expect(text).toContain("api.example.com/users?tag=a");
         expect(text).not.toMatch(/Content-Length|:authority|Connection|\bHost\b/);
     });
+
     test.each([
         [
             "cmd",

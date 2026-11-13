@@ -25,7 +25,7 @@ describe("TimelineList", () => {
 
         // Assert
         const items = [...document.querySelectorAll(".context-menu-item")].map(item => item.textContent);
-        expect(items[0]).toBe("Open in Client");
+        expect(items[0]).toBe("Open in HTTP Client");
         expect(items.slice(1)).toEqual([
             "Copy as cURL (bash)",
             "Copy as cURL (cmd)",

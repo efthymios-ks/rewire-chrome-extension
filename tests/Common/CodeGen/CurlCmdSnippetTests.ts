@@ -64,6 +64,7 @@ describe("CurlCmdSnippet", () => {
         // Assert
         expect(text).toContain("--data-raw ^\"a^\n\nb^\"");
     });
+
     test("tryParse_WhenChromeCopiedTheCommand_ShouldReadEveryPart", () => {
         // Arrange
         const text = [

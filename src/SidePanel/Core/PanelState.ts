@@ -1,4 +1,5 @@
 import type { InspectionStatus } from "../../Contracts/Inspection/InspectionStatus";
+import type { LiveListening } from "../../Contracts/Live/LiveListening";
 import type { RuleSyncReport } from "../../Contracts/RuleSync/RuleSyncReport";
 import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
 import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
@@ -7,6 +8,7 @@ import type { TimelineEntrySummary } from "../../Contracts/Timeline/TimelineEntr
 import type { ContentFilterId } from "./ContentFilterId";
 import type { InspectedTab } from "./InspectedTab";
 import type { InspectorTabId } from "./InspectorTabId";
+import type { LiveState } from "./LiveState";
 import type { Notice } from "./Notice";
 import type { PanelTheme } from "./PanelTheme";
 import type { RuleEditRequest } from "./RuleEditRequest";
@@ -20,6 +22,8 @@ export interface PanelState {
     inspectedTab: InspectedTab | null;
     inspection: InspectionStatus;
     entries: TimelineEntrySummary[];
+    live: LiveState;
+    liveListening: LiveListening;
     selectedEntryId: string | null;
     selectionCount: number;
     selectedEntryDetail: TimelineEntryDetail | null;
@@ -28,6 +32,7 @@ export interface PanelState {
     activeView: ViewId;
     inspectorTab: InspectorTabId;
     contentFilter: ContentFilterId;
+    frameFilter: string;
     trafficLayout: TrafficLayout;
     search: TrafficSearchState;
     ruleSyncReport: RuleSyncReport | null;

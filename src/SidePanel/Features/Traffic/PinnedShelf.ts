@@ -58,7 +58,7 @@ export class PinnedShelf {
     private render(): void {
         const state = this._context.store.getState();
         const pinned = state.settings.pinnedEndpoints.map(parseKey);
-        this.root.hidden = pinned.length === 0;
+        this.root.hidden = pinned.length === 0 || !this._context.trafficFeatures.canPin;
         this.root.replaceChildren(...pinned.map(endpoint => this.chipFor(
             endpoint,
             TimelineEntries.latestFor(state.entries, endpoint.key),

@@ -1,6 +1,7 @@
 import { RuleCategory } from "../../../Contracts/Rules/RuleCategory";
 import { RequestCookieRule } from "./Cookies/RequestCookieRule";
 import { ResponseCookieRule } from "./Cookies/ResponseCookieRule";
+import { AllowEmbeddingRule } from "./Headers/AllowEmbeddingRule";
 import { CorsRule } from "./Headers/CorsRule";
 import { RequestHeaderRule } from "./Headers/RequestHeaderRule";
 import { ResponseHeaderRule } from "./Headers/ResponseHeaderRule";
@@ -35,6 +36,7 @@ const RuleTypes: IRuleType[] = [
     new ResponseHeaderRule(),
     new CorsRule(),
     new SecurityHeadersRule(),
+    new AllowEmbeddingRule(),
     new RequestCookieRule(),
     new ResponseCookieRule(),
     new RedirectRule(),

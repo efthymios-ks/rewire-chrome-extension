@@ -118,6 +118,7 @@ export class WaterfallView {
             state => [
                 state.entries,
                 state.contentFilter,
+                state.frameFilter,
                 state.selectedEntryId,
             ],
             () => this._scheduler.schedule(),

@@ -9,6 +9,7 @@ const defaultActionErrors: Record<RuleTypeId, string[]> = {
     [RuleTypeIds.ResponseHeader]: ["Header name is empty or has characters a header can't carry."],
     [RuleTypeIds.Cors]: [],
     [RuleTypeIds.SecurityHeaders]: [],
+    [RuleTypeIds.AllowEmbedding]: [],
     [RuleTypeIds.RequestCookie]: ["Cookie name is required."],
     [RuleTypeIds.ResponseCookie]: ["Cookie name is required."],
     [RuleTypeIds.Redirect]: ["Location URL is required."],
@@ -40,7 +41,7 @@ describe("RuleTypeRegistry", () => {
             .map(type => type.id);
 
         // Assert
-        expect(ids).toHaveLength(15);
+        expect(ids).toHaveLength(16);
         expect(new Set(ids).size).toBe(ids.length);
         expect(new Set(ids)).toEqual(new Set(knownIds));
     });
@@ -75,6 +76,7 @@ describe("RuleTypeRegistry", () => {
         const responseOnly = [
             RuleTypeIds.ResponseHeader,
             RuleTypeIds.SecurityHeaders,
+            RuleTypeIds.AllowEmbedding,
             RuleTypeIds.ResponseCookie,
             RuleTypeIds.ResponseBody,
         ];
@@ -92,6 +94,7 @@ describe("RuleTypeRegistry", () => {
             RuleTypeIds.ResponseHeader,
             RuleTypeIds.Cors,
             RuleTypeIds.SecurityHeaders,
+            RuleTypeIds.AllowEmbedding,
             RuleTypeIds.ResponseCookie,
             RuleTypeIds.MockResponse,
             RuleTypeIds.ResponseBody,

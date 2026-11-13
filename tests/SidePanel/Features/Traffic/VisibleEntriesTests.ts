@@ -60,4 +60,28 @@ describe("VisibleEntries", () => {
         // Assert
         expect(visible.map(entry => entry.id)).toEqual(["graphql"]);
     });
+
+    test("of_WhenAFrameIsPicked_ShouldKeepOnlyItsCalls", () => {
+        // Arrange
+        const state = aState({
+            entries: [
+                ...entries,
+                aSummary({
+                    id: "payment",
+                    frame: {
+                        id: "iframe-1",
+                        url: "https://pay.example.com/",
+                        isTop: false,
+                    },
+                }),
+            ],
+            frameFilter: "iframe-1",
+        });
+
+        // Act
+        const visible = VisibleEntries.of(state);
+
+        // Assert
+        expect(visible.map(entry => entry.id)).toEqual(["payment"]);
+    });
 });

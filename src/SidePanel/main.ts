@@ -12,6 +12,7 @@ import { RuleEditorLauncher } from "./Core/RuleEditorLauncher";
 import { SettingsService } from "./Core/SettingsService";
 import { Store } from "./Core/Store";
 import { ThemeApplier } from "./Core/ThemeApplier";
+import { TrafficFeatureSets } from "./Core/TrafficFeatures";
 import { ViewLauncher } from "./Core/ViewLauncher";
 import { WorkerConnection } from "./Core/WorkerConnection";
 import { CookieClient } from "./Features/Cookies/CookieClient";
@@ -49,6 +50,7 @@ async function start(): Promise<void> {
         clipboardClient: new ClipboardClient(),
         cookieClient: new CookieClient(),
         regexSupportClient: new RegexSupportClient(),
+        trafficFeatures: TrafficFeatureSets.Live,
     };
 
     await settingsService.initialize();

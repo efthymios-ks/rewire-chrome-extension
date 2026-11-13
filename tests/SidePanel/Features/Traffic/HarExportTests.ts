@@ -24,6 +24,7 @@ function setUp(details: TimelineEntryDetail[] = [aDetail()], hasTab: boolean = t
     const fileClient: IFileClient = {
         download: vi.fn(),
         pickText: vi.fn(),
+        pickNamedText: vi.fn(),
     };
     const harExport = new HarExport({
         context: harness.context,

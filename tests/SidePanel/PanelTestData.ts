@@ -9,6 +9,7 @@ import { PanelStateFactory } from "../../src/SidePanel/Core/PanelStateFactory";
 import { RuleEditorLauncher } from "../../src/SidePanel/Core/RuleEditorLauncher";
 import { SettingsService } from "../../src/SidePanel/Core/SettingsService";
 import { Store } from "../../src/SidePanel/Core/Store";
+import { TrafficFeatureSets } from "../../src/SidePanel/Core/TrafficFeatures";
 import { ViewLauncher } from "../../src/SidePanel/Core/ViewLauncher";
 import type { IWorkerConnection } from "../../src/SidePanel/Core/WorkerConnection";
 import type { PanelContext } from "../../src/SidePanel/Features/Shell/PanelContext";
@@ -82,6 +83,7 @@ export function aPanelHarness(
         regexSupportClient: {
             check: vi.fn().mockResolvedValue(Result.done()),
         },
+        trafficFeatures: TrafficFeatureSets.Live,
     };
 
     return {

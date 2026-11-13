@@ -15,9 +15,12 @@ export const Base64Text = {
     },
 
     toUtf8(base64: string): string {
-        const binary = atob(base64);
-        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        return new TextDecoder().decode(Base64Text.toBytes(base64));
+    },
 
-        return new TextDecoder().decode(bytes);
+    toBytes(base64: string): Uint8Array {
+        const binary = atob(base64);
+
+        return Uint8Array.from(binary, character => character.charCodeAt(0));
     },
 };

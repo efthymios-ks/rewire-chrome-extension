@@ -4,7 +4,10 @@ The Traffic tab lists the fetch and XHR calls of the active tab in the panel's w
 A page loaded straight from the address bar joins them when it answers with data, such as JSON, XML or plain text.  
 A tab that opens straight on such a URL, before the panel inspects it, needs one reload to show it.  
 HTML pages, images, scripts and styles never enter the timeline.  
-Requests sent from the [Client](Client.md) tab join the timeline of the inspected tab.
+Calls from the page's iframes join the timeline too, cross-origin ones included.  
+Requests sent from the [HTTP Client](HttpClient.md) tab join the timeline of the inspected tab.  
+WebSocket frames, server-sent events and postMessage messages never enter the timeline; they show in the [WS Client](WsClient.md), [SSE Client](SseClient.md) and [postMessage](PostMessage.md) tabs while their listen switch is on.  
+A `.har` file opens in the [HAR Inspector](HarInspector.md) tab, apart from this timeline.
 
 ## Split view
 
@@ -26,12 +29,27 @@ When the debugger can't attach, as on `chrome://` pages, the panel tries again o
 - Hover **Rules** for the names of the rules that acted on the call.
 - A redirect splits a call: the hop keeps its own row with the `3xx` answer, and the call goes on in a row for the new URL.
 - A page from the address bar that a rule acted on keeps its redirect hops, and its failure when it fails, even when the page itself is HTML.
-- Right-click a row, or the inspector, to **Open in Client** or to copy the call in any format of the **Code** tab, with its default parts.
+- Right-click a row, or the inspector, to **Open in HTTP Client** or to copy the call in any format of the **Code** tab, with its default parts.
 
 ## Toolbar
 
 The first row holds the content filter chips and the call count.  
-The second row holds the layout list, **HAR** and **Clear**.
+The second row holds the layout list, the frame list, **Open frame**, **HAR** and **Clear**.
+
+## Frame filter
+
+The frame list keeps the calls of one frame.
+
+| Item            | Keeps                                                              |
+| --------------- | ------------------------------------------------------------------ |
+| All frames      | every captured call                                                |
+| `top`           | the calls of the page itself, and calls that belong to no frame    |
+| an iframe host  | the calls of that iframe, such as `pay.example.com`                |
+
+- The list offers each iframe that made a call, named by its host; a second iframe on the same host shows as `pay.example.com (2)`.
+- **Open frame** shows while an iframe is picked, and opens the iframe's page in a new browser tab.
+- When the picked iframe's calls are cleared, the list goes back to **All frames**.
+- The count, the list and the waterfall follow the frame list as well as the content filter.
 
 ## HAR export
 
@@ -60,7 +78,7 @@ The layout list in the toolbar switches between **List** and **Waterfall**.
 - A dot marks calls that a rule changed.
 - **Zoom in** and **Zoom out** widen the chart; scroll sideways to pan.
   **Reset zoom** fits the whole chart again.
-- The waterfall follows the content filter.
+- The waterfall follows the content filter and the frame list.
 - Click a bar to inspect the call.
 
 ## Search
@@ -122,7 +140,7 @@ The inspector has one tab per part of the call; the picked tab stays picked from
 - **Headers**, **Cookies**, **Query params** and **Body** are dropdowns, shown when the call has any.
   Each lists its items with **All** on top; untick the ones to leave out.
   Everything is ticked when the call opens, except `If-None-Match` and `If-Modified-Since`, which would make the server answer `304 Not Modified`.
-- The command is the call as sent after rules, the same one **Open in Client** fills in.
+- The command is the call as sent after rules, the same one **Open in HTTP Client** fills in.
 - The command sits under **Show snippet**; changing the format folds it again.
 - **Copy** puts it on the clipboard.
 

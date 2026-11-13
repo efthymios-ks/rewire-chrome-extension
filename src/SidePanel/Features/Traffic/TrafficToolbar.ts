@@ -1,10 +1,15 @@
 import type { ContentFilterId } from "../../Core/ContentFilterId";
 import { ContextMenu, type ContextMenuItem } from "../../Core/Dom/ContextMenu";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
+import { buildElement, type ElementChild } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import { MenuButton } from "../../Core/Dom/MenuButton";
 import { Equalities } from "../../Core/Equalities";
 import { FileClient, type IFileClient } from "../../Core/FileClient";
+import { FrameFilters } from "../../Core/FrameFilters";
+import { type ITabOpener, TabOpener } from "../../Core/TabOpener";
 import { TrafficLayout } from "../../Core/TrafficLayout";
+import { FrameSelect } from "../Frames/FrameSelect";
+import { PageFrames } from "../Frames/PageFrames";
 import type { PanelContext } from "../Shell/PanelContext";
 import { ContentFilters } from "./ContentFilters";
 import { HarExport } from "./HarExport";
@@ -41,30 +46,65 @@ function harItems(harExport: HarExport): ContextMenuItem[] {
     ];
 }
 
-function harButton(harExport: HarExport, menu: ContextMenu): HTMLButtonElement {
-    const button = buildElement("button", {
-        className: ButtonVariants.Ghost,
-        text: "HAR",
-        title: "Download or copy every captured call of this tab as a HAR file",
-        attributes: {
-            type: "button",
-            "aria-haspopup": "menu",
+function frameControls(context: PanelContext, tabOpener: ITabOpener): HTMLElement[] {
+    const select = new FrameSelect(value => context.store.update(state => ({
+        ...state,
+        frameFilter: value,
+    })));
+    const openButton = FormControls.button({
+        text: "Open frame",
+        variant: ButtonVariants.Ghost,
+        title: "Open the picked iframe in a new tab",
+        onClick: () => {
+            const { entries, frameFilter } = context.store.getState();
+            const frame = PageFrames
+                .of(entries.map(entry => entry.frame))
+                .find(candidate => candidate.id === frameFilter);
+            if (frame === undefined) {
+                return;
+            }
+
+            void tabOpener
+                .open(frame.url)
+                .then(opened => {
+                    if (opened.hasErrors) {
+                        context.notifier.show(opened.error);
+                    }
+                });
         },
     });
-    button.addEventListener("click", event => {
-        event.stopPropagation();
-        const bounds = button.getBoundingClientRect();
-        menu.open(
-            harItems(harExport),
-            bounds.left,
-            bounds.bottom
-        );
-    });
 
-    return button;
+    context.store.select(
+        state => [
+            state.entries,
+            state.frameFilter,
+        ],
+        () => {
+            const { entries, frameFilter } = context.store.getState();
+            const frames = PageFrames.of(entries.map(entry => entry.frame));
+            const isKnown = PageFrames.isFixed(frameFilter) || frames.some(frame => frame.id === frameFilter);
+            if (!isKnown) {
+                context.store.update(state => ({
+                    ...state,
+                    frameFilter: FrameFilters.All,
+                }));
+
+                return;
+            }
+
+            select.update(frames, frameFilter);
+            openButton.hidden = PageFrames.isFixed(frameFilter);
+        },
+        Equalities.shallowArray
+    );
+
+    return [
+        select.root,
+        openButton,
+    ];
 }
 
-function toolbarRow(children: HTMLElement[]): HTMLElement {
+function toolbarRow(children: ElementChild[]): HTMLElement {
     return buildElement("div", {
         className: "traffic-toolbar-row",
         children,
@@ -74,7 +114,11 @@ function toolbarRow(children: HTMLElement[]): HTMLElement {
 export class TrafficToolbar {
     readonly root: HTMLElement;
 
-    constructor(context: PanelContext, fileClient: IFileClient = new FileClient()) {
+    constructor(
+        context: PanelContext,
+        fileClient: IFileClient = new FileClient(),
+        tabOpener: ITabOpener = new TabOpener()
+    ) {
         const harExport = new HarExport({
             context,
             fileClient,
@@ -131,13 +175,23 @@ export class TrafficToolbar {
                 ]),
                 toolbarRow([
                     layoutSelect,
-                    harButton(harExport, new ContextMenu()),
-                    FormControls.button({
-                        text: "Clear",
-                        variant: ButtonVariants.Ghost,
-                        title: "Clear the timeline of this tab",
-                        onClick: () => void context.timelineSync.clear(),
-                    }),
+                    ...context.trafficFeatures.canFilterFrames ? frameControls(context, tabOpener) : [],
+                    context.trafficFeatures.canExportHar
+                        ? MenuButton.build({
+                            text: "HAR",
+                            title: "Download or copy every captured call of this tab as a HAR file",
+                            menu: new ContextMenu(),
+                            items: () => harItems(harExport),
+                        })
+                        : null,
+                    context.trafficFeatures.canClear
+                        ? FormControls.button({
+                            text: "Clear",
+                            variant: ButtonVariants.Ghost,
+                            title: "Clear the timeline of this tab",
+                            onClick: () => void context.timelineSync.clear(),
+                        })
+                        : null,
                 ]),
             ],
         });
@@ -158,6 +212,7 @@ export class TrafficToolbar {
             state => [
                 state.entries,
                 state.contentFilter,
+                state.frameFilter,
             ],
             () => {
                 const state = context.store.getState();

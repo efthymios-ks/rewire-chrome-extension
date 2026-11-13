@@ -5,6 +5,7 @@ import type { PanelState } from "../../Core/PanelState";
 import type { RuleEditorLauncher } from "../../Core/RuleEditorLauncher";
 import type { SettingsService } from "../../Core/SettingsService";
 import type { Store } from "../../Core/Store";
+import type { TrafficFeatures } from "../../Core/TrafficFeatures";
 import type { ViewLauncher } from "../../Core/ViewLauncher";
 import type { IWorkerConnection } from "../../Core/WorkerConnection";
 import type { ICookieClient } from "../Cookies/CookieClient";
@@ -23,4 +24,5 @@ export interface PanelContext {
     clipboardClient: IClipboardClient;
     cookieClient: ICookieClient;
     regexSupportClient: IRegexSupportClient;
+    trafficFeatures: TrafficFeatures;
 }

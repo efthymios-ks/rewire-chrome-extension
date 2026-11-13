@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { SnippetBodyKind } from "../../../../src/Common/CodeGen/SnippetBody";
 import { ClientBodies } from "../../../../src/SidePanel/Features/Client/ClientBodies";
 import { type ClientBody, ClientBodyType } from "../../../../src/SidePanel/Features/Client/ClientRequest";
 
@@ -257,6 +258,7 @@ describe("ClientBodies", () => {
         // Assert
         expect(sent.type).toBe(ClientBodyType.None);
     });
+
     test.each([
         [
             "GET",
@@ -290,5 +292,91 @@ describe("ClientBodies", () => {
 
         // Assert
         expect(drops).toBe(expected);
+    });
+
+    test("snippetBodyOf_WhenTheBodyIsMultipart_ShouldKeepNamedTextAndFileParts", () => {
+        // Arrange
+        const body = aBody(ClientBodyType.Multipart, {
+            multipartRows: [
+                {
+                    name: "title",
+                    value: "Cap",
+                    isFile: false,
+                    file: null,
+                    fileName: "",
+                },
+                {
+                    name: "photo",
+                    value: "",
+                    isFile: true,
+                    file: PhotoFile,
+                    fileName: "",
+                },
+                {
+                    name: "empty",
+                    value: "",
+                    isFile: true,
+                    file: null,
+                    fileName: "",
+                },
+                {
+                    name: "",
+                    value: "unnamed",
+                    isFile: false,
+                    file: null,
+                    fileName: "",
+                },
+            ],
+        });
+
+        // Act
+        const snippetBody = ClientBodies.snippetBodyOf(body);
+
+        // Assert
+        expect(snippetBody).toEqual({
+            kind: SnippetBodyKind.Multipart,
+            parts: [
+                {
+                    name: "title",
+                    value: "Cap",
+                    fileName: null,
+                    contentType: "",
+                },
+                {
+                    name: "photo",
+                    value: "",
+                    fileName: "photo.png",
+                    contentType: "image/png",
+                },
+            ],
+        });
+    });
+
+    test.each([
+        [
+            UntypedFile,
+            "",
+            "payload.bin",
+        ],
+        [
+            null,
+            "pasted.bin",
+            "pasted.bin",
+        ],
+    ])("snippetBodyOf_WhenTheBodyIsAFile_ShouldNameIt(%s, %s)", (file, fileName, expected) => {
+        // Arrange
+        const body = aBody(ClientBodyType.Binary, {
+            file,
+            fileName,
+        });
+
+        // Act
+        const snippetBody = ClientBodies.snippetBodyOf(body);
+
+        // Assert
+        expect(snippetBody).toEqual({
+            kind: SnippetBodyKind.File,
+            fileName: expected,
+        });
     });
 });

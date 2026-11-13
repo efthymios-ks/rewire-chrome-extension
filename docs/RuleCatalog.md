@@ -11,11 +11,15 @@ Every rule type, grouped as in the **Add rule** catalog.
 | Response header | Add, update or remove response headers.                                    | `All tabs` |
 | CORS            | Rewrite `Access-Control-*` response headers; answer preflights with `204`. | `All tabs` |
 | Security header | Set HSTS, CSP, Permissions-Policy and other headers from a preset.         | `All tabs` |
+| Allow embedding | Remove `X-Frame-Options` and the CSP `frame-ancestors` directive, so the page loads in an iframe. | `Inspected tab`, or `All tabs` with the option off |
 
 - Chrome's request rules can **Add** only some request headers, such as `Accept`, `Cookie` or `User-Agent`; **Add** on others works on the inspected tab.
 - **Add if missing** works on the inspected tab.
+- **Allow embedding** has one option, **Keep the rest of the Content-Security-Policy**, on by default.
+  On, only `frame-ancestors` is cut out of the policy, which works on the inspected tab; a policy left empty is removed.
+  Off, the whole `Content-Security-Policy` header goes, which works on every tab.
 - A token goes in a **Request header** rule, such as `Authorization` with `Bearer <token>`.
-  Exports blank it unless **Include cookie values and auth headers** is ticked.
+  Exports blank it unless **Include cookie values, auth headers and secret variables** is ticked.
 - A specific **Allowed origin** in **CORS** also allows credentials; `*` does not.
 - Chrome hands CORS preflights to the debugger as XHR requests.
   On the inspected tab, **CORS** answers them itself with `204` when **Answer OPTIONS preflights** is on.

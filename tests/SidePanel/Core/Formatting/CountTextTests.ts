@@ -25,4 +25,19 @@ describe("CountText", () => {
         // Assert
         expect(text).toBe(expected);
     });
+
+    test("of_WhenAPluralIsGiven_ShouldUseIt", () => {
+        // Arrange
+        const count = 2;
+
+        // Act
+        const text = CountText.of(
+            count,
+            "entry",
+            "entries"
+        );
+
+        // Assert
+        expect(text).toBe("2 entries");
+    });
 });

@@ -63,6 +63,7 @@ describe("FetchSnippet", () => {
         // Assert
         expect(text).not.toContain("body:");
     });
+
     test("tryParse_WhenGivenAnyText_ShouldReturnNull", () => {
         // Arrange
         const text = "await fetch(\"https://api.example.com/users\");";

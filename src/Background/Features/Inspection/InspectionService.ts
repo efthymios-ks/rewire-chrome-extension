@@ -5,19 +5,28 @@ import type { InspectionStatus } from "../../../Contracts/Inspection/InspectionS
 import { WorkerEventType } from "../../../Contracts/Messaging/WorkerEventType";
 import type { ITimelineStore } from "../Capture/ITimelineStore";
 import { TimelineLimits } from "../Capture/TimelineLimits";
+import type { IDebuggerSessions } from "../Debugging/DebuggerSessions";
 import type { IDebuggerClient } from "../Debugging/IDebuggerClient";
-import { FetchPatternBuilder } from "../Interception/FetchPatternBuilder";
+import type { IFrameRegistry } from "../Frames/FrameRegistry";
+import type { ILiveListeningService } from "../Live/LiveListeningService";
+import type { ILiveStore } from "../Live/LiveStore";
 import type { IPanelConnectionHub } from "../PanelConnections/PanelConnectionHub";
-import type { IActiveRules } from "../Rules/ActiveRules";
+import type { ISessionStep } from "../Sessions/ISessionStep";
+import type { ISessionPreparer } from "../Sessions/SessionPreparer";
 import { DetachReasonMessages } from "./DetachReasonMessages";
 import type { IInspectionService } from "./IInspectionService";
 import { KeptTimelines } from "./KeptTimelines";
 
 export interface InspectionDependencies {
     debuggerClient: IDebuggerClient;
-    activeRules: IActiveRules;
+    preparer: ISessionPreparer;
+    interception: ISessionStep;
+    sessions: IDebuggerSessions;
+    frameRegistry: IFrameRegistry;
     connectionHub: IPanelConnectionHub;
     timelineStore: ITimelineStore;
+    liveStore: ILiveStore;
+    liveListening: Pick<ILiveListeningService, "forget">;
     logger: ILogger;
 }
 
@@ -67,27 +76,35 @@ export class InspectionService implements IInspectionService {
 
     async release(tabId: number | null): Promise<void> {
         if (tabId !== null && await this.detachIfUnused(tabId)) {
-            this._dependencies.timelineStore.clear(tabId);
+            this.clearTab(tabId);
         }
 
         if (!this._dependencies.connectionHub.hasConnections()) {
             this._keptTimelines
                 .takeAll()
-                .forEach(keptTabId => this._dependencies.timelineStore.clear(keptTabId));
+                .forEach(keptTabId => this.clearTab(keptTabId));
         }
     }
 
     forget(tabId: number): void {
+        this.forgetSessions(tabId);
         this._keptTimelines.resume(tabId);
         this._failures.delete(tabId);
-        this._dependencies.timelineStore.clear(tabId);
+        this.clearTab(tabId);
     }
 
     async refreshInterception(): Promise<void> {
+        const { interception, sessions, logger } = this._dependencies;
         for (const tabId of this._attachedTabs) {
-            const applied = await this.applyInterception(tabId);
-            if (applied.hasErrors) {
-                this._dependencies.logger.warn(`Updating interception on tab ${tabId} failed.`, applied.error);
+            const sessionIds = [
+                null,
+                ...sessions.childrenOf(tabId),
+            ];
+            for (const sessionId of sessionIds) {
+                const applied = await interception.apply(tabId, sessionId);
+                if (applied.hasErrors) {
+                    logger.warn(`Updating interception on tab ${tabId} failed.`, applied.error);
+                }
             }
         }
     }
@@ -97,7 +114,8 @@ export class InspectionService implements IInspectionService {
             return;
         }
 
-        this._dependencies.timelineStore.clear(tabId);
+        this.forgetSessions(tabId);
+        this.clearTab(tabId);
         this.publish(
             tabId,
             {
@@ -141,43 +159,32 @@ export class InspectionService implements IInspectionService {
         }
 
         this._attachedTabs.add(tabId);
+        await this.findTopFrame(tabId);
 
-        const network = await debuggerClient.send(
-            tabId,
-            "Network.enable",
-            {}
-        );
-        if (network.hasErrors) {
-            return network;
-        }
-
-        return this.applyInterception(tabId);
+        return this._dependencies.preparer.prepare(tabId, null);
     }
 
-    private async applyInterception(tabId: number): Promise<Result<void>> {
-        const { debuggerClient, activeRules } = this._dependencies;
-        const patterns = FetchPatternBuilder.build(activeRules.debuggerEntries());
-        if (patterns.length === 0) {
-            const disabled = await debuggerClient.send(tabId, "Fetch.disable");
-            if (disabled.hasErrors) {
-                return disabled;
-            }
+    private async findTopFrame(tabId: number): Promise<void> {
+        const { debuggerClient, frameRegistry, logger } = this._dependencies;
+        const tree = await debuggerClient.send(tabId, "Page.getFrameTree");
+        if (tree.hasErrors) {
+            logger.warn(`Reading the frames of tab ${tabId} failed.`, tree.error);
 
-            return Result.done();
+            return;
         }
 
-        const enabled = await debuggerClient.send(
-            tabId,
-            "Fetch.enable",
-            {
-                patterns,
-            }
-        );
-        if (enabled.hasErrors) {
-            return enabled;
-        }
+        frameRegistry.setTop(tabId, tree.value.frameTree.frame.id);
+    }
 
-        return Result.done();
+    private clearTab(tabId: number): void {
+        this._dependencies.timelineStore.clear(tabId);
+        this._dependencies.liveStore.clear(tabId);
+    }
+
+    private forgetSessions(tabId: number): void {
+        this._dependencies.sessions.forget(tabId);
+        this._dependencies.frameRegistry.forget(tabId);
+        this._dependencies.liveListening.forget(tabId);
     }
 
     private async park(tabId: number): Promise<void> {
@@ -187,7 +194,7 @@ export class InspectionService implements IInspectionService {
 
         this._keptTimelines
             .keep(tabId)
-            .forEach(droppedTabId => this._dependencies.timelineStore.clear(droppedTabId));
+            .forEach(droppedTabId => this.clearTab(droppedTabId));
     }
 
     private async detachIfUnused(tabId: number): Promise<boolean> {
@@ -197,6 +204,7 @@ export class InspectionService implements IInspectionService {
         }
 
         this._attachedTabs.delete(tabId);
+        this.forgetSessions(tabId);
 
         const detached = await debuggerClient.detach(tabId);
         if (detached.hasErrors) {

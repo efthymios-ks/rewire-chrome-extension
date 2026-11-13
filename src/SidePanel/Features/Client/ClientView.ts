@@ -2,9 +2,12 @@ import { CurlBashSnippet } from "../../../Common/CodeGen/CurlBashSnippet";
 import type { Result } from "../../../Common/Results/Result";
 import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
 import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
+import { ContextMenu } from "../../Core/Dom/ContextMenu";
 import { buildElement } from "../../Core/Dom/ElementBuilder";
 import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import { MenuButton } from "../../Core/Dom/MenuButton";
 import type { ClientLaunchRequest } from "../../Core/ViewLaunchRequests";
+import { SnippetMenuItems } from "../Inspector/SnippetMenuItems";
 import type { PanelContext } from "../Shell/PanelContext";
 import { ClientBodies } from "./ClientBodies";
 import { ClientForm } from "./ClientForm";
@@ -12,6 +15,7 @@ import type { ClientRequest } from "./ClientRequest";
 import { ClientRequestDraft } from "./ClientRequestDraft";
 import { ClientResponseView } from "./ClientResponseView";
 import { ClientRoutes } from "./ClientRoutes";
+import { ClientSnippets } from "./ClientSnippets";
 import { DebuggerHttpClient } from "./DebuggerHttpClient";
 import { HttpClient, type IHttpClient } from "./HttpClient";
 import { RoutedHttpClient } from "./RoutedHttpClient";
@@ -58,9 +62,20 @@ export class ClientView {
                     className: "view-header",
                     children: [
                         buildElement("h2", {
-                            text: "Client",
+                            text: "HTTP Client",
                         }),
-                        this._sendButton,
+                        buildElement("div", {
+                            className: "actions",
+                            children: [
+                                MenuButton.build({
+                                    text: "Copy as",
+                                    title: "Copy this request as a command or a script",
+                                    menu: new ContextMenu(),
+                                    items: () => SnippetMenuItems.of(snippetId => void this.copy(snippetId)),
+                                }),
+                                this._sendButton,
+                            ],
+                        }),
                     ],
                 }),
                 this._form.root,
@@ -80,6 +95,18 @@ export class ClientView {
         }
 
         this._form.fill(ClientRequestDraft.fromSnippet(CurlBashSnippet.from(launch.snapshot)));
+    }
+
+    private async copy(snippetId: string): Promise<void> {
+        const request = this._form.current();
+        if (request.url.trim() === "") {
+            this._context.notifier.show("Enter a URL first.");
+
+            return;
+        }
+
+        const copied = await this._context.clipboardClient.copy(ClientSnippets.of(request, snippetId));
+        this._context.notifier.show(copied.hasErrors ? copied.error : SnippetMenuItems.copiedText(snippetId));
     }
 
     private async send(): Promise<void> {

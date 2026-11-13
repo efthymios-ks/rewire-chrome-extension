@@ -2,6 +2,7 @@ import type { Protocol } from "devtools-protocol";
 import { describe, expect, test } from "vitest";
 import { TimelineRecordClassifier } from "../../../../src/Background/Features/Capture/TimelineRecordClassifier";
 import { TimelineRecordFactory } from "../../../../src/Background/Features/Capture/TimelineRecordFactory";
+import { FrameRegistry } from "../../../../src/Background/Features/Frames/FrameRegistry";
 import { ContentKindClassifier } from "../../../../src/Common/Content/ContentKindClassifier";
 import { RuleEngine } from "../../../../src/Contracts/Rules/RuleEngine";
 import { ChangeArea } from "../../../../src/Contracts/Rules/ValueChange";
@@ -10,7 +11,8 @@ import { TimelineEntryState } from "../../../../src/Contracts/Timeline/TimelineE
 import { TestUrls } from "../../../TestData";
 import { aRequestWillBeSentEvent } from "../../BackgroundTestData";
 
-const factory = new TimelineRecordFactory(new TimelineRecordClassifier(new ContentKindClassifier()));
+const frameRegistry = new FrameRegistry();
+const factory = new TimelineRecordFactory(new TimelineRecordClassifier(new ContentKindClassifier()), frameRegistry);
 
 describe("TimelineRecordFactory", () => {
     test("create_WhenARequestStarts_ShouldBuildAPendingSummary", () => {
@@ -39,6 +41,25 @@ describe("TimelineRecordFactory", () => {
             },
         ]);
         expect(record.startedTimestamp).toBe(100);
+    });
+
+    test("create_WhenAnIframeSendsTheRequest_ShouldRecordItsFrame", () => {
+        // Arrange
+        frameRegistry.setTop(8, "top-frame");
+        const event = aRequestWillBeSentEvent({
+            frameId: "iframe-1",
+            documentURL: "https://widget.example.com/embed",
+        });
+
+        // Act
+        const record = factory.create(8, event);
+
+        // Assert
+        expect(record.summary.frame).toEqual({
+            id: "iframe-1",
+            url: "https://widget.example.com/embed",
+            isTop: false,
+        });
     });
 
     test("create_WhenTheBodyCarriesAQuery_ShouldClassifyGraphQl", () => {

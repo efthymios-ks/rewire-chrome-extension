@@ -16,6 +16,7 @@ function controlOf(spec: FieldSpec, action: RuleAction): HTMLElement {
         fileClient: {
             download: vi.fn(),
             pickText: vi.fn(),
+            pickNamedText: vi.fn(),
         },
         notifier: new Notifier(new Store(PanelStateFactory.initial())),
     });

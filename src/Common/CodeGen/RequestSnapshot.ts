@@ -25,3 +25,10 @@ export const DefaultSnippetParts: SnippetOptions = {
     excludedQueryParams: [],
     includeBody: true,
 };
+
+export const AllSnippetParts: SnippetOptions = {
+    excludedHeaders: [],
+    excludedCookies: [],
+    excludedQueryParams: [],
+    includeBody: true,
+};

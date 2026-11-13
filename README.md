@@ -1,18 +1,24 @@
 # Rewire
 
 A Chromium side-panel extension to watch HTTP traffic and rewire it.  
-Watch the API calls of a tab, search them, export them as HAR, turn any of them into code, or send your own from the Client tab.  
+Watch the API calls of a tab and its iframes, search them, export them as HAR, turn any of them into code, or send your own from the HTTP Client tab.  
+Follow the page's WebSockets, server-sent events and postMessage messages, open your own sockets and streams, and read `.har` files.  
 Rewire traffic with ordered rules, grouped in profiles with their own variables: mock responses, add latency, send production calls to localhost, set headers, query params and cookies.
 
 ## Contents
 
 - [Overview](docs/Overview.md): runtime, layout, architecture, permissions
-- [Traffic](docs/Traffic.md): timeline, waterfall, search, HAR export, inspector, code snippets
+- [Traffic](docs/Traffic.md): timeline, iframes and the frame filter, waterfall, search, HAR export, inspector, code snippets
 - [Rules](docs/Rules.md): where rules work and their order, wildcards, operations, editor, testers, profiles, variables, import and export
 - [Rule catalog](docs/RuleCatalog.md): every rule type and where it works
+- [Rule JSON](docs/RuleJson.md): every rule, condition and profile as import JSON, with examples, ready to hand to an assistant
 - [Cookie Jar](docs/CookieJar.md): HttpOnly and Secure cookies, cookie rules
-- [Client](docs/Client.md): send your own requests, paste cURL or Wget commands, read the answers
 - [JWT](docs/Jwt.md): decode tokens and check their expiry
+- [HTTP Client](docs/HttpClient.md): send your own requests, paste cURL or Wget commands, copy them as code, read the answers
+- [WS Client](docs/WsClient.md): the page's WebSockets and your own, frames, handshake headers
+- [SSE Client](docs/SseClient.md): the page's event streams and your own, events
+- [postMessage](docs/PostMessage.md): messages between the page and its iframes, sending your own
+- [HAR Inspector](docs/HarInspector.md): open, drop or paste a `.har` file and read it with the Traffic timeline and inspector
 - [Release](docs/Release.md): Chrome Web Store setup and manual upload
 - [Store listing](docs/StoreListing.md): the Chrome Web Store description
 - [Privacy](docs/Privacy.md): what the extension reads and where it stays

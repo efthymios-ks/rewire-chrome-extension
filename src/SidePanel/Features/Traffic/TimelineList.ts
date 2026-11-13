@@ -51,6 +51,7 @@ export class TimelineList {
                 state.entries,
                 state.settings.pinnedEndpoints,
                 state.contentFilter,
+                state.frameFilter,
                 state.selectedEntryId,
                 state.search,
             ],
@@ -96,7 +97,7 @@ export class TimelineList {
             isPinned,
             {
                 onSelect: selected => EntrySelection.select(this._context.store, selected.id),
-                onTogglePin: selected => void this._context.settingsService.togglePin(selected.endpointKey),
+                onTogglePin: this._context.trafficFeatures.canPin ? selected => void this._context.settingsService.togglePin(selected.endpointKey) : null,
                 onContextMenu: (
                     selected,
                     x,

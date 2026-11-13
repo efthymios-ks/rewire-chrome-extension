@@ -117,6 +117,11 @@ export class TimelineStore implements ITimelineStore {
         this.add(make(`${legPrefix}${legCount + 1}`));
     }
 
+    remove(tabId: number, entryId: string): void {
+        this._recordsByTab.get(tabId)?.delete(entryId);
+        this._deferredChanges.delete(deferredKeyOf(tabId, entryId));
+    }
+
     clear(tabId: number): void {
         this._recordsByTab.delete(tabId);
     }

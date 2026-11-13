@@ -6,6 +6,8 @@ import type { InspectedTab } from "../../Core/InspectedTab";
 import type { PanelState } from "../../Core/PanelState";
 import type { Store } from "../../Core/Store";
 import type { IWorkerConnection } from "../../Core/WorkerConnection";
+import { LiveEntries } from "../Live/LiveEntries";
+import { ListeningToggle } from "../Live/ListeningToggle";
 import { TimelineEntries } from "./TimelineEntries";
 import { WorkerEventRouter } from "./WorkerEventRouter";
 
@@ -47,6 +49,34 @@ export class TimelineSync {
                     ...state,
                     inspection: event.status,
                 })
+            ))
+            .on(WorkerEventType.EntryRemoved, event => this.whenInspecting(
+                event.tabId,
+                state => ({
+                    ...state,
+                    entries: state.entries.filter(entry => entry.id !== event.entryId),
+                })
+            ))
+            .on(WorkerEventType.ChannelUpserted, event => this.whenInspecting(
+                event.channel.tabId,
+                state => ({
+                    ...state,
+                    live: LiveEntries.upsertChannel(state.live, event.channel),
+                })
+            ))
+            .on(WorkerEventType.LiveMessageAdded, event => this.whenInspecting(
+                event.tabId,
+                state => ({
+                    ...state,
+                    live: LiveEntries.addMessage(state.live, event.message),
+                })
+            ))
+            .on(WorkerEventType.PostMessageAdded, event => this.whenInspecting(
+                event.record.tabId,
+                state => ({
+                    ...state,
+                    live: LiveEntries.addPostMessage(state.live, event.record),
+                })
             ));
     }
 
@@ -60,6 +90,7 @@ export class TimelineSync {
             ...withoutSelection(state),
             inspectedTab: tab,
             entries: [],
+            live: LiveEntries.withoutPage(state.live),
             inspection: {
                 state: tab === null ? InspectionState.Idle : InspectionState.Attaching,
                 message: "",
@@ -139,8 +170,16 @@ export class TimelineSync {
                 ...state,
                 inspection: result.value.status,
                 entries: result.value.entries,
+                live: LiveEntries.withPage(state.live, result.value.live),
             })
         );
+
+        const isListening = Object
+            .values(this._store.getState().liveListening)
+            .some(Boolean);
+        if (isListening) {
+            await ListeningToggle.send(this._store, this._connection);
+        }
     }
 
     private whenInspecting(tabId: number, change: (state: PanelState) => PanelState): void {

@@ -1,5 +1,10 @@
 import { InMemoryRuleContext } from "../src/Common/Rules/Context/InMemoryRuleContext";
 import type { RequestDraft, ResponseDraft } from "../src/Common/Rules/Drafts/Drafts";
+import type { LiveChannel } from "../src/Contracts/Live/LiveChannel";
+import { LiveChannelKind } from "../src/Contracts/Live/LiveChannelKind";
+import type { LiveMessage } from "../src/Contracts/Live/LiveMessage";
+import { LiveMessageDirection } from "../src/Contracts/Live/LiveMessageDirection";
+import type { PostMessageRecord } from "../src/Contracts/Live/PostMessageRecord";
 import { CriteriaMatches, type Criterion } from "../src/Contracts/Rules/Criterion";
 import type { Rule } from "../src/Contracts/Rules/Rule";
 import { RuleTypeIds } from "../src/Contracts/Rules/RuleTypeIds";
@@ -131,6 +136,7 @@ export function aSummary(overrides: Partial<TimelineEntrySummary> = {}): Timelin
         isAnsweredByRule: false,
         redirectedFromUrl: null,
         errorText: null,
+        frame: null,
         ...overrides,
     };
 }
@@ -154,6 +160,55 @@ export function aDetail(overrides: Partial<TimelineEntryDetail> = {}): TimelineE
         responseBody: "{\"id\":42}",
         responseBodyNote: null,
         changes: [],
+        ...overrides,
+    };
+}
+
+export function aChannel(
+    id: string,
+    kind: LiveChannelKind = LiveChannelKind.WebSocket,
+    isOpen: boolean = true,
+    overrides: Partial<LiveChannel> = {}
+): LiveChannel {
+    return {
+        id,
+        tabId: 7,
+        kind,
+        url: "wss://live.example.com/socket",
+        isOpen,
+        isMine: false,
+        openedAt: "2026-11-12T10:00:00.000Z",
+        ...overrides,
+    };
+}
+
+export function aLiveMessage(overrides: Partial<LiveMessage> = {}): LiveMessage {
+    return {
+        id: "live-1",
+        channelId: "ws-1",
+        direction: LiveMessageDirection.Received,
+        at: "2026-11-12T10:00:01.250Z",
+        data: "{\"type\":\"hello\"}",
+        size: 16,
+        opcode: 1,
+        eventName: null,
+        eventId: null,
+        retry: null,
+        ...overrides,
+    };
+}
+
+export function aPostMessage(overrides: Partial<PostMessageRecord> = {}): PostMessageRecord {
+    return {
+        id: "live-9",
+        tabId: 7,
+        at: "2026-11-12T10:00:02.000Z",
+        from: "pay.example.com",
+        to: "top",
+        origin: "https://pay.example.com",
+        data: "{\"status\":\"paid\"}",
+        size: 17,
+        isMine: false,
         ...overrides,
     };
 }

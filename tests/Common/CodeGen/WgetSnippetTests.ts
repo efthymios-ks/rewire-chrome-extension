@@ -58,6 +58,7 @@ describe("WgetSnippet", () => {
         // Assert
         expect(text.includes(`--method=${method}`)).toBe(expected);
     });
+
     test("tryParse_WhenTheCommandWasMadeByRewire_ShouldReadItBack", () => {
         // Arrange
         const made = WgetSnippet.from(aSnapshot(), Defaults);

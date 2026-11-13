@@ -162,7 +162,8 @@ A rule's text fields can use `{{name}}`; the value comes from the active profile
 
 ## Import and export
 
-**Import / export** in the toolbar reads and writes one JSON file, `schemaVersion` 5, holding any number of profiles.
+**Import / export** in the toolbar reads and writes one JSON file, `schemaVersion` 5, holding any number of profiles.  
+[Rule JSON](RuleJson.md) documents every key of it.
 
 **Export**:
 
@@ -174,7 +175,9 @@ A rule's text fields can use `{{name}}`; the value comes from the active profile
 
 **Import**:
 
-- **Choose file** reads a file and lists its profiles, all ticked, with how many rules and variables each holds.
+- **Choose file** reads a file, and **Read pasted JSON** reads the JSON pasted in the box above it.
+  A whole AI answer can be pasted; the first code block in it is read.
+- Either way, the profiles are listed, all ticked, with how many rules and variables each holds.
   A profile with the same id as one of yours says so.
 - Pick the mode, then **Import** brings in the ticked profiles:
 
@@ -232,6 +235,15 @@ A rule's text fields can use `{{name}}`; the value comes from the active profile
 }
 ```
 
+### Write rules with AI
+
+**Copy rule format**, under **Write rules with AI** in **Import / export**, copies [Rule JSON](RuleJson.md): how rules are written as JSON, with an example of every type.  
+None of your rules or variables are in it.
+
+1. Press **Copy rule format** and paste it into an AI chat, with what you need, such as "mock GET /api/v1/orders with a 500".
+2. Copy the whole answer, paste it in the **Import** box, and press **Read pasted JSON**.
+3. Keep **Merge** and press **Import**; the rules arrive in a new profile, so yours stay as they are.
+
 ## Upgrading
 
 Older settings are converted once, on first load, and the old keys are removed.
@@ -257,7 +269,7 @@ From `schemaVersion` 2:
 - A latency on any other rule becomes a **Latency** rule right above it, with the same conditions.
 - Device, client IP and country conditions are removed, and their rules switched off.
 - **Request body modify** and **Response body find & replace** become **Request body** and **Response body**, with the same modes.
-- Rule types that no longer exist are dropped: Header find & replace, Request ID, Bulk redirects, Failover response, Network failure, Block request, Phased release, A/B segment and Load balancer.
+- Rule types Rewire does not have are dropped: Header find & replace, Request ID, Bulk redirects, Failover response, Network failure, Block request, Phased release, A/B segment and Load balancer.
 
 From the settings before the Rules tab:
 

@@ -1,9 +1,40 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+import { Result } from "../../../../src/Common/Results/Result";
 import { ContentKind } from "../../../../src/Contracts/Timeline/ContentKind";
+import { FrameFilters } from "../../../../src/SidePanel/Core/FrameFilters";
+import { TrafficFeatureSets } from "../../../../src/SidePanel/Core/TrafficFeatures";
 import { TrafficLayout } from "../../../../src/SidePanel/Core/TrafficLayout";
 import { TrafficToolbar } from "../../../../src/SidePanel/Features/Traffic/TrafficToolbar";
 import { aSummary } from "../../../TestData";
 import { aPanelHarness, buttonNamed, click } from "../../PanelTestData";
+
+const FramedEntries = [
+    aSummary({
+        id: "top",
+        frame: {
+            id: "top-frame",
+            url: "https://app.example.com/",
+            isTop: true,
+        },
+    }),
+    aSummary({
+        id: "payment",
+        frame: {
+            id: "iframe-1",
+            url: "https://pay.example.com/checkout",
+            isTop: false,
+        },
+    }),
+];
+
+function aFileClient() {
+    return {
+        download: vi.fn(),
+        pickText: vi.fn(),
+        pickNamedText: vi.fn(),
+    };
+}
+
 
 describe("TrafficToolbar", () => {
     test("constructor_WhenBuilt_ShouldPutFiltersAndCountOnTopAndLayoutAndClearBelow", () => {
@@ -82,6 +113,7 @@ describe("TrafficToolbar", () => {
         // Assert
         expect(toolbar.root.querySelector(".entry-count")?.textContent).toBe("1 / 2");
     });
+
     test("harButton_WhenClicked_ShouldOfferDownloadAndCopyWithAndWithoutSecrets", () => {
         // Arrange
         const harness = aPanelHarness();
@@ -99,5 +131,83 @@ describe("TrafficToolbar", () => {
             "Copy HAR with cookies and auth headers",
         ]);
         document.body.replaceChildren();
+    });
+
+    test("frameSelect_WhenCallsComeFromAnIframe_ShouldOfferEveryFrame", () => {
+        // Arrange
+        const harness = aPanelHarness({
+            entries: FramedEntries,
+        });
+
+        // Act
+        const toolbar = new TrafficToolbar(harness.context);
+
+        // Assert
+        const select = toolbar.root.querySelector<HTMLSelectElement>(".frame-select")!;
+        expect([...select.options].map(option => option.textContent)).toEqual([
+            "All frames",
+            "top",
+            "pay.example.com",
+        ]);
+        expect(buttonNamed(toolbar.root, "Open frame").hidden).toBe(true);
+    });
+
+    test("frameSelect_WhenAnIframeIsPicked_ShouldKeepItsCallsAndOfferToOpenIt", async () => {
+        // Arrange
+        const harness = aPanelHarness({
+            entries: FramedEntries,
+        });
+        const tabOpener = {
+            open: vi.fn().mockResolvedValue(Result.done()),
+        };
+        const toolbar = new TrafficToolbar(
+            harness.context,
+            aFileClient(),
+            tabOpener
+        );
+        const select = toolbar.root.querySelector<HTMLSelectElement>(".frame-select")!;
+
+        // Act
+        select.value = "iframe-1";
+        select.dispatchEvent(new Event("change"));
+        click(buttonNamed(toolbar.root, "Open frame"));
+
+        // Assert
+        expect(toolbar.root.querySelector(".entry-count")?.textContent).toBe("1 / 2");
+        expect(tabOpener.open).toHaveBeenCalledWith("https://pay.example.com/checkout");
+    });
+
+    test("frameSelect_WhenThePickedIframeIsCleared_ShouldGoBackToAllFrames", () => {
+        // Arrange
+        const harness = aPanelHarness({
+            entries: FramedEntries,
+            frameFilter: "iframe-1",
+        });
+        new TrafficToolbar(harness.context);
+
+        // Act
+        harness.store.update(state => ({
+            ...state,
+            entries: [],
+        }));
+
+        // Assert
+        expect(harness.store.getState().frameFilter).toBe(FrameFilters.All);
+    });
+
+    test("frameSelect_WhenFramesCannotBeFiltered_ShouldNotShow", () => {
+        // Arrange
+        const harness = aPanelHarness({
+            entries: FramedEntries,
+        });
+
+        // Act
+        const toolbar = new TrafficToolbar({
+            ...harness.context,
+            trafficFeatures: TrafficFeatureSets.HarFile,
+        });
+
+        // Assert
+        expect(toolbar.root.querySelector(".frame-select")).toBeNull();
     });
 });

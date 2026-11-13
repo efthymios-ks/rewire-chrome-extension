@@ -71,6 +71,7 @@ describe("RuleScopes", () => {
         // Assert
         expect(plans.map(plan => plan.rule.id)).toEqual(["on"]);
     });
+
     test("contextOf_WhenTheActiveProfileHasVariables_ShouldRenderThem", () => {
         // Arrange
         const settings = aSettings({

@@ -6,6 +6,7 @@ import { RegexSupportClient } from "../Common/NetworkRules/RegexSupportClient";
 import { RuleHitsClient } from "../Common/Storage/RuleHitsClient";
 import { RuleSyncReportClient } from "../Common/Storage/RuleSyncReportClient";
 import { SettingsStorageClient } from "../Common/Storage/SettingsStorageClient";
+import { InspectionState } from "../Contracts/Inspection/InspectionState";
 import { PanelPortName } from "../Contracts/Messaging/PanelPortName";
 import { WorkerEventType } from "../Contracts/Messaging/WorkerEventType";
 import { ClearTimelineEndpoint } from "./Endpoints/ClearTimeline/ClearTimelineEndpoint";
@@ -15,8 +16,11 @@ import { InspectTabEndpoint } from "./Endpoints/InspectTab/InspectTabEndpoint";
 import { KeepAliveEndpoint } from "./Endpoints/KeepAlive/KeepAliveEndpoint";
 import { LogClientExchangeEndpoint } from "./Endpoints/LogClientExchange/LogClientExchangeEndpoint";
 import { PanelEndpointRouter } from "./Endpoints/PanelEndpointRouter";
+import { RemoveLiveChannelsEndpoint } from "./Endpoints/RemoveLiveChannels/RemoveLiveChannelsEndpoint";
 import { SearchTimelineEndpoint } from "./Endpoints/SearchTimeline/SearchTimelineEndpoint";
 import { SendClientRequestEndpoint } from "./Endpoints/SendClientRequest/SendClientRequestEndpoint";
+import { SendPostMessageEndpoint } from "./Endpoints/SendPostMessage/SendPostMessageEndpoint";
+import { SetLiveListeningEndpoint } from "./Endpoints/SetLiveListening/SetLiveListeningEndpoint";
 import { BrowserRuleSimulator } from "./Features/Capture/BrowserRuleSimulator";
 import { CaptureFilter } from "./Features/Capture/CaptureFilter";
 import { LoadingFailedHandler } from "./Features/Capture/LoadingFailedHandler";
@@ -35,17 +39,43 @@ import { ClientRequestSender } from "./Features/ClientSending/ClientRequestSende
 import { PanelTargetClient } from "./Features/ClientSending/PanelTargetClient";
 import { CdpEventDispatcher } from "./Features/Debugging/CdpEventDispatcher";
 import { DebuggerClient } from "./Features/Debugging/DebuggerClient";
+import { DebuggerSessions } from "./Features/Debugging/DebuggerSessions";
+import { FrameRegistry } from "./Features/Frames/FrameRegistry";
 import { InspectionService } from "./Features/Inspection/InspectionService";
 import { RequestPausedHandler } from "./Features/Interception/RequestPausedHandler";
+import { EventSourceMessageHandler } from "./Features/Live/EventSourceMessageHandler";
+import { EventSourceRequestHandler } from "./Features/Live/EventSourceRequestHandler";
+import { EventStreamEndedHandler } from "./Features/Live/EventStreamEndedHandler";
+import { EventStreamParsers } from "./Features/Live/EventStreamParsers";
+import { FetchStreamDataHandler } from "./Features/Live/FetchStreamDataHandler";
+import { FetchStreamResponseHandler } from "./Features/Live/FetchStreamResponseHandler";
+import { ListeningGate } from "./Features/Live/ListeningGate";
+import { LiveListeningRegistry } from "./Features/Live/LiveListeningRegistry";
+import { LiveListeningService } from "./Features/Live/LiveListeningService";
+import { LiveStore } from "./Features/Live/LiveStore";
+import { WebSocketClosedHandler } from "./Features/Live/WebSocketClosedHandler";
+import { WebSocketCreatedHandler } from "./Features/Live/WebSocketCreatedHandler";
+import { WebSocketFrameReceivedHandler } from "./Features/Live/WebSocketFrameReceivedHandler";
+import { WebSocketFrameSentHandler } from "./Features/Live/WebSocketFrameSentHandler";
 import { DeclarativeNetRequestClient } from "./Features/NetworkRules/DeclarativeNetRequestClient";
 import { DeclarativeRuleSync } from "./Features/NetworkRules/DeclarativeRuleSync";
 import { DnrFeedbackClient } from "./Features/NetworkRules/DnrFeedbackClient";
 import { TimeWindowAlarmName, TimeWindowScheduler } from "./Features/NetworkRules/TimeWindowScheduler";
 import type { PanelConnection } from "./Features/PanelConnections/PanelConnection";
 import { PanelConnectionHub } from "./Features/PanelConnections/PanelConnectionHub";
+import { PostMessageBindingHandler } from "./Features/PostMessages/PostMessageBindingHandler";
+import { PostMessageProbeInstaller } from "./Features/PostMessages/PostMessageProbeInstaller";
+import { PostMessageSender } from "./Features/PostMessages/PostMessageSender";
+import { PostMessageSessionStep } from "./Features/PostMessages/PostMessageSessionStep";
 import { ActiveRules } from "./Features/Rules/ActiveRules";
 import { RuleHitCounter } from "./Features/Rules/RuleHitCounter";
 import { VariableStore } from "./Features/Rules/VariableStore";
+import { ChildSessionAttachedHandler } from "./Features/Sessions/ChildSessionAttachedHandler";
+import { ChildSessionDetachedHandler } from "./Features/Sessions/ChildSessionDetachedHandler";
+import { FrameAutoAttachSessionStep } from "./Features/Sessions/FrameAutoAttachSessionStep";
+import { InterceptionSessionStep } from "./Features/Sessions/InterceptionSessionStep";
+import { NetworkSessionStep } from "./Features/Sessions/NetworkSessionStep";
+import { SessionPreparer } from "./Features/Sessions/SessionPreparer";
 import { SettingsCache } from "./Features/Settings/SettingsCache";
 import { SidePanelClient } from "./Features/SidePanel/SidePanelClient";
 
@@ -58,19 +88,50 @@ const hitCounter = new RuleHitCounter(
     new RuleHitsClient(),
     logger
 );
-const debuggerClient = new DebuggerClient();
+const debuggerSessions = new DebuggerSessions();
+const frameRegistry = new FrameRegistry();
+const debuggerClient = new DebuggerClient(debuggerSessions);
+const interceptionStep = new InterceptionSessionStep(debuggerClient, activeRules);
+const liveListeningRegistry = new LiveListeningRegistry();
+const postMessageInstaller = new PostMessageProbeInstaller(debuggerClient);
+const sessionPreparer = new SessionPreparer(
+    [
+        new NetworkSessionStep(debuggerClient),
+        interceptionStep,
+        new FrameAutoAttachSessionStep(debuggerClient),
+        new PostMessageSessionStep(postMessageInstaller, liveListeningRegistry),
+    ],
+    logger
+);
 const connectionHub = new PanelConnectionHub(logger);
 const timelineStore = new TimelineStore();
+const liveStore = new LiveStore();
+const eventStreamParsers = new EventStreamParsers();
+const now = (): Date => new Date();
 const contentKindClassifier = new ContentKindClassifier();
 const recordClassifier = new TimelineRecordClassifier(contentKindClassifier);
 const browserRuleSimulator = new BrowserRuleSimulator(activeRules);
 const clientRequestSender = new ClientRequestSender(new PanelTargetClient(), logger);
+const postMessageSender = new PostMessageSender(debuggerClient, () => Date.now());
+
+const liveListening = new LiveListeningService({
+    registry: liveListeningRegistry,
+    installer: postMessageInstaller,
+    sessions: debuggerSessions,
+    isAttached: tabId => inspectionService.statusOf(tabId).state === InspectionState.Attached,
+    logger,
+});
 
 const inspectionService = new InspectionService({
     debuggerClient,
-    activeRules,
+    preparer: sessionPreparer,
+    interception: interceptionStep,
+    sessions: debuggerSessions,
+    frameRegistry,
     connectionHub,
     timelineStore,
+    liveStore,
+    liveListening,
     logger,
 });
 
@@ -87,13 +148,13 @@ const captureFilter = new CaptureFilter();
 const pendingDocuments = new PendingDocuments();
 const admission = new TimelineAdmission(timelineStore, browserRuleSimulator);
 
-const cdpEventDispatcher = new CdpEventDispatcher()
+const cdpEventDispatcher = new CdpEventDispatcher(debuggerSessions)
     .register(new RequestWillBeSentHandler({
         timelineStore,
         pendingDocuments,
         admission,
         captureFilter,
-        recordFactory: new TimelineRecordFactory(recordClassifier),
+        recordFactory: new TimelineRecordFactory(recordClassifier, frameRegistry),
         recordClassifier,
         browserRuleSimulator,
         debuggerClient,
@@ -123,17 +184,94 @@ const cdpEventDispatcher = new CdpEventDispatcher()
         pendingDocuments,
         hitCounter,
         logger,
-    }));
+    }))
+    .register(new ChildSessionAttachedHandler({
+        debuggerClient,
+        sessions: debuggerSessions,
+        preparer: sessionPreparer,
+        logger,
+    }))
+    .register(new ChildSessionDetachedHandler(debuggerSessions))
+    .register(new ListeningGate(
+        new WebSocketCreatedHandler(liveStore, now),
+        liveListeningRegistry,
+        "webSockets"
+    ))
+    .register(new ListeningGate(
+        new WebSocketFrameSentHandler(liveStore, now),
+        liveListeningRegistry,
+        "webSockets"
+    ))
+    .register(new ListeningGate(
+        new WebSocketFrameReceivedHandler(liveStore, now),
+        liveListeningRegistry,
+        "webSockets"
+    ))
+    .register(new WebSocketClosedHandler(liveStore))
+    .register(new ListeningGate(
+        new EventSourceRequestHandler(liveStore, now),
+        liveListeningRegistry,
+        "eventStreams"
+    ))
+    .register(new ListeningGate(
+        new EventSourceMessageHandler(liveStore, now),
+        liveListeningRegistry,
+        "eventStreams"
+    ))
+    .register(new ListeningGate(
+        new FetchStreamResponseHandler({
+            liveStore,
+            parsers: eventStreamParsers,
+            timelineStore,
+            connectionHub,
+            debuggerClient,
+            logger,
+            now,
+        }),
+        liveListeningRegistry,
+        "eventStreams"
+    ))
+    .register(new FetchStreamDataHandler(
+        liveStore,
+        eventStreamParsers,
+        now
+    ))
+    .register(new EventStreamEndedHandler(
+        "Network.loadingFinished",
+        liveStore,
+        eventStreamParsers
+    ))
+    .register(new EventStreamEndedHandler(
+        "Network.loadingFailed",
+        liveStore,
+        eventStreamParsers
+    ))
+    .register(new ListeningGate(
+        new PostMessageBindingHandler(
+            liveStore,
+            postMessageSender,
+            now
+        ),
+        liveListeningRegistry,
+        "postMessages"
+    ));
 
 const endpointRouter = new PanelEndpointRouter()
-    .register(new InspectTabEndpoint(inspectionService, timelineStore))
+    .register(new InspectTabEndpoint(
+        inspectionService,
+        timelineStore,
+        liveStore
+    ))
     .register(new GetEntryDetailEndpoint(timelineStore))
     .register(new GetTimelineDetailsEndpoint(timelineStore))
     .register(new ClearTimelineEndpoint(timelineStore, connectionHub))
     .register(new SearchTimelineEndpoint(timelineStore))
     .register(new KeepAliveEndpoint())
     .register(new LogClientExchangeEndpoint(timelineStore, contentKindClassifier))
-    .register(new SendClientRequestEndpoint(clientRequestSender));
+    .register(new SendClientRequestEndpoint(clientRequestSender))
+    .register(new SendPostMessageEndpoint(postMessageSender))
+    .register(new RemoveLiveChannelsEndpoint(liveStore))
+    .register(new SetLiveListeningEndpoint(liveListening));
 
 activeRules.subscribe(() => {
     BackgroundTask.run(
@@ -183,6 +321,8 @@ async function handlePanelMessage(connection: PanelConnection, message: unknown)
         }
     );
 }
+
+liveStore.subscribe((tabId, event) => connectionHub.publishToTab(tabId, event));
 
 timelineStore.subscribe(entry => connectionHub.publishToTab(
     entry.tabId,
@@ -248,7 +388,7 @@ chrome.debugger.onEvent.addListener((
         async () => {
             await settingsReady;
             await cdpEventDispatcher.dispatch(
-                source.tabId,
+                source,
                 method,
                 params
             );

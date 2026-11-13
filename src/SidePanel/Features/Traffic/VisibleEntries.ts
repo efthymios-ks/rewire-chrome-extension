@@ -1,5 +1,6 @@
 import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
 import type { PanelState } from "../../Core/PanelState";
+import { PageFrames } from "../Frames/PageFrames";
 import { ContentFilters } from "./ContentFilters";
 
 export const VisibleEntries = {
@@ -8,6 +9,7 @@ export const VisibleEntries = {
 
         return state.entries
             .filter(entry => filter === undefined || filter.accepts(entry))
+            .filter(entry => PageFrames.accepts(entry.frame, state.frameFilter))
             .toReversed();
     },
 };
