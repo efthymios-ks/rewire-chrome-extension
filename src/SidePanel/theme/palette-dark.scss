@@ -1,0 +1,83 @@
+:root[data-theme="dark"] {
+    --bg: #181818;
+    --surface: #1f1f1f;
+    --surface-sunken: #181818;
+    --surface-raised: #2a2d2e;
+
+    --text: #d4d4d4;
+    --muted: #9d9d9d;
+    --faint: #8a8a8a;
+    --text-inverse: #1f1f1f;
+
+    --border: #2b2b2b;
+    --border-strong: #454545;
+    --divider: #262626;
+
+    --accent: #4ec9b0;
+    --accent-soft: #163f3a;
+    --accent-text: #1f1f1f;
+    --selection-bg: #264f78;
+
+    --ok: #73c991;
+    --ok-soft: #1e3a26;
+    --warn: #cca700;
+    --warn-soft: #3b3206;
+    --fail: #f14c4c;
+    --fail-soft: #4b1818;
+    --info: #3794ff;
+    --info-soft: #0f2c4d;
+
+    --diff-add-bg: #1e3a26;
+    --diff-add-text: #89d185;
+    --diff-del-bg: #4b1818;
+    --diff-del-text: #f48771;
+    --diff-change-bg: #3b3206;
+
+    --ft-json: #cbcb41;
+    --ft-xml: #e37933;
+    --ft-csv: #89d185;
+    --ft-excel: #73c991;
+    --ft-word: #75beff;
+    --ft-text: #d4d4d4;
+    --ft-markdown: #75beff;
+    --ft-html: #e37933;
+    --ft-css: #569cd6;
+    --ft-javascript: #cbcb41;
+    --ft-typescript: #3794ff;
+    --ft-yaml: #f14c4c;
+    --ft-har: #c586c0;
+    --ft-pdf: #f14c4c;
+    --ft-image: #4ec9b0;
+    --ft-archive: #cca700;
+    --ft-audio: #c586c0;
+    --ft-video: #f48fb1;
+    --ft-font: #b4a7f5;
+    --ft-folder: #c09553;
+    --ft-unknown: #9d9d9d;
+
+    --syntax-keyword: #c586c0;
+    --syntax-string: #ce9178;
+    --syntax-number: #b5cea8;
+    --syntax-boolean: #569cd6;
+    --syntax-null: #569cd6;
+    --syntax-property: #9cdcfe;
+    --syntax-comment: #6a9955;
+    --syntax-function: #dcdcaa;
+    --syntax-class: #4ec9b0;
+    --syntax-operator: #d4d4d4;
+    --syntax-punct: #9d9d9d;
+    --syntax-regex: #d16969;
+    --syntax-tag: #569cd6;
+    --syntax-attr-name: #9cdcfe;
+    --syntax-attr-value: #ce9178;
+
+    --radius: 8px;
+    --radius-small: 4px;
+    --shadow: rgb(0 0 0 / 36%);
+    --shadow-strong: rgb(0 0 0 / 60%);
+
+    --mono-key: var(--syntax-property);
+    --mono-string: var(--syntax-string);
+    --mono-number: var(--syntax-number);
+    --mono-boolean: var(--syntax-boolean);
+}
