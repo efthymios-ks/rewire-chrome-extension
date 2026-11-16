@@ -1,8 +1,8 @@
-import type { InspectionStatus } from "../../Inspection/InspectionStatus";
-import type { WorkerEventType } from "../WorkerEventType";
+import type { InspectionStatus } from '../../Inspection/InspectionStatus';
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface InspectionChangedEvent {
-    type: WorkerEventType.InspectionChanged;
+    type: typeof WORKER_EVENT_TYPE.InspectionChanged;
     tabId: number;
     status: InspectionStatus;
 }

@@ -1,5 +1,5 @@
-import type { PanelState } from "../../Core/PanelState";
-import type { Store } from "../../Core/Store";
+import type { PanelState } from '../../Core/PanelState';
+import type { Store } from '../../Core/Store';
 
 export const EntrySelection = {
     select(store: Store<PanelState>, entryId: string): void {

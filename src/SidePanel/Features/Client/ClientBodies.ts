@@ -1,20 +1,22 @@
-import { type MultipartPart, type SnippetBody, SnippetBodies } from "../../../Common/CodeGen/SnippetBody";
-import { MediaTypeNames } from "../../../Contracts/Http/MediaTypeNames";
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import { type ClientBody, ClientBodyType, type KeyValueRow, type MultipartRow } from "./ClientRequest";
+import type { MultipartPart } from '../../../Common/CodeGen/MultipartPart';
+import { SnippetBodies } from '../../../Common/CodeGen/SnippetBodies';
+import type { SnippetBody } from '../../../Common/CodeGen/SnippetBody';
+import { SnippetRequests } from '../../../Common/CodeGen/SnippetRequests';
+import { GRAPHQL_QUERY_KEY } from '../../../Common/Content/GraphQlQueryKey';
+import { HEADER_NAMES } from '../../../Contracts/Http/HeaderNames';
+import { MEDIA_TYPE_NAMES } from '../../../Contracts/Http/MediaTypeNames';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import type { ClientBody } from './ClientBody';
+import { CLIENT_BODY_TYPE, type ClientBodyType } from './ClientBodyType';
+import type { KeyValueRow } from './KeyValueRow';
+import type { MultipartRow } from './MultipartRow';
 
-const ContentTypeHeader = "Content-Type";
-const BodylessMethods = [
-    "GET",
-    "HEAD",
-];
-const NoFileText = "(no file picked)";
-const GraphQlQueryKey = "query";
+const NO_FILE_TEXT = '(no file picked)';
 
 type BodyReader<TValue> = (body: ClientBody) => TValue;
 
 function namedRows<TRow extends KeyValueRow>(rows: TRow[]): TRow[] {
-    return rows.filter(row => row.name.trim() !== "");
+    return rows.filter(row => row.name.trim() !== '');
 }
 
 function fileText(name: string, size: number): string {
@@ -29,12 +31,12 @@ function formParametersOf(rows: KeyValueRow[]): URLSearchParams {
 }
 
 function textOrNull(text: string): string | null {
-    return text === "" ? null : text;
+    return text === '' ? null : text;
 }
 
 function graphQlBodyOf(query: string): string {
     return JSON.stringify({
-        [GraphQlQueryKey]: query,
+        [GRAPHQL_QUERY_KEY]: query,
     });
 }
 
@@ -52,11 +54,11 @@ function multipartFormOf(rows: MultipartRow[]): FormData | null {
             return;
         }
 
-        if (row.file !== null) {
+        if (row.file != null) {
             form.append(
-                row.name,
-                row.file,
-                row.file.name
+                /* name: */ row.name,
+                /* blobValue: */ row.file,
+                /* filename: */ row.file.name,
             );
         }
     });
@@ -69,7 +71,9 @@ function multipartLineOf(row: MultipartRow): string {
         return `${row.name}: ${row.value}`;
     }
 
-    return row.file === null ? `${row.name}: ${NoFileText}` : `${row.name}: ${fileText(row.file.name, row.file.size)}`;
+    return row.file == null
+        ? `${row.name}: ${NO_FILE_TEXT}`
+        : `${row.name}: ${fileText(row.file.name, row.file.size)}`;
 }
 
 function snippetPartOf(row: MultipartRow): MultipartPart | null {
@@ -79,118 +83,126 @@ function snippetPartOf(row: MultipartRow): MultipartPart | null {
 
     const fileName = row.file?.name ?? row.fileName;
 
-    return fileName === ""
+    return fileName === ''
         ? null
-        : SnippetBodies.filePart(
-            row.name,
-            fileName,
-            row.file?.type ?? ""
-        );
+        : SnippetBodies.filePart({ name: row.name, fileName, contentType: row.file?.type ?? '' });
 }
 
 function snippetFileOf(body: ClientBody): SnippetBody {
     const fileName = body.file?.name ?? body.fileName;
 
-    return fileName === "" ? SnippetBodies.none() : SnippetBodies.file(fileName);
+    return fileName === '' ? SnippetBodies.none() : SnippetBodies.file(fileName);
 }
 
-const ContentTypes: Record<ClientBodyType, BodyReader<string | null>> = {
-    [ClientBodyType.None]: () => null,
-    [ClientBodyType.Text]: () => MediaTypeNames.TextPlain,
-    [ClientBodyType.Json]: () => MediaTypeNames.ApplicationJson,
-    [ClientBodyType.Xml]: () => MediaTypeNames.ApplicationXml,
-    [ClientBodyType.FormUrlEncoded]: () => MediaTypeNames.ApplicationFormUrlEncoded,
-    [ClientBodyType.Multipart]: () => null,
-    [ClientBodyType.Binary]: body => body.file === null ? null : body.file.type || MediaTypeNames.ApplicationOctet,
-    [ClientBodyType.GraphQl]: () => MediaTypeNames.ApplicationJson,
+const CONTENT_TYPES: Record<ClientBodyType, BodyReader<string | null>> = {
+    [CLIENT_BODY_TYPE.None]: () => null,
+    [CLIENT_BODY_TYPE.Text]: () => MEDIA_TYPE_NAMES.TextPlain,
+    [CLIENT_BODY_TYPE.Json]: () => MEDIA_TYPE_NAMES.ApplicationJson,
+    [CLIENT_BODY_TYPE.Xml]: () => MEDIA_TYPE_NAMES.ApplicationXml,
+    [CLIENT_BODY_TYPE.FormUrlEncoded]: () => MEDIA_TYPE_NAMES.ApplicationFormUrlEncoded,
+    [CLIENT_BODY_TYPE.Multipart]: () => null,
+    [CLIENT_BODY_TYPE.Binary]: body => {
+        if (body.file == null) {
+            return null;
+        }
+
+        return body.file.type === '' ? MEDIA_TYPE_NAMES.ApplicationOctet : body.file.type;
+    },
+    [CLIENT_BODY_TYPE.GraphQl]: () => MEDIA_TYPE_NAMES.ApplicationJson,
 };
 
-const FetchBodies: Record<ClientBodyType, BodyReader<BodyInit | null>> = {
-    [ClientBodyType.None]: () => null,
-    [ClientBodyType.Text]: body => textOrNull(body.text),
-    [ClientBodyType.Json]: body => textOrNull(body.text),
-    [ClientBodyType.Xml]: body => textOrNull(body.text),
-    [ClientBodyType.FormUrlEncoded]: body => namedRows(body.formRows).length === 0 ? null : formParametersOf(body.formRows),
-    [ClientBodyType.Multipart]: body => multipartFormOf(body.multipartRows),
-    [ClientBodyType.Binary]: body => body.file,
-    [ClientBodyType.GraphQl]: body => graphQlBodyOf(body.graphQlQuery),
+const FETCH_BODIES: Record<ClientBodyType, BodyReader<BodyInit | null>> = {
+    [CLIENT_BODY_TYPE.None]: () => null,
+    [CLIENT_BODY_TYPE.Text]: body => textOrNull(body.text),
+    [CLIENT_BODY_TYPE.Json]: body => textOrNull(body.text),
+    [CLIENT_BODY_TYPE.Xml]: body => textOrNull(body.text),
+    [CLIENT_BODY_TYPE.FormUrlEncoded]: body => namedRows(body.formRows).length === 0
+        ? null
+        : formParametersOf(body.formRows),
+    [CLIENT_BODY_TYPE.Multipart]: body => multipartFormOf(body.multipartRows),
+    [CLIENT_BODY_TYPE.Binary]: body => body.file,
+    [CLIENT_BODY_TYPE.GraphQl]: body => graphQlBodyOf(body.graphQlQuery),
 };
 
-const LogTexts: Record<ClientBodyType, BodyReader<string>> = {
-    [ClientBodyType.None]: () => "",
-    [ClientBodyType.Text]: body => body.text,
-    [ClientBodyType.Json]: body => body.text,
-    [ClientBodyType.Xml]: body => body.text,
-    [ClientBodyType.FormUrlEncoded]: body => formParametersOf(body.formRows).toString(),
-    [ClientBodyType.Multipart]: body => namedRows(body.multipartRows)
+const LOG_TEXTS: Record<ClientBodyType, BodyReader<string>> = {
+    [CLIENT_BODY_TYPE.None]: () => '',
+    [CLIENT_BODY_TYPE.Text]: body => body.text,
+    [CLIENT_BODY_TYPE.Json]: body => body.text,
+    [CLIENT_BODY_TYPE.Xml]: body => body.text,
+    [CLIENT_BODY_TYPE.FormUrlEncoded]: body => formParametersOf(body.formRows).toString(),
+    [CLIENT_BODY_TYPE.Multipart]: body => namedRows(body.multipartRows)
         .map(multipartLineOf)
-        .join("\n"),
-    [ClientBodyType.Binary]: body => body.file === null ? NoFileText : fileText(body.file.name, body.file.size),
-    [ClientBodyType.GraphQl]: body => graphQlBodyOf(body.graphQlQuery),
+        .join('\n'),
+    [CLIENT_BODY_TYPE.Binary]: body => body.file == null
+        ? NO_FILE_TEXT
+        : fileText(body.file.name, body.file.size),
+    [CLIENT_BODY_TYPE.GraphQl]: body => graphQlBodyOf(body.graphQlQuery),
 };
 
-const SnippetBodyReaders: Record<ClientBodyType, BodyReader<SnippetBody>> = {
-    [ClientBodyType.None]: () => SnippetBodies.none(),
-    [ClientBodyType.Text]: body => SnippetBodies.text(body.text),
-    [ClientBodyType.Json]: body => SnippetBodies.text(body.text),
-    [ClientBodyType.Xml]: body => SnippetBodies.text(body.text),
-    [ClientBodyType.FormUrlEncoded]: body => SnippetBodies.text(formParametersOf(body.formRows).toString()),
-    [ClientBodyType.Multipart]: body => SnippetBodies.multipart(namedRows(body.multipartRows)
+const SNIPPET_BODY_READERS: Record<ClientBodyType, BodyReader<SnippetBody>> = {
+    [CLIENT_BODY_TYPE.None]: () => SnippetBodies.none(),
+    [CLIENT_BODY_TYPE.Text]: body => SnippetBodies.text(body.text),
+    [CLIENT_BODY_TYPE.Json]: body => SnippetBodies.text(body.text),
+    [CLIENT_BODY_TYPE.Xml]: body => SnippetBodies.text(body.text),
+    [CLIENT_BODY_TYPE.FormUrlEncoded]: body => SnippetBodies.text(formParametersOf(body.formRows).toString()),
+    [CLIENT_BODY_TYPE.Multipart]: body => SnippetBodies.multipart(namedRows(body.multipartRows)
         .map(snippetPartOf)
-        .filter((part): part is MultipartPart => part !== null)),
-    [ClientBodyType.Binary]: snippetFileOf,
-    [ClientBodyType.GraphQl]: body => SnippetBodies.text(graphQlBodyOf(body.graphQlQuery)),
+        .filter((part): part is MultipartPart => part != null)),
+    [CLIENT_BODY_TYPE.Binary]: snippetFileOf,
+    [CLIENT_BODY_TYPE.GraphQl]: body => SnippetBodies.text(graphQlBodyOf(body.graphQlQuery)),
 };
 
 export const ClientBodies = {
     empty(): ClientBody {
         return {
-            type: ClientBodyType.None,
-            text: "",
+            type: CLIENT_BODY_TYPE.None,
+            text: '',
             formRows: [],
             multipartRows: [],
             file: null,
-            fileName: "",
-            graphQlQuery: "",
+            fileName: '',
+            graphQlQuery: '',
         };
     },
 
     sentWith(method: string, body: ClientBody): ClientBody {
-        return BodylessMethods.includes(method.toUpperCase()) ? ClientBodies.empty() : body;
+        return SnippetRequests.isBodyless(method.toUpperCase()) ? ClientBodies.empty() : body;
     },
 
     dropsBody(method: string, body: ClientBody): boolean {
-        return BodylessMethods.includes(method.toUpperCase()) && body.type !== ClientBodyType.None;
+        return SnippetRequests.isBodyless(method.toUpperCase()) && body.type !== CLIENT_BODY_TYPE.None;
     },
 
     contentTypeOf(body: ClientBody): string | null {
-        return ContentTypes[body.type](body);
+        return CONTENT_TYPES[body.type](body);
     },
 
     fetchBodyOf(body: ClientBody): BodyInit | null {
-        return FetchBodies[body.type](body);
+        return FETCH_BODIES[body.type](body);
     },
 
     logTextOf(body: ClientBody): string {
-        return LogTexts[body.type](body);
+        return LOG_TEXTS[body.type](body);
     },
 
     snippetBodyOf(body: ClientBody): SnippetBody {
-        return SnippetBodyReaders[body.type](body);
+        return SNIPPET_BODY_READERS[body.type](body);
     },
 
     withContentType(headers: HeaderEntry[], body: ClientBody): HeaderEntry[] {
-        const named = headers.filter(header => header.name.trim() !== "");
-        const hasContentType = named.some(header => header.name.trim().toLowerCase() === ContentTypeHeader.toLowerCase());
+        const named = headers.filter(header => header.name.trim() !== '');
+        const hasContentType = named.some(
+            header => header.name.trim().toLowerCase() === HEADER_NAMES.ContentType.toLowerCase(),
+        );
         const contentType = ClientBodies.contentTypeOf(body);
-        if (hasContentType || contentType === null) {
+        if (hasContentType || contentType == null) {
             return named;
         }
 
         return [
             ...named,
             {
-                name: ContentTypeHeader,
+                name: HEADER_NAMES.ContentType,
                 value: contentType,
             },
         ];

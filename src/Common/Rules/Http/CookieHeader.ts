@@ -1,27 +1,36 @@
-export interface CookiePair {
+import type { CookiePair } from './CookiePair';
+
+const PAIR_SEPARATOR = ';';
+const VALUE_SEPARATOR = '=';
+
+export interface SetOptions {
+    header: string | null;
     name: string;
     value: string;
 }
 
-const PairSeparator = ";";
-const ValueSeparator = "=";
+export interface AppendOptions {
+    header: string | null;
+    name: string;
+    value: string;
+}
 
 export const CookieHeader = {
     parse(header: string | null): CookiePair[] {
-        if (header === null || header.trim() === "") {
+        if (header == null || header.trim() === '') {
             return [];
         }
 
         return header
-            .split(PairSeparator)
+            .split(PAIR_SEPARATOR)
             .map(part => part.trim())
             .filter(part => part.length > 0)
             .map(part => {
-                const separatorIndex = part.indexOf(ValueSeparator);
+                const separatorIndex = part.indexOf(VALUE_SEPARATOR);
                 if (separatorIndex === -1) {
                     return {
                         name: part,
-                        value: "",
+                        value: '',
                     };
                 }
 
@@ -34,8 +43,8 @@ export const CookieHeader = {
 
     serialize(pairs: CookiePair[]): string {
         return pairs
-            .map(pair => `${pair.name}${ValueSeparator}${pair.value}`)
-            .join(`${PairSeparator} `);
+            .map(pair => `${pair.name}${VALUE_SEPARATOR}${pair.value}`)
+            .join(`${PAIR_SEPARATOR} `);
     },
 
     valuesOf(header: string | null, name: string): string[] {
@@ -45,11 +54,7 @@ export const CookieHeader = {
             .map(pair => pair.value);
     },
 
-    set(
-        header: string | null,
-        name: string,
-        value: string
-    ): string {
+    set({ header, name, value }: SetOptions): string {
         const others = CookieHeader
             .parse(header)
             .filter(pair => pair.name !== name);
@@ -63,11 +68,7 @@ export const CookieHeader = {
         ]);
     },
 
-    append(
-        header: string | null,
-        name: string,
-        value: string
-    ): string {
+    append({ header, name, value }: AppendOptions): string {
         return CookieHeader.serialize([
             ...CookieHeader.parse(header),
             {

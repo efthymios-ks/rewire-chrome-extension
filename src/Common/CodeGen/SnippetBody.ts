@@ -1,89 +1,19 @@
-export enum SnippetBodyKind {
-    None = 1,
-    Text = 2,
-    Multipart = 3,
-    File = 4,
-}
-
-export interface MultipartPart {
-    name: string;
-    value: string;
-    fileName: string | null;
-    contentType: string;
-}
+import type { MultipartPart } from './MultipartPart';
+import type { SNIPPET_BODY_KIND } from './SnippetBodyKind';
 
 export type SnippetBody =
     | {
-        kind: SnippetBodyKind.None;
+        kind: typeof SNIPPET_BODY_KIND.None;
     }
     | {
-        kind: SnippetBodyKind.Text;
+        kind: typeof SNIPPET_BODY_KIND.Text;
         text: string;
     }
     | {
-        kind: SnippetBodyKind.Multipart;
+        kind: typeof SNIPPET_BODY_KIND.Multipart;
         parts: MultipartPart[];
     }
     | {
-        kind: SnippetBodyKind.File;
+        kind: typeof SNIPPET_BODY_KIND.File;
         fileName: string;
     };
-
-export const SnippetBodies = {
-    none(): SnippetBody {
-        return {
-            kind: SnippetBodyKind.None,
-        };
-    },
-
-    text(text: string): SnippetBody {
-        return text === ""
-            ? SnippetBodies.none()
-            : {
-                kind: SnippetBodyKind.Text,
-                text,
-            };
-    },
-
-    multipart(parts: MultipartPart[]): SnippetBody {
-        return parts.length === 0
-            ? SnippetBodies.none()
-            : {
-                kind: SnippetBodyKind.Multipart,
-                parts,
-            };
-    },
-
-    file(fileName: string): SnippetBody {
-        return {
-            kind: SnippetBodyKind.File,
-            fileName,
-        };
-    },
-
-    textPart(name: string, value: string): MultipartPart {
-        return {
-            name,
-            value,
-            fileName: null,
-            contentType: "",
-        };
-    },
-
-    filePart(
-        name: string,
-        fileName: string,
-        contentType: string
-    ): MultipartPart {
-        return {
-            name,
-            value: "",
-            fileName,
-            contentType,
-        };
-    },
-
-    hasBody(body: SnippetBody): boolean {
-        return body.kind !== SnippetBodyKind.None;
-    },
-};

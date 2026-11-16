@@ -1,34 +1,37 @@
-import type { Protocol } from "devtools-protocol";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import { EventStreamMessages } from "./EventStreamMessages";
-import type { ILiveStore } from "./LiveStore";
+import type { Protocol } from 'devtools-protocol';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import { EventStreamMessages } from './EventStreamMessages';
+import type { LiveStore } from './LiveStore';
 
-const DefaultEventName = "message";
+const DEFAULT_EVENT_NAME = 'message';
 
-export class EventSourceMessageHandler implements ICdpEventHandler<"Network.eventSourceMessageReceived"> {
-    readonly event = "Network.eventSourceMessageReceived";
+export class EventSourceMessageHandler implements CdpEventHandler<'Network.eventSourceMessageReceived'> {
+    readonly event = 'Network.eventSourceMessageReceived';
 
-    private readonly _liveStore: ILiveStore;
+    private readonly _liveStore: LiveStore;
     private readonly _now: () => Date;
 
-    constructor(liveStore: ILiveStore, now: () => Date) {
+    constructor(liveStore: LiveStore, now: () => Date) {
         this._liveStore = liveStore;
         this._now = now;
     }
 
-    async handle(tabId: number, params: Protocol.Network.EventSourceMessageReceivedEvent): Promise<void> {
+    async handleAsync(
+        tabId: number,
+        params: Protocol.Network.EventSourceMessageReceivedEvent,
+    ): Promise<void> {
         this._liveStore.addMessage(
-            tabId,
-            EventStreamMessages.toDraft(
-                params.requestId,
-                {
-                    event: params.eventName === DefaultEventName ? null : params.eventName,
-                    id: params.eventId === "" ? null : params.eventId,
+            /* tabId: */ tabId,
+            /* draft: */ EventStreamMessages.toDraft({
+                requestId: params.requestId,
+                event: {
+                    event: params.eventName === DEFAULT_EVENT_NAME ? null : params.eventName,
+                    id: params.eventId === '' ? null : params.eventId,
                     retry: null,
                     data: params.data,
                 },
-                this._now()
-            )
+                at: this._now(),
+            }),
         );
     }
 }

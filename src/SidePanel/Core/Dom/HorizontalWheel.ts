@@ -1,23 +1,28 @@
-const Easing = 0.25;
-const SettleDistance = 1;
-const PixelsPerLine = 16;
+const EASING = 0.25;
+const SETTLE_DISTANCE = 1;
+const PIXELS_PER_LINE = 16;
 
 export type FrameRequester = (step: () => void) => void;
 
 type DeltaReader = (event: WheelEvent, element: HTMLElement) => number;
 
-const DeltaReaders: Record<number, DeltaReader> = {
+const DELTA_READERS: Record<number, DeltaReader> = {
     [WheelEvent.DOM_DELTA_PIXEL]: event => event.deltaY,
-    [WheelEvent.DOM_DELTA_LINE]: event => event.deltaY * PixelsPerLine,
+    [WheelEvent.DOM_DELTA_LINE]: event => event.deltaY * PIXELS_PER_LINE,
     [WheelEvent.DOM_DELTA_PAGE]: (event, element) => event.deltaY * element.clientWidth,
 };
 
-function clamp(
-    value: number,
-    min: number,
-    max: number
-): number {
-    return Math.min(max, Math.max(min, value));
+interface ClampOptions {
+    value: number;
+    min: number;
+    max: number;
+}
+
+function clamp({ value, min, max }: ClampOptions): number {
+    return Math.min(
+        /* values: */ max,
+        /* values: */ Math.max(min, value),
+    );
 }
 
 function nextFrame(step: () => void): void {
@@ -35,11 +40,11 @@ export class HorizontalWheel {
         this._element = element;
         this._requestFrame = requestFrame;
         element.addEventListener(
-            "wheel",
-            event => this.onWheel(event),
-            {
+            /* type: */ 'wheel',
+            /* listener: */ event => this.onWheel(event),
+            /* options: */ {
                 passive: false,
-            }
+            },
         );
     }
 
@@ -60,12 +65,9 @@ export class HorizontalWheel {
             this._target = this._position;
         }
 
-        const delta = (DeltaReaders[event.deltaMode] ?? DeltaReaders[WheelEvent.DOM_DELTA_PIXEL]!)(event, this._element);
-        this._target = clamp(
-            this._target + delta,
-            0,
-            maxScroll
-        );
+        const readDelta = DELTA_READERS[event.deltaMode] ?? DELTA_READERS[WheelEvent.DOM_DELTA_PIXEL]!;
+        const delta = readDelta(event, this._element);
+        this._target = clamp({ value: this._target + delta, min: 0, max: maxScroll });
         if (this._isAnimating) {
             return;
         }
@@ -76,7 +78,7 @@ export class HorizontalWheel {
 
     private step(): void {
         const distance = this._target - this._position;
-        if (Math.abs(distance) <= SettleDistance) {
+        if (Math.abs(distance) <= SETTLE_DISTANCE) {
             this._position = this._target;
             this._element.scrollLeft = this._target;
             this._isAnimating = false;
@@ -84,7 +86,7 @@ export class HorizontalWheel {
             return;
         }
 
-        this._position += distance * Easing;
+        this._position += distance * EASING;
         this._element.scrollLeft = this._position;
         this._requestFrame(() => this.step());
     }

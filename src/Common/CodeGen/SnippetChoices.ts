@@ -1,7 +1,8 @@
-import { CookieHeader } from "../Rules/Http/CookieHeader";
-import { QueryString } from "../Urls/QueryString";
-import type { RequestSnapshot } from "./RequestSnapshot";
-import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
+import { HEADER_NAMES } from '../../Contracts/Http/HeaderNames';
+import { CookieHeader } from '../Rules/Http/CookieHeader';
+import { QueryString } from '../Urls/QueryString';
+import type { RequestSnapshot } from './RequestSnapshot';
+import { SnippetHeaders } from './SnippetHeaders';
 
 export interface SnippetChoice {
     key: string;
@@ -9,7 +10,11 @@ export interface SnippetChoice {
 }
 
 function unique(choices: SnippetChoice[]): SnippetChoice[] {
-    return choices.filter((choice, index) => choices.findIndex(candidate => candidate.key === choice.key) === index);
+    return choices.filter((choice, index) => {
+        const firstIndex = choices.findIndex(candidate => candidate.key === choice.key);
+
+        return firstIndex === index;
+    });
 }
 
 function sameKeyAndLabel(name: string): SnippetChoice {
@@ -22,8 +27,8 @@ function sameKeyAndLabel(name: string): SnippetChoice {
 export const SnippetChoices = {
     headersOf(snapshot: RequestSnapshot): SnippetChoice[] {
         return unique(SnippetHeaders
-            .sendable(snapshot.headers)
-            .filter(header => header.name.toLowerCase() !== SnippetHeaderNames.Cookie)
+            .forSnippet(snapshot.headers)
+            .filter(header => !SnippetHeaders.isNamed(header, HEADER_NAMES.Cookie))
             .map(header => ({
                 key: header.name.toLowerCase(),
                 label: header.name,
@@ -32,8 +37,8 @@ export const SnippetChoices = {
 
     cookiesOf(snapshot: RequestSnapshot): SnippetChoice[] {
         return unique(SnippetHeaders
-            .sendable(snapshot.headers)
-            .filter(header => header.name.toLowerCase() === SnippetHeaderNames.Cookie)
+            .forSnippet(snapshot.headers)
+            .filter(header => header.name.toLowerCase() === HEADER_NAMES.Cookie.toLowerCase())
             .flatMap(header => CookieHeader.parse(header.value))
             .map(cookie => sameKeyAndLabel(cookie.name)));
     },
@@ -45,6 +50,6 @@ export const SnippetChoices = {
     },
 
     hasBody(snapshot: RequestSnapshot): boolean {
-        return snapshot.body !== null && snapshot.body !== "";
+        return snapshot.body != null && snapshot.body !== '';
     },
 };

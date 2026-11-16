@@ -16,7 +16,8 @@ The panel picks, for each rule, where it can work, and shows it as a badge:
 
 A rule works on all tabs when Chrome's request rules can express it, and on the inspected tab otherwise.  
 CORS works on all tabs and answers preflights on the inspected tab.  
-The badge's tooltip, and the line next to it in the editor, say why a rule works on the inspected tab only.
+The badge's tooltip, and the line next to it in the editor, say why a rule works on the inspected tab only.  
+When Chrome refuses an all-tabs rule, such as one with a regex its request rules don't support, a banner under the view tabs says how many rules aren't applied; open it for each rule's name and reason.
 
 Order:
 
@@ -25,22 +26,29 @@ Order:
 - All-tabs rules act before inspected-tab rules.
 - Every matching rule runs, not only the first.
   When a rule answers a request itself, such as a **Mock response**, the rules that act on responses run on its answer, top to bottom, on either kind of tab.
+- On the inspected tab, when the rules that act on a response need its body and the body can't be read, the response passes through unchanged, none of those rules act on it, and the service worker's console says why.
 - Dragging a row, or focusing its handle and pressing the up and down arrows, changes the order.
 
-Conditions that only work on the inspected tab:
+Where each condition works:
 
 | Condition                                   | All tabs | Note                                         |
 | ------------------------------------------- | -------- | -------------------------------------------- |
-| URL, host, method, path, extension, query   | yes      | a negated condition, a path regex, or a query value with `*`, `?` or a regex needs the inspected tab |
-| Resource type                               | yes      | no type means Fetch, XHR and documents, such as an API URL opened in the address bar; Fetch and XHR each match both, as Chrome doesn't tell them apart |
+| URL, host, method, path, extension, query   | yes      | the inspected tab only when negated, except host **is in domains** and method; also for a path regex, a query value with `*`, `?` or a regex, or, with **all**, more than one URL, path, extension, query or host wildcard condition |
+| Resource type                               | yes      | no type means Fetch, XHR and documents, such as an API URL opened in the address bar, and on all tabs Chrome's `other` type too; Fetch and XHR each match both, as Chrome doesn't tell them apart |
 | Request header, request cookie              | no       |                                              |
-| Response status, header, content type       | no       | only for types that act on the response      |
+| Response status, header, content type       | no       | only for types that act on the response; on others the rule is `Invalid` |
 | Sample (percent of requests)                | no       |                                              |
 | Time window                                 | yes      | checked when rules sync, every minute        |
 
 Match **all** or **any** of the conditions.  
 Each condition can be negated with **is not**.  
 No conditions means every request.
+
+- An extension can be written with or without its dot, in any case: `.js`, `js` and `JS` are the same.
+- A query condition compares the decoded value, so `/home` matches both `next=/home` and `next=%2Fhome`.
+- With **all**, two host **is in domains**, method or resource type conditions combine: their lists intersect, and the lists of negated ones add up.
+  Conditions that can never match the same request, such as method **is one of** `GET` next to method **is one of** `POST`, send the rule to the inspected tab, and its badge's tooltip says why.
+- A host, method, extension or resource type list with no values, such as `,` alone, or a resource type that isn't known, makes the rule `Invalid`.
 
 ## Wildcards and regex
 
@@ -57,7 +65,9 @@ Names can also be checked with **exists**, hosts with **is in domains**, and met
   Without `*` or `?` it is an exact match, and `*text*` is a contains.
 - Wildcards are turned into a regex, so both sides run the same pattern.
 - Regexes use RE2 syntax, which is what Chrome's request rules accept.
-- Capture groups need a regex: **Rewrite** and **Redirect** take `$1` to `$9` from a URL condition that **matches regex**.
+- URL, host, path, extension and query conditions ignore case, alike on all tabs, on the inspected tab and in the testers, the way Chrome's request rules match by default.
+  Header and cookie values match case as typed, and the content type is compared in lower case.
+- Capture groups need a regex: **Rewrite** and **Redirect** take `$1` to `$9` from a URL condition that **matches regex**, matched ignoring case too.
 
 Example, URL **matches wildcard** `http*google.com*users*58`:
 
@@ -80,7 +90,7 @@ Request headers, response headers, request cookies, response cookies and query p
 | Add             | adds the value; one already there stays             | all tabs for response headers and standard request headers, the inspected tab otherwise |
 | Add if missing  | adds the value only when none is there              | the inspected tab                            |
 | Add or update   | sets the value, replacing one already there         | all tabs for headers and query params        |
-| Remove          | removes it; query param keys can use wildcards      | all tabs for headers and exact query keys    |
+| Remove          | removes it; query param keys can use wildcards      | all tabs for headers and exact query keys; see [Rule catalog](RuleCatalog.md) for query params |
 
 Cookie rules work on the inspected tab.
 
@@ -90,9 +100,9 @@ Each row shows: drag handle, on/off switch, name, type, where it works, hit coun
 
 - **Edit**, **Duplicate** and **Remove**.
   **Remove** asks first, and the notice after it can undo it for 8 seconds.
-- The toolbar's first row holds **Add rule** and the search box, which searches names only.
+- The toolbar's first row holds **Add rule** and the search box, which searches names only; its `×` clears it.
   The second row holds **Test rules**, **Profiles**, **Variables** and **Import / export**.
-- The header switch turns every rule off at once; capture keeps running.
+- The **Interception** switch in the header turns every rule off at once; capture keeps running.
 - Hit counts start at zero with the browser.
   Inspected-tab rules count exactly.
   All-tabs rules count while a panel is open.
@@ -114,6 +124,7 @@ Content type fields take free text and suggest the common media types, the ones 
 Header name fields do the same with the header names ASP.NET Core lists in `HeaderNames`.  
 Header value fields suggest values for the header named next to them, such as media types for `Content-Type` and `Accept`, and nothing for a header without known values.  
 Suggestions appear as you type, with no dropdown arrow: arrow keys and **Enter** pick one, **Escape** closes the list.  
+Scrolling inside the list keeps it open; scrolling the panel or resizing it closes the list.  
 Text fields marked so can use `{{name}}` [variables](#variables), typed in **Variables** or set by a **Set variable** rule.
 
 Shortcuts that open the editor already filled in:
@@ -126,22 +137,23 @@ To send a `User-Agent`, `X-Forwarded-For` or `CF-IPCountry` value, add a **Reque
 ## Test every rule
 
 **Test rules** runs one sample request through every enabled rule, all-tabs rules first.  
-It shows the same report as the editor's tester.
+It shows the same report as the editor's tester.  
+In both testers, each **Sample** condition is rolled once per test, so the conditions listed and the outcome of a report agree.
 
 ## Profiles
 
 A profile is a named set of rules with its own [variables](#variables).
 Only the active profile's rules run; the others wait, switched off as a whole.
-Pinned endpoints, tester samples and the header switch are shared by every profile.
+Pinned endpoints, the testers' sample URLs and the **Interception** switch are shared by every profile.
 
 - The header's profile list switches the active profile from any tab.
 - **Profiles** in the Rules toolbar lists every profile, with how many rules and variables it holds:
-  - **New profile** adds an empty one and makes it active.
+  - **New profile** adds an empty one, named `Profile`, or `Profile 2` and on when taken, and makes it active.
   - The radio button makes a profile active.
-  - The name is a text box; the new name is saved when you leave it.
-  - **Duplicate** places a copy, named `<name> copy`, right after the original.
+  - The name is a text box; the new name is saved when you leave it, unless it is empty.
+  - **Duplicate** places a copy, named `<name> copy`, or `<name> copy 2` and on when taken, right after the original.
   - **Remove** asks first; the last profile can't be removed.
-    Removing the active profile activates the one above it.
+    Removing the active profile activates the one above it, or the next one when it was first.
 - Undoing a removed rule puts it back in the profile it came from, even after switching.
 
 The first profile is **Default**, with the id `default` on every install, so exports of it merge into a teammate's **Default**.
@@ -170,7 +182,7 @@ A rule's text fields can use `{{name}}`; the value comes from the active profile
 - Every profile is listed with a checkbox, all ticked; untick the ones to leave out.
 - **Copy JSON** puts the ticked profiles on the clipboard, and **Download JSON** saves them as `rewire-profiles.json`.
 - Unless **Include cookie values, auth headers and secret variables** is ticked:
-  - `Authorization`, `Cookie`, `Set-Cookie` and API key header values are blanked, and so are cookie rule values.
+  - In **Request header** and **Response header** rules and **Mock response** headers, the values of `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `Api-Key` and `X-Auth-Token` are blanked, and so are cookie rule values.
   - Variables whose name holds `auth`, `cookie`, `key`, `pass`, `secret`, `session` or `token` are blanked.
 
 **Import**:
@@ -183,7 +195,7 @@ A rule's text fields can use `{{name}}`; the value comes from the active profile
 
 | Mode    | Effect                                                                                                   |
 | ------- | -------------------------------------------------------------------------------------------------------- |
-| Merge   | Adds new profiles. A profile with the same id is patched: its name is taken, rules with the same id are replaced and new ones added, variables with the same name are replaced and new ones added. |
+| Merge   | Adds new profiles. A profile with the same id is patched: its name is taken, rules with the same id are replaced and new ones added, variables with the same name are replaced and new ones added. The active profile stays active. |
 | Replace | Asks first, then deletes every profile and keeps only the imported ones. The active profile stays active when it is among them; otherwise the first imported one becomes active. |
 
 - Rules exports from `schemaVersion` 2 to 4 import as the **Default** profile, converted as described under [Upgrading](#upgrading).
@@ -243,6 +255,7 @@ None of your rules or variables are in it.
 1. Press **Copy rule format** and paste it into an AI chat, with what you need, such as "mock GET /api/v1/orders with a 500".
 2. Copy the whole answer, paste it in the **Import** box, and press **Read pasted JSON**.
 3. Keep **Merge** and press **Import**; the rules arrive in a new profile, so yours stay as they are.
+4. Pick that profile in the header's profile list; **Merge** leaves the active profile as it was, so the imported rules don't run until then.
 
 ## Upgrading
 

@@ -1,6 +1,6 @@
-import { ErrorText } from "../../Common/Errors/ErrorText";
-import type { ILogger } from "../../Common/Logging/ILogger";
-import type { InspectedTab } from "./InspectedTab";
+import { ErrorText } from '../../Common/Errors/ErrorText';
+import type { Logger } from '../../Common/Logging/Logger';
+import type { InspectedTab } from './InspectedTab';
 
 export interface InspectedTabListener {
     onChanged(tab: InspectedTab | null): void;
@@ -8,37 +8,40 @@ export interface InspectedTabListener {
 }
 
 function toInspectedTab(tab: chrome.tabs.Tab, tabId: number): InspectedTab {
+    const url = tab.url ?? '';
+    const pendingUrl = tab.pendingUrl ?? '';
+
     return {
         tabId,
-        url: tab.url || tab.pendingUrl || "",
-        title: tab.title ?? "",
+        url: url === '' ? pendingUrl : url,
+        title: tab.title ?? '',
     };
 }
 
 export class InspectedTabTracker {
-    private readonly _logger: ILogger;
+    private readonly _logger: Logger;
     private _windowId: number | null = null;
     private _tabId: number | null = null;
 
-    constructor(logger: ILogger) {
+    constructor(logger: Logger) {
         this._logger = logger;
     }
 
-    async start(listener: InspectedTabListener): Promise<void> {
+    async startAsync(listener: InspectedTabListener): Promise<void> {
         chrome.tabs.onActivated.addListener(activeInfo => {
             if (activeInfo.windowId !== this._windowId) {
                 return;
             }
 
-            void this.refresh(listener);
+            void this.refreshAsync(listener);
         });
 
         chrome.tabs.onUpdated.addListener((
             tabId,
             changeInfo,
-            tab
+            tab,
         ) => {
-            if (tabId !== this._tabId || (changeInfo.url === undefined && changeInfo.title === undefined)) {
+            if (tabId !== this._tabId || (changeInfo.url == null && changeInfo.title == null)) {
                 return;
             }
 
@@ -49,27 +52,24 @@ export class InspectedTabTracker {
             const currentWindow = await chrome.windows.getCurrent();
             this._windowId = currentWindow.id ?? null;
         } catch (error) {
-            this._logger.error("Reading the panel window failed.", ErrorText.of(error));
+            this._logger.error(
+                /* message: */ 'Reading the panel window failed.',
+                /* context: */ ErrorText.of(error),
+            );
         }
 
-        await this.refresh(listener);
+        await this.refreshAsync(listener);
     }
 
-    private async refresh(listener: InspectedTabListener): Promise<void> {
-        let activeTab: chrome.tabs.Tab | undefined;
-        try {
-            [activeTab] = await chrome.tabs.query({
-                active: true,
-                windowId: this._windowId ?? chrome.windows.WINDOW_ID_CURRENT,
-            });
-        } catch (error) {
-            this._logger.error("Reading the active tab failed.", ErrorText.of(error));
-
+    private async refreshAsync(listener: InspectedTabListener): Promise<void> {
+        const activeTabs = await this.queryActiveTabsAsync();
+        if (activeTabs == null) {
             return;
         }
 
+        const [activeTab] = activeTabs;
         const tabId = activeTab?.id;
-        if (activeTab === undefined || tabId === undefined) {
+        if (activeTab == null || tabId == null) {
             this._tabId = null;
             listener.onChanged(null);
 
@@ -82,5 +82,21 @@ export class InspectedTabTracker {
 
         this._tabId = tabId;
         listener.onChanged(toInspectedTab(activeTab, tabId));
+    }
+
+    private async queryActiveTabsAsync(): Promise<chrome.tabs.Tab[] | null> {
+        try {
+            return await chrome.tabs.query({
+                active: true,
+                windowId: this._windowId ?? chrome.windows.WINDOW_ID_CURRENT,
+            });
+        } catch (error) {
+            this._logger.error(
+                /* message: */ 'Reading the active tab failed.',
+                /* context: */ ErrorText.of(error),
+            );
+
+            return null;
+        }
     }
 }

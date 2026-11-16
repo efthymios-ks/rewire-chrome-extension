@@ -1,19 +1,21 @@
-import type { Result } from "../../../Common/Results/Result";
-import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
-import type { ClientRequest } from "./ClientRequest";
-import { ClientRoutes } from "./ClientRoutes";
-import type { IHttpClient } from "./HttpClient";
+import type { Result } from '../../../Common/Results/Result';
+import type { ClientExchangeResponse } from '../../../Contracts/Messaging/Commands/ClientExchangeResponse';
+import type { ClientRequest } from './ClientRequest';
+import { ClientRoutes } from './ClientRoutes';
+import type { HttpClient } from './HttpClient';
 
-export class RoutedHttpClient implements IHttpClient {
-    private readonly _browser: IHttpClient;
-    private readonly _debugger: IHttpClient;
+export class RoutedHttpClient implements HttpClient {
+    private readonly _browser: HttpClient;
+    private readonly _debugger: HttpClient;
 
-    constructor(browser: IHttpClient, viaDebugger: IHttpClient) {
+    constructor(browser: HttpClient, viaDebugger: HttpClient) {
         this._browser = browser;
         this._debugger = viaDebugger;
     }
 
-    send(request: ClientRequest): Promise<Result<ClientExchangeResponse>> {
-        return ClientRoutes.needsDebugger(request) ? this._debugger.send(request) : this._browser.send(request);
+    sendAsync(request: ClientRequest): Promise<Result<ClientExchangeResponse>> {
+        return ClientRoutes.needsDebugger(request)
+            ? this._debugger.sendAsync(request)
+            : this._browser.sendAsync(request);
     }
 }

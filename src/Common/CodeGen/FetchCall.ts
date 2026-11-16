@@ -1,11 +1,15 @@
-import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
-import { type SnippetBody, SnippetBodyKind } from "./SnippetBody";
-import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
-import { type SnippetRequest, SnippetRequests } from "./SnippetRequest";
+import { HEADER_NAMES } from '../../Contracts/Http/HeaderNames';
+import type { HeaderEntry } from '../../Contracts/Timeline/HeaderEntry';
+import type { MultipartPart } from './MultipartPart';
+import type { SnippetBody } from './SnippetBody';
+import { SNIPPET_BODY_KIND } from './SnippetBodyKind';
+import { SnippetHeaders } from './SnippetHeaders';
+import type { SnippetRequest } from './SnippetRequest';
+import { SnippetRequests } from './SnippetRequests';
 
-const Indentation = "    ";
-const JsonIndentation = 4;
-const FormVariable = "form";
+const INDENTATION = '    ';
+const JSON_INDENTATION = 4;
+const FORM_VARIABLE = 'form';
 
 export interface FetchDialect {
     headersOf(request: SnippetRequest): HeaderEntry[];
@@ -16,9 +20,9 @@ export interface FetchDialect {
 
 function indentBlock(text: string): string {
     return text
-        .split("\n")
-        .map((line, index) => index === 0 ? line : `${Indentation}${line}`)
-        .join("\n");
+        .split('\n')
+        .map((line, index) => index === 0 ? line : `${INDENTATION}${line}`)
+        .join('\n');
 }
 
 function headersObjectOf(headers: HeaderEntry[]): string {
@@ -30,34 +34,43 @@ function headersObjectOf(headers: HeaderEntry[]): string {
         ]);
 
     return indentBlock(JSON.stringify(
-        Object.fromEntries(entries),
-        null,
-        JsonIndentation
+        /* value: */ Object.fromEntries(entries),
+        /* replacer: */ null,
+        /* space: */ JSON_INDENTATION,
     ));
 }
 
+function formAppendLineOf(part: MultipartPart, dialect: FetchDialect): string {
+    const name = JSON.stringify(part.name);
+    if (part.fileName == null) {
+        return `${FORM_VARIABLE}.append(${name}, ${JSON.stringify(part.value)});`;
+    }
+
+    const file = dialect.fileExpression(part.fileName);
+
+    return `${FORM_VARIABLE}.append(${name}, ${file}, ${JSON.stringify(part.fileName)});`;
+}
+
 function formLinesOf(body: SnippetBody, dialect: FetchDialect): string[] {
-    if (body.kind !== SnippetBodyKind.Multipart) {
+    if (body.kind !== SNIPPET_BODY_KIND.Multipart) {
         return [];
     }
 
     return [
-        `const ${FormVariable} = new FormData();`,
-        ...body.parts.map(part => part.fileName === null
-            ? `${FormVariable}.append(${JSON.stringify(part.name)}, ${JSON.stringify(part.value)});`
-            : `${FormVariable}.append(${JSON.stringify(part.name)}, ${dialect.fileExpression(part.fileName)}, ${JSON.stringify(part.fileName)});`),
+        `const ${FORM_VARIABLE} = new FormData();`,
+        ...body.parts.map(part => formAppendLineOf(part, dialect)),
     ];
 }
 
 function bodyExpressionOf(body: SnippetBody, dialect: FetchDialect): string | null {
     switch (body.kind) {
-        case SnippetBodyKind.Text:
+        case SNIPPET_BODY_KIND.Text:
             return JSON.stringify(body.text);
-        case SnippetBodyKind.File:
+        case SNIPPET_BODY_KIND.File:
             return dialect.fileExpression(body.fileName);
-        case SnippetBodyKind.Multipart:
-            return FormVariable;
-        case SnippetBodyKind.None:
+        case SNIPPET_BODY_KIND.Multipart:
+            return FORM_VARIABLE;
+        case SNIPPET_BODY_KIND.None:
             return null;
     }
 }
@@ -66,33 +79,36 @@ export const FetchCall = {
     render(request: SnippetRequest, dialect: FetchDialect): string {
         const isBodyless = SnippetRequests.isBodyless(request.method);
         const body = isBodyless ? null : bodyExpressionOf(request.body, dialect);
-        const headers = request.body.kind === SnippetBodyKind.Multipart
-            ? SnippetHeaders.without(dialect.headersOf(request), [SnippetHeaderNames.ContentType])
+        const headers = request.body.kind === SNIPPET_BODY_KIND.Multipart
+            ? SnippetHeaders.without(
+                /* headers: */ dialect.headersOf(request),
+                /* names: */ [HEADER_NAMES.ContentType],
+            )
             : dialect.headersOf(request);
         const lines = [
-            `${Indentation}method: ${JSON.stringify(request.method)},`,
-            headers.length === 0 ? null : `${Indentation}headers: ${headersObjectOf(headers)},`,
-            body === null ? null : `${Indentation}body: ${body},`,
+            `${INDENTATION}method: ${JSON.stringify(request.method)},`,
+            headers.length === 0 ? null : `${INDENTATION}headers: ${headersObjectOf(headers)},`,
+            body == null ? null : `${INDENTATION}body: ${body},`,
             ...dialect
                 .extraOptions(request)
-                .map(([name, value]) => `${Indentation}${name}: ${value},`),
+                .map(([name, value]) => `${INDENTATION}${name}: ${value},`),
         ];
 
         return [
             ...dialect.preamble(request),
             ...(isBodyless ? [] : formLinesOf(request.body, dialect)),
             `await fetch(${JSON.stringify(request.url)}, {`,
-            ...lines.filter((line): line is string => line !== null),
-            "});",
-        ].join("\n");
+            ...lines.filter((line): line is string => line != null),
+            '});',
+        ].join('\n');
     },
 
     withoutAcceptEncoding(headers: HeaderEntry[]): HeaderEntry[] {
-        return SnippetHeaders.without(headers, [SnippetHeaderNames.AcceptEncoding]);
+        return SnippetHeaders.without(headers, [HEADER_NAMES.AcceptEncoding]);
     },
 
     usesFiles(body: SnippetBody): boolean {
-        return body.kind === SnippetBodyKind.File
-            || (body.kind === SnippetBodyKind.Multipart && body.parts.some(part => part.fileName !== null));
+        return body.kind === SNIPPET_BODY_KIND.File
+            || (body.kind === SNIPPET_BODY_KIND.Multipart && body.parts.some(part => part.fileName != null));
     },
 };

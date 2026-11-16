@@ -1,4 +1,4 @@
-import type { RuleEngine } from "./RuleEngine";
+import type { RuleEngine } from './RuleEngine';
 
 export interface AppliedRule {
     ruleId: string;

@@ -1,9 +1,9 @@
-import type { TemplatePart } from "./TemplatePart";
-import { TemplatePartKind } from "./TemplatePartKind";
+import type { TemplatePart } from './TemplatePart';
+import { TEMPLATE_PART_KIND } from './TemplatePartKind';
 
-const ReferenceMarker = "$";
-const DigitPattern = /^\d$/;
-const SubstitutionEscape = "\\";
+const REFERENCE_MARKER = '$';
+const DIGIT_PATTERN = /^\d$/;
+const SUBSTITUTION_ESCAPE = '\\';
 
 function appendLiteral(parts: TemplatePart[], text: string): void {
     if (text.length === 0) {
@@ -11,7 +11,7 @@ function appendLiteral(parts: TemplatePart[], text: string): void {
     }
 
     parts.push({
-        kind: TemplatePartKind.Literal,
+        kind: TEMPLATE_PART_KIND.Literal,
         text,
     });
 }
@@ -19,24 +19,24 @@ function appendLiteral(parts: TemplatePart[], text: string): void {
 export const RedirectTemplate = {
     parse(template: string): TemplatePart[] {
         const parts: TemplatePart[] = [];
-        let literal = "";
+        let literal = '';
         let index = 0;
         while (index < template.length) {
             const character = template.charAt(index);
             const next = template.charAt(index + 1);
-            if (character === ReferenceMarker && DigitPattern.test(next)) {
+            if (character === REFERENCE_MARKER && DIGIT_PATTERN.test(next)) {
                 appendLiteral(parts, literal);
-                literal = "";
+                literal = '';
                 parts.push({
-                    kind: TemplatePartKind.GroupReference,
+                    kind: TEMPLATE_PART_KIND.GroupReference,
                     groupIndex: Number(next),
                 });
                 index += 2;
                 continue;
             }
 
-            if (character === ReferenceMarker && next === ReferenceMarker) {
-                literal += ReferenceMarker;
+            if (character === REFERENCE_MARKER && next === REFERENCE_MARKER) {
+                literal += REFERENCE_MARKER;
                 index += 2;
                 continue;
             }
@@ -52,7 +52,7 @@ export const RedirectTemplate = {
 
     referencedGroups(parts: TemplatePart[]): number[] {
         const groupIndexes = parts
-            .filter(part => part.kind === TemplatePartKind.GroupReference)
+            .filter(part => part.kind === TEMPLATE_PART_KIND.GroupReference)
             .map(part => part.groupIndex);
 
         return [...new Set(groupIndexes)].sort((left, right) => left - right);
@@ -60,19 +60,19 @@ export const RedirectTemplate = {
 
     toSubstitution(parts: TemplatePart[]): string {
         return parts
-            .map(part => part.kind === TemplatePartKind.Literal
-                ? part.text.replaceAll(SubstitutionEscape, `${SubstitutionEscape}${SubstitutionEscape}`)
-                : `${SubstitutionEscape}${part.groupIndex}`
+            .map(part => part.kind === TEMPLATE_PART_KIND.Literal
+                ? part.text.replaceAll(SUBSTITUTION_ESCAPE, `${SUBSTITUTION_ESCAPE}${SUBSTITUTION_ESCAPE}`)
+                : `${SUBSTITUTION_ESCAPE}${part.groupIndex}`,
             )
-            .join("");
+            .join('');
     },
 
     render(parts: TemplatePart[], groups: ArrayLike<string | undefined>): string {
         return parts
-            .map(part => part.kind === TemplatePartKind.Literal
+            .map(part => part.kind === TEMPLATE_PART_KIND.Literal
                 ? part.text
-                : groups[part.groupIndex] ?? ""
+                : groups[part.groupIndex] ?? '',
             )
-            .join("");
+            .join('');
     },
 };

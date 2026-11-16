@@ -1,13 +1,9 @@
-import type { LiveChannel } from "../../../Contracts/Live/LiveChannel";
-import type { LiveMessage } from "../../../Contracts/Live/LiveMessage";
-import type { LiveSnapshot } from "../../../Contracts/Live/LiveSnapshot";
-import type { PostMessageRecord } from "../../../Contracts/Live/PostMessageRecord";
-import type { LiveState } from "../../Core/LiveState";
-
-export const LiveLimits = {
-    MaxMessages: 2000,
-    MaxPostMessages: 1000,
-} as const;
+import type { LiveChannel } from '../../../Contracts/Live/LiveChannel';
+import type { LiveMessage } from '../../../Contracts/Live/LiveMessage';
+import type { LiveSnapshot } from '../../../Contracts/Live/LiveSnapshot';
+import type { PostMessageRecord } from '../../../Contracts/Live/PostMessageRecord';
+import type { LiveState } from '../../Core/LiveState';
+import { LIVE_LIMITS } from './LiveLimits';
 
 function withLimit<TItem>(items: TItem[], limit: number): TItem[] {
     return items.length > limit ? items.slice(items.length - limit) : items;
@@ -26,14 +22,6 @@ function mineOnly(live: LiveState): LiveState {
 }
 
 export const LiveEntries = {
-    empty(): LiveState {
-        return {
-            channels: [],
-            messages: [],
-            postMessages: [],
-        };
-    },
-
     withoutPage(live: LiveState): LiveState {
         return mineOnly(live);
     },
@@ -47,13 +35,13 @@ export const LiveEntries = {
                 ...snapshot.channels,
             ],
             messages: withLimit(
-                [
+                /* items: */ [
                     ...mine.messages,
                     ...snapshot.messages,
                 ],
-                LiveLimits.MaxMessages
+                /* limit: */ LIVE_LIMITS.MaxMessages,
             ),
-            postMessages: withLimit(snapshot.postMessages, LiveLimits.MaxPostMessages),
+            postMessages: withLimit(snapshot.postMessages, LIVE_LIMITS.MaxPostMessages),
         };
     },
 
@@ -75,11 +63,11 @@ export const LiveEntries = {
         return {
             ...live,
             messages: withLimit(
-                [
+                /* items: */ [
                     ...live.messages,
                     message,
                 ],
-                LiveLimits.MaxMessages
+                /* limit: */ LIVE_LIMITS.MaxMessages,
             ),
         };
     },
@@ -88,11 +76,11 @@ export const LiveEntries = {
         return {
             ...live,
             postMessages: withLimit(
-                [
+                /* items: */ [
                     ...live.postMessages,
                     record,
                 ],
-                LiveLimits.MaxPostMessages
+                /* limit: */ LIVE_LIMITS.MaxPostMessages,
             ),
         };
     },

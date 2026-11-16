@@ -1,37 +1,30 @@
-import { RuleCategory } from "../../../Contracts/Rules/RuleCategory";
-import { RequestCookieRule } from "./Cookies/RequestCookieRule";
-import { ResponseCookieRule } from "./Cookies/ResponseCookieRule";
-import { AllowEmbeddingRule } from "./Headers/AllowEmbeddingRule";
-import { CorsRule } from "./Headers/CorsRule";
-import { RequestHeaderRule } from "./Headers/RequestHeaderRule";
-import { ResponseHeaderRule } from "./Headers/ResponseHeaderRule";
-import { SecurityHeadersRule } from "./Headers/SecurityHeadersRule";
-import type { IRuleType } from "./IRuleType";
-import { SetVariableRule } from "./Logic/SetVariableRule";
-import { DelayRule } from "./Mocks/DelayRule";
-import { MockResponseRule } from "./Mocks/MockResponseRule";
-import { RequestBodyRule } from "./Mocks/RequestBodyRule";
-import { ResponseBodyRule } from "./Mocks/ResponseBodyRule";
-import { QueryParamsRule } from "./Url/QueryParamsRule";
-import { RedirectRule } from "./Url/RedirectRule";
-import { RewriteRule } from "./Url/RewriteRule";
-import { UpgradeSchemeRule } from "./Url/UpgradeSchemeRule";
+import { RULE_CATEGORY, type RuleCategory } from '../../../Contracts/Rules/RuleCategory';
+import { RequestCookieRule } from './Cookies/RequestCookieRule';
+import { ResponseCookieRule } from './Cookies/ResponseCookieRule';
+import { AllowEmbeddingRule } from './Headers/AllowEmbeddingRule';
+import { CorsRule } from './Headers/CorsRule';
+import { RequestHeaderRule } from './Headers/RequestHeaderRule';
+import { ResponseHeaderRule } from './Headers/ResponseHeaderRule';
+import { SecurityHeadersRule } from './Headers/SecurityHeadersRule';
+import { RULE_CATEGORY_LABELS } from './RuleCategoryLabels';
+import type { RuleType } from './RuleType';
+import { SetVariableRule } from './Logic/SetVariableRule';
+import { DelayRule } from './Mocks/DelayRule';
+import { MockResponseRule } from './Mocks/MockResponseRule';
+import { RequestBodyRule } from './Mocks/RequestBodyRule';
+import { ResponseBodyRule } from './Mocks/ResponseBodyRule';
+import { QueryParamsRule } from './Url/QueryParamsRule';
+import { RedirectRule } from './Url/RedirectRule';
+import { RewriteRule } from './Url/RewriteRule';
+import { UpgradeSchemeRule } from './Url/UpgradeSchemeRule';
 
 export interface RuleCategoryGroup {
     category: RuleCategory;
     label: string;
-    types: IRuleType[];
+    types: RuleType[];
 }
 
-export const RuleCategoryLabels: Record<RuleCategory, string> = {
-    [RuleCategory.Headers]: "Headers",
-    [RuleCategory.Cookies]: "Cookies",
-    [RuleCategory.UrlAndRedirects]: "URL, query & redirects",
-    [RuleCategory.MocksAndResponses]: "Mocks & responses",
-    [RuleCategory.Logic]: "Logic",
-};
-
-const RuleTypes: IRuleType[] = [
+const RULE_TYPES: RuleType[] = [
     new RequestHeaderRule(),
     new ResponseHeaderRule(),
     new CorsRule(),
@@ -51,22 +44,17 @@ const RuleTypes: IRuleType[] = [
 ];
 
 export const RuleTypeRegistry = {
-    all(): IRuleType[] {
-        return RuleTypes;
-    },
-
-    get(id: string): IRuleType | undefined {
-        return RuleTypes.find(type => type.id === id);
+    get(id: string): RuleType | undefined {
+        return RULE_TYPES.find(type => type.id === id);
     },
 
     groups(): RuleCategoryGroup[] {
         return Object
-            .values(RuleCategory)
-            .filter((category): category is RuleCategory => typeof category === "number")
+            .values(RULE_CATEGORY)
             .map(category => ({
                 category,
-                label: RuleCategoryLabels[category],
-                types: RuleTypes.filter(type => type.category === category),
+                label: RULE_CATEGORY_LABELS[category],
+                types: RULE_TYPES.filter(type => type.category === category),
             }));
     },
 };

@@ -1,21 +1,22 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { ActionReader } from "../ActionReader";
-import { CommonFields, type FieldSpec } from "../FieldSpec";
-import { RuleTypeBase } from "../RuleTypeBase";
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { ActionReader } from '../ActionReader';
+import { CommonFields } from '../CommonFields';
+import type { FieldSpec } from '../FieldSpec';
+import { RuleTypeBase } from '../RuleTypeBase';
 
-const DefaultDelayInMilliseconds = 2000;
+const DEFAULT_DELAY_IN_MILLISECONDS = 2000;
 
 interface DelayAction {
     delayMs: number;
 }
 
 export class DelayRule extends RuleTypeBase<DelayAction> {
-    readonly id = RuleTypeIds.Delay;
-    readonly category = RuleCategory.MocksAndResponses;
-    readonly label = "Latency";
-    readonly description = "Hold matching requests for up to 10 seconds before they go out.";
+    readonly id = RULE_TYPE_IDS.Delay;
+    readonly category = RULE_CATEGORY.MocksAndResponses;
+    readonly label = 'Latency';
+    readonly description = 'Hold matching requests for up to 10 seconds before they go out.';
     override readonly handlesRequest = true;
     readonly fields: FieldSpec[] = [CommonFields.latency()];
 
@@ -25,7 +26,7 @@ export class DelayRule extends RuleTypeBase<DelayAction> {
 
     protected defaults(): DelayAction {
         return {
-            delayMs: DefaultDelayInMilliseconds,
+            delayMs: DEFAULT_DELAY_IN_MILLISECONDS,
         };
     }
 
@@ -40,6 +41,6 @@ export class DelayRule extends RuleTypeBase<DelayAction> {
     }
 
     protected override check(action: DelayAction): string[] {
-        return action.delayMs > 0 ? [] : ["Set a latency above 0."];
+        return action.delayMs > 0 ? [] : ['Set a latency above 0.'];
     }
 }

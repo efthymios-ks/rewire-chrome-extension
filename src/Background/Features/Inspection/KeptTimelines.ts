@@ -11,7 +11,10 @@ export class KeptTimelines {
             ...this._tabIds.filter(keptTabId => keptTabId !== tabId),
             tabId,
         ];
-        const dropped = this._tabIds.slice(0, Math.max(0, this._tabIds.length - this._maxTabs));
+        const dropped = this._tabIds.slice(
+            /* start: */ 0,
+            /* end: */ Math.max(0, this._tabIds.length - this._maxTabs),
+        );
         this._tabIds = this._tabIds.slice(dropped.length);
 
         return dropped;

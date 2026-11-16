@@ -1,14 +1,14 @@
-import type { IRuleType } from "../../../../Common/Rules/Types/IRuleType";
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import type { IFileClient } from "../../../Core/FileClient";
-import type { Notifier } from "../../../Core/Notifier";
-import { FieldControls } from "../Fields/FieldControls";
+import type { RuleType } from '../../../../Common/Rules/Types/RuleType';
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import type { FileClient } from '../../../Core/FileClient';
+import type { Notifier } from '../../../Core/Notifier';
+import { FieldControls } from '../Fields/FieldControls';
 
 export interface ActionFormArguments {
-    type: IRuleType;
+    type: RuleType;
     action: RuleAction;
-    fileClient: IFileClient;
+    fileClient: FileClient;
     notifier: Notifier;
     onChange: (action: RuleAction) => void;
 }
@@ -42,8 +42,8 @@ export class ActionForm {
         });
         updateVisibility();
 
-        this.root = buildElement("div", {
-            className: "action-form",
+        this.root = buildElement('div', {
+            className: 'action-form',
             children: fields.map(field => field.element),
         });
     }

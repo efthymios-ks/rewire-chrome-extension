@@ -1,6 +1,6 @@
-import type { PanelState } from "../../Core/PanelState";
-import type { ViewId } from "../../Core/ViewId";
-import type { PanelContext } from "./PanelContext";
+import type { PanelState } from '../../Core/PanelState';
+import type { ViewId } from '../../Core/ViewId';
+import type { PanelContext } from './PanelContext';
 
 export interface ViewDefinition {
     id: ViewId;

@@ -1,8 +1,8 @@
-import type { LiveListening } from "../../Live/LiveListening";
-import type { PanelCommandType } from "../PanelCommandType";
+import type { LiveListening } from '../../Live/LiveListening';
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface SetLiveListeningCommand {
-    type: PanelCommandType.SetLiveListening;
+    type: typeof PANEL_COMMAND_TYPE.SetLiveListening;
     tabId: number;
     listening: LiveListening;
 }

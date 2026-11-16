@@ -1,20 +1,43 @@
-import { CriteriaMatches, type RuleCriteria } from "../../../Contracts/Rules/Criterion";
-import type { RuleAction } from "../../../Contracts/Rules/Rule";
-import type { RuleCategory } from "../../../Contracts/Rules/RuleCategory";
-import type { Result } from "../../Results/Result";
-import type { RuleContext } from "../Context/RuleContext";
-import type { DnrCondition } from "../Criteria/DnrFragment";
-import type { RequestDraft, ResponseDraft } from "../Drafts/Drafts";
-import type { DnrRuleDraft } from "./DnrRuleDraft";
-import type { FieldSpec } from "./FieldSpec";
-import type { IRuleType } from "./IRuleType";
+import { CRITERIA_MATCHES } from '../../../Contracts/Rules/CriteriaMatches';
+import type { RuleAction } from '../../../Contracts/Rules/RuleAction';
+import type { RuleCategory } from '../../../Contracts/Rules/RuleCategory';
+import type { RuleCriteria } from '../../../Contracts/Rules/RuleCriteria';
+import type { Result } from '../../Results/Result';
+import type { RuleContext } from '../Context/RuleContext';
+import type { DnrCondition } from '../Criteria/DnrCondition';
+import type { RequestDraft } from '../Drafts/RequestDraft';
+import type { ResponseDraft } from '../Drafts/ResponseDraft';
+import type { DnrRuleDraft } from './DnrRuleDraft';
+import type { FieldSpec } from './FieldSpec';
+import type { ApplyRequestOptions, ApplyResponseOptions, RuleType, ToDnrOptions } from './RuleType';
 
-const NoCriteria: RuleCriteria = {
-    match: CriteriaMatches.All,
+const NO_CRITERIA: RuleCriteria = {
+    match: CRITERIA_MATCHES.All,
     items: [],
 };
 
-export abstract class RuleTypeBase<TAction extends object> implements IRuleType {
+export interface OnRequestOptions<TAction extends object> {
+    draft: RequestDraft;
+    action: TAction;
+    context: RuleContext;
+    criteria: RuleCriteria;
+}
+
+export interface OnResponseOptions<TAction> {
+    draft: ResponseDraft;
+    action: TAction;
+    context: RuleContext;
+    request: RequestDraft;
+}
+
+export interface BrowserRulesOptions<TAction extends object> {
+    action: TAction;
+    condition: DnrCondition;
+    context: RuleContext;
+    criteria: RuleCriteria;
+}
+
+export abstract class RuleTypeBase<TAction extends object> implements RuleType {
     abstract readonly id: string;
     abstract readonly category: RuleCategory;
     abstract readonly label: string;
@@ -31,8 +54,11 @@ export abstract class RuleTypeBase<TAction extends object> implements IRuleType 
         } as RuleAction;
     }
 
-    validate(action: RuleAction, criteria: RuleCriteria = NoCriteria): string[] {
-        return this.check(this.read(action), criteria);
+    validate(action: RuleAction, criteria: RuleCriteria = NO_CRITERIA): string[] {
+        return this.check(
+            /* action: */ this.read(action),
+            /* criteria: */ criteria,
+        );
     }
 
     summary(action: RuleAction): string {
@@ -51,30 +77,24 @@ export abstract class RuleTypeBase<TAction extends object> implements IRuleType 
         return this.handlesResponse;
     }
 
+    readsResponseBody(_action: RuleAction): boolean {
+        return this.needsResponseBody;
+    }
+
     withoutSecrets(action: RuleAction): RuleAction {
         return action;
     }
 
-    applyRequest(
-        draft: RequestDraft,
-        action: RuleAction,
-        context: RuleContext,
-        criteria: RuleCriteria = NoCriteria
-    ): RequestDraft {
-        return this.onRequest(
+    applyRequest({ draft, action, context, criteria = NO_CRITERIA }: ApplyRequestOptions): RequestDraft {
+        return this.onRequest({
             draft,
-            this.read(action),
+            action: this.read(action),
             context,
-            criteria
-        );
+            criteria,
+        });
     }
 
-    applyResponse(
-        draft: ResponseDraft,
-        action: RuleAction,
-        context: RuleContext,
-        request: RequestDraft
-    ): ResponseDraft {
+    applyResponse({ draft, action, context, request }: ApplyResponseOptions): ResponseDraft {
         return this.onResponse({
             draft,
             action: this.read(action),
@@ -83,18 +103,18 @@ export abstract class RuleTypeBase<TAction extends object> implements IRuleType 
         });
     }
 
-    toDnr(
-        action: RuleAction,
-        condition: DnrCondition,
-        context: RuleContext,
-        criteria: RuleCriteria = NoCriteria
-    ): Result<DnrRuleDraft[]> | null {
-        return this.browserRules(
-            this.read(action),
+    toDnr({
+        action,
+        condition,
+        context,
+        criteria = NO_CRITERIA,
+    }: ToDnrOptions): Result<DnrRuleDraft[]> | null {
+        return this.browserRules({
+            action: this.read(action),
             condition,
             context,
-            criteria
-        );
+            criteria,
+        });
     }
 
     protected abstract defaults(): TAction;
@@ -107,32 +127,15 @@ export abstract class RuleTypeBase<TAction extends object> implements IRuleType 
         return [];
     }
 
-    protected onRequest(
-        draft: RequestDraft,
-        _action: TAction,
-        _context: RuleContext,
-        _criteria: RuleCriteria
-    ): RequestDraft {
+    protected onRequest({ draft }: OnRequestOptions<TAction>): RequestDraft {
         return draft;
     }
 
-    protected onResponse(args: ResponseArguments<TAction>): ResponseDraft {
+    protected onResponse(args: OnResponseOptions<TAction>): ResponseDraft {
         return args.draft;
     }
 
-    protected browserRules(
-        _action: TAction,
-        _condition: DnrCondition,
-        _context: RuleContext,
-        _criteria: RuleCriteria
-    ): Result<DnrRuleDraft[]> | null {
+    protected browserRules(_options: BrowserRulesOptions<TAction>): Result<DnrRuleDraft[]> | null {
         return null;
     }
-}
-
-export interface ResponseArguments<TAction> {
-    draft: ResponseDraft;
-    action: TAction;
-    context: RuleContext;
-    request: RequestDraft;
 }

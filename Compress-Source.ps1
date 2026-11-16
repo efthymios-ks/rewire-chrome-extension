@@ -6,13 +6,14 @@
 
 .DESCRIPTION
     Zips every file git would commit: tracked and untracked files, minus everything the ignore
-    rules exclude, so node_modules, dist, artifacts, .debug-profile, *.log and *.zip files never
-    go in. Nothing in the repo is deleted or changed. The git history (the .git folder) stays out.
+    rules exclude, so node_modules, dist, artifacts, .debug-profile, .playwright-mcp,
+    testResults.xml, *.log and *.zip files never go in. Nothing in the repo is deleted or
+    changed. The git history (the .git folder) stays out.
 
-    The zip is written next to this script as Rewire.zip, replacing the previous one,
-    with one top folder named after the repo. Git ignores zip files, so it never ends up in a
-    commit or in the next zip. When git is missing or can't list the files, the same folders
-    are left out by name.
+    The zip is written next to this script as rewire-chrome-extension.zip, replacing the
+    previous one, with one top folder named after the repo folder. Git ignores zip files, so
+    it never ends up in a commit or in the next zip. When git is missing or can't list the
+    files, the same folders and files are left out by name.
 
     Runs on Windows PowerShell 5.1 and PowerShell 7. Started from Explorer, it waits for Enter
     before the window closes.
@@ -34,7 +35,7 @@ $ErrorActionPreference = 'Stop'
 $script:Root = $PSScriptRoot.TrimEnd('\')
 $script:ZipPath = Join-Path $script:Root 'rewire-chrome-extension.zip'
 # Left out of the zip by name when git can't say what it ignores; mirrors .gitignore.
-$script:FallbackExcludedFolders = @('node_modules', 'dist', 'artifacts', '.debug-profile', '.git')
+$script:FallbackExcludedFolders = @('node_modules', 'dist', 'artifacts', '.debug-profile', '.playwright-mcp', '.git')
 $script:FallbackExcludedPatterns = @('*.log', '*.zip', 'testResults.xml')
 
 # A window opened from Explorer closes when the script ends; this keeps the result readable.
@@ -98,9 +99,11 @@ function Get-FallbackFile {
         ForEach-Object { Get-RelativePath -FullName $_.FullName } |
         Where-Object {
             $relative = $_
-            $topFolder = $relative.Split('/')[0]
-            $name = Split-Path -Leaf $relative
-            $isExcludedFolder = $relative.Contains('/') -and $topFolder -in $script:FallbackExcludedFolders
+            $segments = $relative.Split('/')
+            $name = $segments[-1]
+            # Like the folder entries in .gitignore, these match at any depth.
+            $folders = @($segments | Select-Object -First ($segments.Count - 1))
+            $isExcludedFolder = @($folders | Where-Object { $_ -in $script:FallbackExcludedFolders }).Count -gt 0
             $isExcludedFile = @($script:FallbackExcludedPatterns | Where-Object { $name -like $_ }).Count -gt 0
             -not ($isExcludedFolder -or $isExcludedFile)
         }

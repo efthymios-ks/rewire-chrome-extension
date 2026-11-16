@@ -22,7 +22,7 @@ Every rule type, grouped as in the **Add rule** catalog.
   Exports blank it unless **Include cookie values, auth headers and secret variables** is ticked.
 - A specific **Allowed origin** in **CORS** also allows credentials; `*` does not.
 - Chrome hands CORS preflights to the debugger as XHR requests.
-  On the inspected tab, **CORS** answers them itself with `204` when **Answer OPTIONS preflights** is on.
+  On the inspected tab, **CORS** answers them itself with `204` when **Answer OPTIONS preflights with 204 on the inspected tab** is on, allowing the method and headers the preflight asks for when **Allowed methods** or **Allowed headers** is empty.
   On other tabs, Chrome's request rules add the headers to the server's own preflight answer.
 
 ## Cookies
@@ -34,12 +34,12 @@ Every rule type, grouped as in the **Add rule** catalog.
 
 **Add or update** on a response cookie keeps the attributes left empty from the `Set-Cookie` already there.
 
-## URL, query and redirects
+## URL, query & redirects
 
 | Type          | What it does                                                                   | Works on        |
 | ------------- | ------------------------------------------------------------------------------ | --------------- |
-| Rewrite       | Silently send matching requests to another URL.                                | `All tabs`      |
 | Redirect      | Answer with a redirect status and a `Location` header; the browser follows it. | `Inspected tab` |
+| Rewrite       | Silently send matching requests to another URL.                                | `All tabs`      |
 | Query params  | Add, update or remove query string params.                                     | `All tabs`      |
 | HTTP to HTTPS | Upgrade `http` requests to `https`.                                            | `All tabs`      |
 
@@ -47,9 +47,10 @@ Every rule type, grouped as in the **Add rule** catalog.
 
 - **To URL** (Rewrite) or **Location URL** (Redirect) is where the request goes.
 - `$1` to `$9` insert the groups of a URL condition that **matches regex**; `$0` is the whole URL, `$$` a `$`.
+  `$0` needs that condition too.
   A request missing a group it uses passes through untouched.
 - A **Rewrite** with groups works on all tabs only when that regex is its one URL condition.
-  Next to another URL, path, extension, host or query condition, it works on the inspected tab.
+  Next to another URL, path, extension, query or host wildcard condition, it works on the inspected tab.
 - **Redirect** answers with **Status** `301`, `302`, `303`, `307` or `308`, the default.
 
 ```
@@ -60,8 +61,9 @@ Goes to    http://localhost:5000/users/42
 ```
 
 **Query params**: wildcard keys, **Add** and **Add if missing** work on the inspected tab.
+A rule that only removes params next to a URL, path, extension, query or host wildcard condition works on the inspected tab too.
 
-## Mocks and responses
+## Mocks & responses
 
 | Type          | What it does                                                                      | Works on        |
 | ------------- | --------------------------------------------------------------------------------- | --------------- |
@@ -76,14 +78,19 @@ Goes to    http://localhost:5000/users/42
   With only one on, the server answers and the rule changes that part of its answer.
   With a response condition, the rule waits for the server and changes its answer even with both on.
 - **Content type** takes free text and suggests the common media types.
-- It answers the CORS preflight of a call it mocks with `204`, allowing the requested method and headers, so cross-origin mocks need no **CORS** rule.
+- **Headers** sets response headers on the answer, replacing any of the same name.
+  Header values and the **Body** can use `{{variables}}`.
+- With both overrides on, it answers the CORS preflight of a call it mocks with `204`, allowing the requested method and headers, so cross-origin mocks need no **CORS** rule.
+  The preflight is an `OPTIONS` request, so the rule's conditions must match it too; a **Method** condition has to list `OPTIONS`.
 - To block a request, mock it, for example with status `403`.
 
 **Request body** and **Response body** are twins, with the same fields:
 
 - **Mode**: **Replace the body**, **Merge a JSON patch** (RFC 7386, `null` removes a key), or **Find and replace**.
 - **Replace the body** can also set the **Content type**; empty keeps the one there.
-- **Find and replace** finds as **Text** or **Regex**; with **Regex**, `$1` in **Replace with** inserts a group.
+- **Merge a JSON patch** needs a patch that is valid JSON as typed, so `{{variables}}` work only inside JSON strings, such as `{"name":"{{user}}"}`; a body that isn't JSON is left as it is.
+- **Find and replace** finds as **Text** or **Regex** and replaces every match; with **Regex**, `$1` in **Replace with** inserts a group.
+  A regex that can match empty text, such as `x*`, also inserts the replacement between the characters it doesn't match.
 - Without a body, only **Replace the body** acts.
 
 **Response body** with **Replace the body** edits what the server sent; **Mock response** with only **Override the body** gives the same answer.
@@ -103,7 +110,10 @@ Preflight `OPTIONS` requests skip **Latency**, so CORS checks still pass in time
 - **Regex (optional)** keeps its first group, or the whole match.
 - Bodies are read with a **Path**, JSONPath for JSON and XPath for XML.
   Objects and arrays come out as JSON text.
+- A request source is read as the request goes out, without holding up the response; with a response condition, such as **Response status** `2xx`, it is read once the response matches.
+  **Response header** reads the headers only; the response body sources are the ones that wait for the body.
 - A source or path that finds nothing leaves the variable as it was.
+  A regex that matches empty text, such as `\d*` on a value without digits, stores an empty value.
 
 | Path     | Supports                                                                                                               | Example                        |
 | -------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------ |

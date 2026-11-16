@@ -1,30 +1,33 @@
-import type { CdpEventParams } from "../Debugging/CdpTypes";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { IEventStreamParsers } from "./EventStreamParsers";
-import type { ILiveStore } from "./LiveStore";
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { CdpEventParams } from '../Debugging/CdpTypes/CdpEventParams';
+import type { EventStreamParsers } from './EventStreamParsers';
+import type { LiveStore } from './LiveStore';
 
-export type StreamEndEvent = "Network.loadingFinished" | "Network.loadingFailed";
+export type StreamEndEvent = 'Network.loadingFinished' | 'Network.loadingFailed';
 
-export class EventStreamEndedHandler<TEventName extends StreamEndEvent> implements ICdpEventHandler<TEventName> {
+export interface EventStreamEndedHandlerOptions<TEventName extends StreamEndEvent> {
+    event: TEventName;
+    liveStore: LiveStore;
+    parsers: EventStreamParsers;
+}
+
+export class EventStreamEndedHandler<TEventName extends StreamEndEvent>
+    implements CdpEventHandler<TEventName> {
     readonly event: TEventName;
 
-    private readonly _liveStore: ILiveStore;
-    private readonly _parsers: IEventStreamParsers;
+    private readonly _liveStore: LiveStore;
+    private readonly _parsers: EventStreamParsers;
 
-    constructor(
-        event: TEventName,
-        liveStore: ILiveStore,
-        parsers: IEventStreamParsers
-    ) {
+    constructor({ event, liveStore, parsers }: EventStreamEndedHandlerOptions<TEventName>) {
         this.event = event;
         this._liveStore = liveStore;
         this._parsers = parsers;
     }
 
-    async handle(tabId: number, params: CdpEventParams<TEventName>): Promise<void> {
+    async handleAsync(tabId: number, params: CdpEventParams<TEventName>): Promise<void> {
         this._parsers.stop(tabId, params.requestId);
         const channel = this._liveStore.channelOf(tabId, params.requestId);
-        if (channel === undefined || !channel.isOpen) {
+        if (channel == null || !channel.isOpen) {
             return;
         }
 

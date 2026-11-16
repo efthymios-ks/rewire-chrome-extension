@@ -1,4 +1,4 @@
-import type { InspectionState } from "./InspectionState";
+import type { InspectionState } from './InspectionState';
 
 export interface InspectionStatus {
     state: InspectionState;

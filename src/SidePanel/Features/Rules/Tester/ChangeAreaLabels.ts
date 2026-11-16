@@ -1,11 +1,11 @@
-import { ChangeArea } from "../../../../Contracts/Rules/ValueChange";
+import { CHANGE_AREA, type ChangeArea } from '../../../../Contracts/Rules/ChangeArea';
 
-export const ChangeAreaLabels: Record<ChangeArea, string> = {
-    [ChangeArea.Url]: "URL",
-    [ChangeArea.RequestHeader]: "Request header",
-    [ChangeArea.RequestBody]: "Request body",
-    [ChangeArea.Status]: "Status",
-    [ChangeArea.ResponseHeader]: "Response header",
-    [ChangeArea.ResponseBody]: "Response body",
-    [ChangeArea.Outcome]: "Outcome",
-};
+export const CHANGE_AREA_LABELS: Record<ChangeArea, string> = Object.freeze({
+    [CHANGE_AREA.Url]: 'URL',
+    [CHANGE_AREA.RequestHeader]: 'Request header',
+    [CHANGE_AREA.RequestBody]: 'Request body',
+    [CHANGE_AREA.Status]: 'Status',
+    [CHANGE_AREA.ResponseHeader]: 'Response header',
+    [CHANGE_AREA.ResponseBody]: 'Response body',
+    [CHANGE_AREA.Outcome]: 'Outcome',
+});

@@ -1,69 +1,75 @@
-import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import { InspectionState } from "../../../Contracts/Inspection/InspectionState";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { InputSync } from "../../Core/Dom/InputSync";
-import type { InspectedTab } from "../../Core/InspectedTab";
-import { ProfileSwitcher } from "../Profiles/ProfileSwitcher";
-import type { PanelContext } from "./PanelContext";
-import { ThemeToggle } from "./ThemeToggle";
+import { SafeUrl } from '../../../Common/Urls/SafeUrl';
+import { INSPECTION_STATE, type InspectionState } from '../../../Contracts/Inspection/InspectionState';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { InputSync } from '../../Core/Dom/InputSync';
+import type { InspectedTab } from '../../Core/InspectedTab';
+import { ProfileSwitcher } from '../Profiles/ProfileSwitcher';
+import type { PanelContext } from './PanelContext';
+import { ThemeToggle } from './ThemeToggle';
 
-const StatusLabels: Record<InspectionState, string> = {
-    [InspectionState.Idle]: "No tab",
-    [InspectionState.Attaching]: "Attaching",
-    [InspectionState.Attached]: "Capturing",
-    [InspectionState.Detached]: "Detached",
-    [InspectionState.Failed]: "Failed",
-};
+const STATUS_LABELS: Record<InspectionState, string> = Object.freeze({
+    [INSPECTION_STATE.Idle]: 'No tab',
+    [INSPECTION_STATE.Attaching]: 'Attaching',
+    [INSPECTION_STATE.Attached]: 'Capturing',
+    [INSPECTION_STATE.Detached]: 'Detached',
+    [INSPECTION_STATE.Failed]: 'Failed',
+});
 
-const ReattachableStates = [
-    InspectionState.Detached,
-    InspectionState.Failed,
+const REATTACHABLE_STATES: InspectionState[] = [
+    INSPECTION_STATE.Detached,
+    INSPECTION_STATE.Failed,
 ];
 
 function hostOf(tab: InspectedTab | null): string {
-    if (tab === null) {
-        return "No tab";
+    if (tab == null) {
+        return 'No tab';
     }
 
-    return SafeUrl.parse(tab.url)?.host || tab.title || "This tab";
+    const host = SafeUrl.parse(tab.url)?.host ?? '';
+    if (host !== '') {
+        return host;
+    }
+
+    return tab.title === '' ? 'This tab' : tab.title;
 }
 
 export class HeaderBar {
     readonly root: HTMLElement;
 
     constructor(context: PanelContext) {
-        const host = buildElement("span", {
-            className: "header-host",
+        const host = buildElement('span', {
+            className: 'header-host',
         });
-        const statusPill = buildElement("span", {
-            className: "status-pill",
+        const statusPill = buildElement('span', {
+            className: 'status-pill',
         });
         const reattachButton = FormControls.button({
-            text: "Reattach",
-            variant: ButtonVariants.Ghost,
-            onClick: () => void context.timelineSync.reinspect(),
+            text: 'Reattach',
+            variant: BUTTON_VARIANTS.Ghost,
+            onClick: () => void context.timelineSync.reinspectAsync(),
         });
         const killSwitch = FormControls.toggleSwitch({
             checked: context.settingsService.current().interceptionEnabled,
-            label: "Interception",
-            onChange: checked => void context.settingsService.update(settings => ({
+            label: 'Interception',
+            onChange: isChecked => void context.settingsService.updateAsync(settings => ({
                 ...settings,
-                interceptionEnabled: checked,
+                interceptionEnabled: isChecked,
             })),
         });
-        killSwitch.title = "Turns every rule on or off at once.";
-        const killSwitchInput = killSwitch.querySelector("input")!;
+        killSwitch.title = 'Turns every rule on or off at once.';
+        const killSwitchInput = killSwitch.querySelector('input')!;
 
-        this.root = buildElement("header", {
-            className: "header-bar",
+        this.root = buildElement('header', {
+            className: 'header-bar',
             children: [
-                buildElement("h1", {
-                    className: "brand",
-                    text: "Rewire",
+                buildElement('h1', {
+                    className: 'brand',
+                    text: 'Rewire',
                 }),
-                buildElement("div", {
-                    className: "header-target",
+                buildElement('div', {
+                    className: 'header-target',
                     children: [
                         host,
                         statusPill,
@@ -76,30 +82,30 @@ export class HeaderBar {
             ],
         });
 
-        context.store.select(
-            state => state.inspectedTab,
-            tab => {
+        context.store.select({
+            selector: state => state.inspectedTab,
+            listener: tab => {
                 host.textContent = hostOf(tab);
-                host.title = tab?.url ?? "";
-            }
-        );
+                host.title = tab?.url ?? '';
+            },
+        });
 
-        context.store.select(
-            state => state.inspection,
-            inspection => {
-                statusPill.textContent = StatusLabels[inspection.state];
-                statusPill.dataset["state"] = String(inspection.state);
+        context.store.select({
+            selector: state => state.inspection,
+            listener: inspection => {
+                statusPill.textContent = STATUS_LABELS[inspection.state];
+                statusPill.dataset['state'] = String(inspection.state);
                 statusPill.title = inspection.message;
-                reattachButton.hidden = !ReattachableStates.includes(inspection.state);
-            }
-        );
+                reattachButton.hidden = !REATTACHABLE_STATES.includes(inspection.state);
+            },
+        });
 
-        context.store.select(
-            state => state.settings.interceptionEnabled,
-            isEnabled => {
+        context.store.select({
+            selector: state => state.settings.interceptionEnabled,
+            listener: isEnabled => {
                 InputSync.setChecked(killSwitchInput, isEnabled);
-                this.root.classList.toggle("interception-off", !isEnabled);
-            }
-        );
+                this.root.dataset['interception'] = isEnabled ? 'on' : 'off';
+            },
+        });
     }
 }

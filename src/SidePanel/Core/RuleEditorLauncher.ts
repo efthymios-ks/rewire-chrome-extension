@@ -1,7 +1,7 @@
-import type { Rule } from "../../Contracts/Rules/Rule";
-import type { PanelState } from "./PanelState";
-import type { Store } from "./Store";
-import { ViewId } from "./ViewId";
+import type { Rule } from '../../Contracts/Rules/Rule';
+import type { PanelState } from './PanelState';
+import type { Store } from './Store';
+import { VIEW_ID } from './ViewId';
 
 export class RuleEditorLauncher {
     private readonly _store: Store<PanelState>;
@@ -13,7 +13,7 @@ export class RuleEditorLauncher {
     open(rule: Rule, isNew: boolean): void {
         this._store.update(state => ({
             ...state,
-            activeView: ViewId.Rules,
+            activeView: VIEW_ID.Rules,
             ruleEditRequest: {
                 rule,
                 isNew,
@@ -23,7 +23,7 @@ export class RuleEditorLauncher {
     }
 
     close(): void {
-        this._store.update(state => state.ruleEditRequest === null
+        this._store.update(state => state.ruleEditRequest == null
             ? state
             : {
                 ...state,

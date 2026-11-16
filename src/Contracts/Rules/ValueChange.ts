@@ -1,12 +1,4 @@
-export enum ChangeArea {
-    Url = 1,
-    RequestHeader = 2,
-    RequestBody = 3,
-    Status = 4,
-    ResponseHeader = 5,
-    ResponseBody = 6,
-    Outcome = 7,
-}
+import type { ChangeArea } from './ChangeArea';
 
 export interface ValueChange {
     area: ChangeArea;

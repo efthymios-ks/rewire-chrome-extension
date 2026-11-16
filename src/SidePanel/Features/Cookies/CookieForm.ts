@@ -1,31 +1,21 @@
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import type { CookieDraft } from "./CookieDraft";
+import { SAME_SITE_LABELS } from '../../../Common/Http/SameSiteLabels';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import type { CookieDraft } from './CookieDraft';
 
-const ValueRows = 3;
+const VALUE_ROWS = 3;
 
-const SameSiteOptions: Array<{ value: CookieDraft["sameSite"]; label: string }> = [
-    {
-        value: "unspecified",
-        label: "Not set (Lax)",
-    },
-    {
-        value: "lax",
-        label: "Lax",
-    },
-    {
-        value: "strict",
-        label: "Strict",
-    },
-    {
-        value: "no_restriction",
-        label: "None",
-    },
-];
+const SAME_SITE_OPTIONS = Object
+    .entries(SAME_SITE_LABELS)
+    .map(([value, label]) => ({
+        value: value as CookieDraft['sameSite'],
+        label,
+    }));
 
 export interface CookieFormArguments {
     draft: CookieDraft;
-    isUnsaved: boolean;
+    isNew: boolean;
     onSave(draft: CookieDraft): void;
     onCancel(): void;
 }
@@ -40,124 +30,124 @@ export class CookieForm {
         this._draft = {
             ...args.draft,
         };
-        this._error = buildElement("p", {
-            className: "form-error",
+        this._error = buildElement('p', {
+            className: 'form-error',
         });
 
         const nameInput = FormControls.textInput({
             value: this._draft.name,
-            className: "input code-text",
+            className: 'input cookie-name-input',
             onInput: value => this.change({
                 name: value,
             }),
         });
-        nameInput.readOnly = !args.isUnsaved;
+        nameInput.readOnly = !args.isNew;
 
         const expiresInput = FormControls.textInput({
             value: this._draft.expiresAt,
-            type: "datetime-local",
+            type: 'datetime-local',
             onInput: value => this.change({
                 expiresAt: value,
             }),
         });
 
-        this.root = buildElement("form", {
-            className: "rule-editor",
+        this.root = buildElement('form', {
+            className: 'rule-editor',
             listeners: {
                 submit: event => event.preventDefault(),
             },
             children: [
-                FormControls.field("Name", nameInput),
-                FormControls.field(
-                    "Value",
-                    FormControls.textArea({
+                FormControls.field({ label: 'Name', control: nameInput }),
+                FormControls.field({
+                    label: 'Value',
+                    control: FormControls.textArea({
                         value: this._draft.value,
-                        rows: ValueRows,
+                        rows: VALUE_ROWS,
                         onInput: value => this.change({
                             value,
                         }),
-                    })
-                ),
-                buildElement("div", {
-                    className: "field-row",
+                    }),
+                }),
+                buildElement('div', {
+                    className: 'field-row',
                     children: [
-                        FormControls.field(
-                            "Domain",
-                            FormControls.textInput({
+                        FormControls.field({
+                            label: 'Domain',
+                            control: FormControls.textInput({
                                 value: this._draft.domain,
                                 onInput: value => this.change({
                                     domain: value.trim(),
                                 }),
-                            })
-                        ),
-                        FormControls.field(
-                            "Path",
-                            FormControls.textInput({
+                            }),
+                        }),
+                        FormControls.field({
+                            label: 'Path',
+                            control: FormControls.textInput({
                                 value: this._draft.path,
                                 onInput: value => this.change({
                                     path: value.trim(),
                                 }),
-                            })
-                        ),
+                            }),
+                        }),
                     ],
                 }),
-                buildElement("div", {
-                    className: "field-row",
+                buildElement('div', {
+                    className: 'field-row',
                     children: [
-                        FormControls.field(
-                            "Expires",
-                            expiresInput,
-                            "Empty makes a session cookie."
-                        ),
-                        FormControls.field(
-                            "SameSite",
-                            FormControls.select({
+                        FormControls.field({
+                            label: 'Expires',
+                            control: expiresInput,
+                            hint: 'Empty makes a session cookie.',
+                        }),
+                        FormControls.field({
+                            label: 'SameSite',
+                            control: FormControls.select({
                                 value: this._draft.sameSite,
-                                options: SameSiteOptions,
+                                options: SAME_SITE_OPTIONS,
                                 onChange: value => this.change({
-                                    sameSite: value as CookieDraft["sameSite"],
+                                    sameSite: value as CookieDraft['sameSite'],
                                 }),
-                            })
-                        ),
+                            }),
+                        }),
                     ],
                 }),
-                buildElement("div", {
-                    className: "field-row",
+                buildElement('div', {
+                    className: 'field-row',
                     children: [
                         FormControls.checkbox({
                             checked: this._draft.hostOnly,
-                            label: "Host only",
-                            onChange: checked => this.change({
-                                hostOnly: checked,
+                            label: 'Host only',
+                            onChange: isChecked => this.change({
+                                hostOnly: isChecked,
                             }),
                         }),
                         FormControls.checkbox({
                             checked: this._draft.secure,
-                            label: "Secure",
-                            onChange: checked => this.change({
-                                secure: checked,
+                            label: 'Secure',
+                            onChange: isChecked => this.change({
+                                secure: isChecked,
                             }),
                         }),
                         FormControls.checkbox({
                             checked: this._draft.httpOnly,
-                            label: "HttpOnly",
-                            onChange: checked => this.change({
-                                httpOnly: checked,
+                            label: 'HttpOnly',
+                            onChange: isChecked => this.change({
+                                httpOnly: isChecked,
                             }),
                         }),
                     ],
                 }),
                 this._error,
-                buildElement("div", {
-                    className: "actions",
+                buildElement('div', {
+                    className: 'actions',
                     children: [
                         FormControls.button({
-                            text: "Save",
-                            variant: ButtonVariants.Primary,
+                            text: 'Save',
+                            variant: BUTTON_VARIANTS.Primary,
                             onClick: () => this.save(args),
                         }),
                         FormControls.button({
-                            text: "Cancel",
+                            text: 'Cancel',
                             onClick: () => args.onCancel(),
                         }),
                     ],
@@ -178,13 +168,13 @@ export class CookieForm {
     }
 
     private save(args: CookieFormArguments): void {
-        if (this._draft.name.trim() === "" || this._draft.domain === "") {
-            this.showError("Name and domain are required.");
+        if (this._draft.name.trim() === '' || this._draft.domain === '') {
+            this.showError('Name and domain are required.');
 
             return;
         }
 
-        this.showError("");
+        this.showError('');
         args.onSave(this._draft);
     }
 }

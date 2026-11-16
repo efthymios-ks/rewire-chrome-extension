@@ -1,7 +1,7 @@
-import type { PostMessageRecord } from "../../Live/PostMessageRecord";
-import type { WorkerEventType } from "../WorkerEventType";
+import type { PostMessageRecord } from '../../Live/PostMessageRecord';
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface PostMessageAddedEvent {
-    type: WorkerEventType.PostMessageAdded;
+    type: typeof WORKER_EVENT_TYPE.PostMessageAdded;
     record: PostMessageRecord;
 }

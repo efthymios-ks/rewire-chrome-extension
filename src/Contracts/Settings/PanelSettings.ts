@@ -1,4 +1,4 @@
-import type { RuleProfile } from "./RuleProfile";
+import type { RuleProfile } from './RuleProfile';
 
 export interface PanelSettings {
     schemaVersion: number;

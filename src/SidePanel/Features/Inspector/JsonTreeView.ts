@@ -1,24 +1,24 @@
-import { buildElement } from "../../Core/Dom/ElementBuilder";
+import { buildElement } from '../../Core/Dom/buildElement';
 
-const OpenDepth = 2;
-const MaxChildren = 500;
+const OPEN_DEPTH = 2;
+const MAX_CHILDREN = 500;
 
 type JsonContainer = Record<string, unknown> | unknown[];
 
 function isContainer(value: unknown): value is JsonContainer {
-    return typeof value === "object" && value !== null;
+    return typeof value === 'object' && value != null;
 }
 
 function valueClassOf(value: unknown): string {
     if (value === null) {
-        return "json-null";
+        return 'json-null';
     }
 
     return `json-${typeof value}`;
 }
 
 function primitiveText(value: unknown): string {
-    return typeof value === "string" ? JSON.stringify(value) : String(value);
+    return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
 function previewOf(value: JsonContainer): string {
@@ -30,25 +30,27 @@ function previewOf(value: JsonContainer): string {
 }
 
 function keyLabel(key: string | null): HTMLElement | null {
-    return key === null
+    return key == null
         ? null
-        : buildElement("span", {
-            className: "json-key",
+        : buildElement('span', {
+            className: 'json-key',
             text: `${key}: `,
         });
 }
 
-function nodeOf(
-    key: string | null,
-    value: unknown,
-    depth: number
-): HTMLElement {
+interface NodeOfOptions {
+    key: string | null;
+    value: unknown;
+    depth: number;
+}
+
+function nodeOf({ key, value, depth }: NodeOfOptions): HTMLElement {
     if (!isContainer(value)) {
-        return buildElement("div", {
-            className: "json-leaf",
+        return buildElement('div', {
+            className: 'json-leaf',
             children: [
                 keyLabel(key),
-                buildElement("span", {
+                buildElement('span', {
                     className: valueClassOf(value),
                     text: primitiveText(value),
                 }),
@@ -58,48 +60,45 @@ function nodeOf(
 
     const entries = Object
         .entries(value)
-        .slice(0, MaxChildren);
+        .slice(0, MAX_CHILDREN);
     const hidden = Object.keys(value).length - entries.length;
-    const details = buildElement("details", {
-        className: "json-node",
+    const details = buildElement('details', {
+        className: 'json-node',
         children: [
-            buildElement("summary", {
+            buildElement('summary', {
                 children: [
                     keyLabel(key),
-                    buildElement("span", {
-                        className: "json-preview",
+                    buildElement('span', {
+                        className: 'json-preview',
                         text: previewOf(value),
                     }),
                 ],
             }),
-            ...entries.map(([childKey, childValue]) => nodeOf(
-                childKey,
-                childValue,
-                depth + 1
-            )),
+            ...entries.map(([childKey, childValue]) => nodeOf({
+                key: childKey,
+                value: childValue,
+                depth: depth + 1,
+            })),
             hidden > 0
-                ? buildElement("div", {
-                    className: "muted",
+                ? buildElement('div', {
+                    className: 'json-overflow',
                     text: `${hidden} more not shown`,
                 })
                 : null,
         ],
     });
-    details.open = depth < OpenDepth;
+    details.open = depth < OPEN_DEPTH;
 
     return details;
 }
 
 export const JsonTreeView = {
-    build(value: unknown, wrap: boolean): HTMLElement {
-        return buildElement("div", {
-            className: wrap ? "json-tree wrap" : "json-tree",
+    build(value: unknown, shouldWrap: boolean): HTMLElement {
+        return buildElement('div', {
+            className: 'json-tree',
+            attributes: shouldWrap ? { 'data-wrap': '' } : {},
             children: [
-                nodeOf(
-                    null,
-                    value,
-                    0
-                ),
+                nodeOf({ key: null, value, depth: 0 }),
             ],
         });
     },

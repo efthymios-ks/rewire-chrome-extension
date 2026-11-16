@@ -1,28 +1,24 @@
-type JsonObject = Record<string, unknown>;
-
-function isObject(value: unknown): value is JsonObject {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { RawRecords } from '../../Objects/RawRecords';
 
 export const JsonMergePatch = {
     apply(target: unknown, patch: unknown): unknown {
-        if (!isObject(patch)) {
+        if (!RawRecords.is(patch)) {
             return patch;
         }
 
-        const base: JsonObject = isObject(target) ? { ...target } : {};
+        const base = new Map(Object.entries(RawRecords.is(target) ? target : {}));
         Object
             .entries(patch)
             .forEach(([key, value]) => {
                 if (value === null) {
-                    delete base[key];
+                    base.delete(key);
 
                     return;
                 }
 
-                base[key] = JsonMergePatch.apply(base[key], value);
+                base.set(key, JsonMergePatch.apply(base.get(key), value));
             });
 
-        return base;
+        return Object.fromEntries(base);
     },
 };

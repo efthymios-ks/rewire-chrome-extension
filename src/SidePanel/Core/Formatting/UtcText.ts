@@ -1,18 +1,18 @@
-const DateTimeLength = 19;
-const UtcDesignator = "Z";
+const DATE_TIME_LENGTH = 19;
+const UTC_DESIGNATOR = 'Z';
 
 export const UtcText = {
     of(date: Date): string {
         if (Number.isNaN(date.getTime())) {
-            return "";
+            return '';
         }
 
-        return `${date.toISOString().slice(0, DateTimeLength)}${UtcDesignator}`;
+        return `${date.toISOString().slice(0, DATE_TIME_LENGTH)}${UTC_DESIGNATOR}`;
     },
 
     ofText(text: string): string {
         const formatted = UtcText.of(new Date(text));
 
-        return formatted === "" ? text : formatted;
+        return formatted === '' ? text : formatted;
     },
 };

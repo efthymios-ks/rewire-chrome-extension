@@ -1,14 +1,14 @@
-import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
-import type { CookiePair } from "../Rules/Http/CookieHeader";
-import type { IRequestSnippet } from "./IRequestSnippet";
-import type { SnippetBody } from "./SnippetBody";
-import type { SnippetRequest } from "./SnippetRequest";
+import type { HeaderEntry } from '../../Contracts/Timeline/HeaderEntry';
+import type { CookiePair } from '../Rules/Http/CookiePair';
+import type { RequestSnippet } from './RequestSnippet';
+import type { SnippetBody } from './SnippetBody';
+import type { SnippetRequest } from './SnippetRequest';
 
-export abstract class RequestSnippetBase implements IRequestSnippet {
-    private _method: string;
-    private _url: string;
-    private _headers: HeaderEntry[];
-    private _cookies: CookiePair[];
+export abstract class RequestSnippetBase implements RequestSnippet {
+    private readonly _method: string;
+    private readonly _url: string;
+    private readonly _headers: HeaderEntry[];
+    private readonly _cookies: CookiePair[];
     private _body: SnippetBody;
 
     constructor(request: SnippetRequest) {
@@ -23,32 +23,16 @@ export abstract class RequestSnippetBase implements IRequestSnippet {
         return this._method;
     }
 
-    set method(value: string) {
-        this._method = value.toUpperCase();
-    }
-
     get url(): string {
         return this._url;
-    }
-
-    set url(value: string) {
-        this._url = value;
     }
 
     get headers(): HeaderEntry[] {
         return this._headers;
     }
 
-    set headers(value: HeaderEntry[]) {
-        this._headers = value;
-    }
-
     get cookies(): CookiePair[] {
         return this._cookies;
-    }
-
-    set cookies(value: CookiePair[]) {
-        this._cookies = value;
     }
 
     get body(): SnippetBody {

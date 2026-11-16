@@ -1,5 +1,5 @@
-import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
-import type { ContextMenuItem } from "../../Core/Dom/ContextMenu";
+import { RequestSnippets } from '../../../Common/CodeGen/RequestSnippets';
+import type { ContextMenuItem } from '../../Core/Dom/ContextMenuItem';
 
 export const SnippetMenuItems = {
     of(copy: (snippetId: string) => void): ContextMenuItem[] {

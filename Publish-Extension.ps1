@@ -5,40 +5,59 @@
     Tests, builds and packages the extension for manual upload to the Chrome Web Store.
 
 .DESCRIPTION
-    Runs Invoke-Test.ps1 first, which also makes sure Node.js and the npm packages
-    are there, and stops on a red suite, so a failing test can never produce a
-    package. Writes the new version into public/manifest.json (the source of truth),
-    builds dist, copies the result into artifacts/Rewire-<version>/ without source
-    maps, and zips the same content into artifacts/Rewire-<version>.zip.
+    Checks the version first: it must look like 1.2.3, without leading zeros, and be
+    higher than the one in public/manifest.json, compared number by number (1.0.10 is
+    higher than 1.0.9), because the Chrome Web Store takes each upload only with a
+    higher version than the last. A package already in the output folder for that
+    version stops the script too, unless -Force is passed.
 
-    Called without -Version, the script prints the current version from
-    public/manifest.json and prompts for the new one, suggesting the next patch.
+    Then runs Invoke-Test.ps1, which also makes sure Node.js and the npm packages
+    are there, and stops on a red suite, so a failing test never produces a
+    package. Writes the version into public/manifest.json (the source of truth),
+    builds dist, copies the result into <OutputPath>/Rewire-<version>/ without
+    source maps, zips the same content into <OutputPath>/Rewire-<version>.zip and
+    checks the zip.
 
-    Upload the zip by hand in the Chrome Web Store developer dashboard. The store
-    only takes dot-separated numbers and each upload needs a higher version than
-    the previous one.
+    Called without -Version, the script prints the version from
+    public/manifest.json and prompts for the next one, suggesting the next patch.
+
+    Supports -WhatIf and -Confirm: -WhatIf checks the version and the output
+    folder, then reports what it would do without testing, stamping, building or
+    packaging.
+
+    Upload the zip by hand in the Chrome Web Store developer dashboard.
 
     Exit codes:
-      0  packaged
-      1  a step failed
+      0  packaged, or nothing done under -WhatIf
+      1  the version is invalid or not higher, the package exists without -Force,
+         or a step failed
 
 .PARAMETER Version
-    Version to stamp, as 1.2.3. If omitted, the script prompts.
+    Version to stamp, as 1.2.3; must be higher than the one in public/manifest.json.
+    If omitted, the script prompts.
 
 .PARAMETER OutputPath
-    Where the folder and zip go. Default .\artifacts.
+    Where the folder and zip go. Default the artifacts folder beside this script.
 
 .PARAMETER SkipTests
-    Package without the suite.
+    Package without the suite. Node.js and the npm packages are still installed
+    when missing.
 
 .PARAMETER Force
-    Overwrite the existing versioned folder and zip.
+    Replace an existing folder and zip for the same version. Without it, an
+    existing package stops the script before anything runs.
 
 .EXAMPLE
     ./Publish-Extension.ps1
 
 .EXAMPLE
+    ./Publish-Extension.ps1 -Version 1.0.1
+
+.EXAMPLE
     ./Publish-Extension.ps1 -Version 1.0.1 -Force
+
+.EXAMPLE
+    ./Publish-Extension.ps1 -Version 1.0.1 -WhatIf
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -62,7 +81,10 @@ if (-not $OutputPath) { $OutputPath = Join-Path $PSScriptRoot 'artifacts' }
 $script:PackageName = 'Rewire'
 $script:DistPath = Join-Path $PSScriptRoot 'dist'
 $script:SourceManifestPath = Join-Path $PSScriptRoot 'public/manifest.json'
-$script:VersionPattern = '^\d+\.\d+\.\d+$'
+# Three numbers without leading zeros, which the store refuses.
+$script:VersionPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+# What the store accepts in a manifest: one to four dot-separated numbers.
+$script:ManifestVersionPattern = '^\d+(\.\d+){0,3}$'
 # The value of the manifest's "version" property, without its quotes.
 $script:ManifestVersionValuePattern = '(?<="version"\s*:\s*")[^"]*'
 $script:ExcludedExtensions = @('.map')
@@ -71,7 +93,7 @@ $script:RequiredEntries = @(
     'background.js'
     'sidepanel/index.html'
     'sidepanel/main.js'
-    'sidepanel/styles.css'
+    'sidepanel/app.css'
 )
 
 function Write-Step {
@@ -124,6 +146,27 @@ function Set-ManifestVersion {
     if (-not $versionValue.IsMatch($text)) { Exit-WithError "no version property in $Path" }
     $updated = $versionValue.Replace($text, $NewVersion, 1)
     [System.IO.File]::WriteAllText($Path, $updated, (New-Object System.Text.UTF8Encoding $false))
+}
+
+# -1, 0 or 1 as $Left is lower than, equal to or higher than $Right, number by number;
+# a missing trailing number counts as 0. Both are dot-separated numbers.
+function Compare-Version {
+    param(
+        [Parameter(Mandatory)][string]$Left,
+        [Parameter(Mandatory)][string]$Right
+    )
+
+    $leftParts = @($Left -split '\.' | ForEach-Object { [long]$_ })
+    $rightParts = @($Right -split '\.' | ForEach-Object { [long]$_ })
+    $length = [math]::Max($leftParts.Count, $rightParts.Count)
+    for ($index = 0; $index -lt $length; $index++) {
+        $leftPart = 0
+        $rightPart = 0
+        if ($index -lt $leftParts.Count) { $leftPart = $leftParts[$index] }
+        if ($index -lt $rightParts.Count) { $rightPart = $rightParts[$index] }
+        if ($leftPart -ne $rightPart) { return [math]::Sign($leftPart - $rightPart) }
+    }
+    return 0
 }
 
 function Get-SuggestedNextVersion {
@@ -231,11 +274,11 @@ $currentVersion = Get-ManifestVersion -Path $script:SourceManifestPath
 
 Write-Host ''
 Write-Host "$script:PackageName" -ForegroundColor White
-Write-Note "current version: $currentVersion"
+Write-Note "manifest version: $currentVersion"
 
 if (-not $Version) {
     $suggested = Get-SuggestedNextVersion -CurrentVersion $currentVersion
-    $prompt = if ($suggested) { "New version [press Enter for $suggested]" } else { "New version (as 1.2.3)" }
+    $prompt = if ($suggested) { "Next version [press Enter for $suggested]" } else { "Next version (as 1.2.3)" }
     $entered = Read-Host $prompt
     $Version = if ([string]::IsNullOrWhiteSpace($entered)) { $suggested } else { $entered.Trim() }
 }
@@ -243,10 +286,24 @@ if (-not $Version) {
 if ($Version -notmatch $script:VersionPattern) {
     Exit-WithError "version '$Version' is not valid; use 1.2.3"
 }
-if ($Version -eq $currentVersion) {
-    Exit-WithError "version '$Version' matches the current one; the store needs a higher number than the last upload"
+if ($currentVersion -notmatch $script:ManifestVersionPattern) {
+    Exit-WithError "public/manifest.json has version '$currentVersion'; the store takes 1 to 4 dot-separated numbers"
 }
-Write-Host "   new version: $Version" -ForegroundColor White
+if ((Compare-Version -Left $Version -Right $currentVersion) -le 0) {
+    Exit-WithError "version $Version is not higher than $currentVersion in public/manifest.json; the store needs a higher version than the last upload"
+}
+Write-Host "   next version: $Version" -ForegroundColor White
+
+$folderPath = Join-Path $OutputPath "$script:PackageName-$Version"
+$zipPath = Join-Path $OutputPath "$script:PackageName-$Version.zip"
+$existing = @(@($folderPath, $zipPath) | Where-Object { Test-Path -LiteralPath $_ })
+if ($existing.Count -gt 0 -and -not $Force) {
+    Exit-WithError "a $Version package exists ($($existing -join ', ')); pass -Force to replace it"
+}
+
+if (-not $PSCmdlet.ShouldProcess($folderPath, "Test, stamp public/manifest.json with $Version, build and package")) {
+    exit 0
+}
 
 # --- tests ----------------------------------------------------------------------
 
@@ -282,16 +339,13 @@ Write-Good 'dist built'
 
 # --- package --------------------------------------------------------------------
 
-$folderPath = Join-Path $OutputPath "$script:PackageName-$Version"
-$zipPath = Join-Path $OutputPath "$script:PackageName-$Version.zip"
 Write-Step "package -> $folderPath (+ .zip)"
 
+# Only -Force gets this far with an existing package; the check above stops the rest.
 foreach ($target in @($folderPath, $zipPath)) {
     if (-not (Test-Path -LiteralPath $target)) { continue }
-    if (-not ($Force -or $PSCmdlet.ShouldProcess($target, 'Overwrite existing package'))) {
-        Exit-WithError 'package exists; pass -Force to overwrite'
-    }
     Remove-Item -LiteralPath $target -Recurse -Force
+    Write-Note "replaced $target (-Force)"
 }
 $null = New-Item -ItemType Directory -Path $OutputPath -Force
 

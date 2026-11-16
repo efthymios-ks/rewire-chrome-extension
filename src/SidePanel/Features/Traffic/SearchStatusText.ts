@@ -1,23 +1,28 @@
-import type { TrafficSearchState } from "../../Core/TrafficSearchState";
+import { CountText } from '../../Core/Formatting/CountText';
+import type { PanelState } from '../../Core/PanelState';
+import { SearchFilter } from './SearchFilter';
+import { VisibleEntries } from './VisibleEntries';
 
 export const SearchStatusText = {
-    of(state: TrafficSearchState): string {
-        if (state.error !== null) {
-            return state.error;
+    of(state: PanelState): string {
+        const search = state.search;
+        if (search.error != null) {
+            return search.error;
         }
 
-        if (state.query.text === "") {
-            return "";
+        if (!SearchFilter.isActive(search)) {
+            return '';
         }
 
-        if (state.matches.length === 0) {
-            return "No matches";
+        const count = VisibleEntries.of(state).length;
+        if (count === 0) {
+            return 'No matches';
         }
 
-        if (state.activeIndex < 0) {
-            return `${state.matches.length} matches`;
-        }
-
-        return `${state.activeIndex + 1} of ${state.matches.length}`;
+        return CountText.of({
+            count,
+            singular: 'match',
+            plural: 'matches',
+        });
     },
 };

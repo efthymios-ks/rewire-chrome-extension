@@ -1,13 +1,13 @@
-import type { ILogger } from "./ILogger";
+import type { Logger } from './Logger';
 
-const LogPrefix = "[Rewire]";
+const LOG_PREFIX = '[Rewire]';
 
-export class ConsoleLogger implements ILogger {
+export class ConsoleLogger implements Logger {
     warn(message: string, context?: unknown): void {
-        console.warn(`${LogPrefix} ${message}`, context ?? "");
+        console.warn(`${LOG_PREFIX} ${message}`, context ?? '');
     }
 
     error(message: string, context?: unknown): void {
-        console.error(`${LogPrefix} ${message}`, context ?? "");
+        console.error(`${LOG_PREFIX} ${message}`, context ?? '');
     }
 }

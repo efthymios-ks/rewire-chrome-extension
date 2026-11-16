@@ -19,7 +19,7 @@
     "service worker" link on the card. Source maps are on.
 
     Exit codes:
-      0  the watcher stopped
+      0  the watcher stopped, or the browser opened with -NoWatch
       1  the first build failed
       3  Node.js, the npm packages or the browser are unavailable
 
@@ -30,7 +30,7 @@
     Explicit browser executable, for example Chrome for Testing. Wins over -Browser.
 
 .PARAMETER Url
-    Page to open next to the extensions page.
+    Page to open next to the extensions page. Default https://httpbin.org/#/.
 
 .PARAMETER ProfilePath
     Browser profile folder. Default .debug-profile beside this script.
@@ -91,13 +91,13 @@ function Exit-WithError {
         [Parameter(Mandatory)][int]$ExitCode
     )
 
-    Write-Host "ERROR: $Message" -ForegroundColor Red
+    Write-Host "   [fail] $Message" -ForegroundColor Red
     exit $ExitCode
 }
 
 function Resolve-BrowserPath {
     if ($BrowserPath) {
-        if (-not (Test-Path -LiteralPath $BrowserPath)) { Exit-WithError "Browser not found: $BrowserPath" 3 }
+        if (-not (Test-Path -LiteralPath $BrowserPath)) { Exit-WithError "browser not found: $BrowserPath" 3 }
         return $BrowserPath
     }
 
@@ -110,7 +110,7 @@ function Resolve-BrowserPath {
         if ($command) { return $command.Source }
     }
 
-    Exit-WithError "$Browser not found. Pass -BrowserPath." 3
+    Exit-WithError "$Browser not found; pass -BrowserPath" 3
 }
 
 function Wait-FirstBuild {
@@ -123,11 +123,11 @@ function Wait-FirstBuild {
         Start-Sleep -Milliseconds $script:PollIntervalInMilliseconds
     }
 
-    Exit-WithError "No build within $($script:FirstBuildTimeoutInSeconds)s. Run: node scripts/build.mjs" 1
+    Exit-WithError "no build within $($script:FirstBuildTimeoutInSeconds)s; run node scripts/build.mjs to see why" 1
 }
 
 & (Join-Path $PSScriptRoot 'Invoke-Test.ps1') -InstallOnly | Out-Host
-if ($LASTEXITCODE -ne 0) { Exit-WithError 'Node.js or the npm packages are not ready; see above.' 3 }
+if ($LASTEXITCODE -ne 0) { Exit-WithError "Node.js or the npm packages are not ready (exit $LASTEXITCODE)" 3 }
 
 Push-Location -LiteralPath $PSScriptRoot
 $watcher = $null
@@ -137,7 +137,7 @@ try {
 
     if ($NoWatch) {
         & node $script:BuildScript
-        if ($LASTEXITCODE -ne 0) { Exit-WithError 'Build failed.' 1 }
+        if ($LASTEXITCODE -ne 0) { Exit-WithError "build failed (exit $LASTEXITCODE)" 1 }
     }
     else {
         $watcher = Start-Process -FilePath (Get-Command node).Source -ArgumentList "`"$script:BuildScript`" --watch" -NoNewWindow -PassThru

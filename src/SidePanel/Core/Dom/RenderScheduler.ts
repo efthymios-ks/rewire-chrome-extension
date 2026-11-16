@@ -1,4 +1,4 @@
-const FrameIntervalInMilliseconds = 16;
+const FRAME_INTERVAL_IN_MILLISECONDS = 16;
 
 export class RenderScheduler {
     private readonly _render: () => void;
@@ -15,11 +15,11 @@ export class RenderScheduler {
 
         this._isScheduled = true;
         setTimeout(
-            () => {
+            /* callback: */ () => {
                 this._isScheduled = false;
                 this._render();
             },
-            FrameIntervalInMilliseconds
+            /* delay: */ FRAME_INTERVAL_IN_MILLISECONDS,
         );
     }
 }

@@ -1,8 +1,9 @@
-import { ChangeArea, type ValueChange } from "../../../Contracts/Rules/ValueChange";
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
+import { CHANGE_AREA, type ChangeArea } from '../../../Contracts/Rules/ChangeArea';
+import type { ValueChange } from '../../../Contracts/Rules/ValueChange';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import type { TimelineEntryDetail } from '../../../Contracts/Timeline/TimelineEntryDetail';
 
-const ValueSeparator = "\n";
+const VALUE_SEPARATOR = '\n';
 
 type DetailApplier = (detail: TimelineEntryDetail, change: ValueChange) => TimelineEntryDetail;
 
@@ -12,17 +13,22 @@ function isNamed(header: HeaderEntry, name: string): boolean {
 
 function headersWith(headers: HeaderEntry[], change: ValueChange): HeaderEntry[] {
     const firstIndex = headers.findIndex(header => isNamed(header, change.name));
-    const name = firstIndex === -1 ? change.name : headers[firstIndex]!.name;
-    const replacements = change.after === null
+    const name = headers[firstIndex]?.name ?? change.name;
+    const replacements = change.after == null
         ? []
         : change.after
-            .split(ValueSeparator)
+            .split(VALUE_SEPARATOR)
             .map(value => ({
                 name,
                 value,
             }));
     const others = headers.filter(header => !isNamed(header, change.name));
-    const position = firstIndex === -1 ? others.length : headers.slice(0, firstIndex).filter(header => !isNamed(header, change.name)).length;
+    const position = firstIndex === -1
+        ? others.length
+        : headers
+            .slice(0, firstIndex)
+            .filter(header => !isNamed(header, change.name))
+            .length;
 
     return [
         ...others.slice(0, position),
@@ -31,8 +37,8 @@ function headersWith(headers: HeaderEntry[], change: ValueChange): HeaderEntry[]
     ];
 }
 
-const DetailAppliers: Partial<Record<ChangeArea, DetailApplier>> = {
-    [ChangeArea.Url]: (detail, change) => change.after === null
+const DETAIL_APPLIERS: Partial<Record<ChangeArea, DetailApplier>> = {
+    [CHANGE_AREA.Url]: (detail, change) => change.after == null
         ? detail
         : {
             ...detail,
@@ -41,15 +47,18 @@ const DetailAppliers: Partial<Record<ChangeArea, DetailApplier>> = {
                 url: change.after,
             },
         },
-    [ChangeArea.RequestHeader]: (detail, change) => ({
+    [CHANGE_AREA.RequestHeader]: (detail, change) => ({
         ...detail,
         requestHeaders: headersWith(detail.requestHeaders, change),
     }),
-    [ChangeArea.RequestBody]: (detail, change) => ({
+    [CHANGE_AREA.RequestBody]: (detail, change) => ({
         ...detail,
         requestBody: change.after,
+        requestBodyNote: null,
+        requestBodyBase64: null,
+        requestBodyByteSize: null,
     }),
-    [ChangeArea.Status]: (detail, change) => change.after === null
+    [CHANGE_AREA.Status]: (detail, change) => change.after == null
         ? detail
         : {
             ...detail,
@@ -58,7 +67,7 @@ const DetailAppliers: Partial<Record<ChangeArea, DetailApplier>> = {
                 statusCode: Number(change.after),
             },
         },
-    [ChangeArea.ResponseHeader]: (detail, change) => ({
+    [CHANGE_AREA.ResponseHeader]: (detail, change) => ({
         ...detail,
         responseHeaders: headersWith(detail.responseHeaders, change),
     }),
@@ -67,14 +76,14 @@ const DetailAppliers: Partial<Record<ChangeArea, DetailApplier>> = {
 export const RecordedChanges = {
     applyTo(detail: TimelineEntryDetail): TimelineEntryDetail {
         return detail.changes.reduce(
-            (current, change) => {
-                const applier = DetailAppliers[change.area];
+            /* callbackfn: */ (current, change) => {
+                const applier = DETAIL_APPLIERS[change.area];
 
-                return applier === undefined
+                return applier == null
                     ? current
                     : applier(current, change);
             },
-            detail
+            /* initialValue: */ detail,
         );
     },
 };

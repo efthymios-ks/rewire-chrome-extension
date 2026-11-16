@@ -1,22 +1,20 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { Result } from "../../../Results/Result";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { DnrCondition } from "../../Criteria/DnrFragment";
-import type { RequestDraft } from "../../Drafts/Drafts";
-import { UrlRewrite } from "../../Http/UrlRewrite";
-import type { DnrRuleDraft } from "../DnrRuleDraft";
-import type { FieldSpec } from "../FieldSpec";
-import { RuleTypeBase } from "../RuleTypeBase";
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { Result } from '../../../Results/Result';
+import type { RequestDraft } from '../../Drafts/RequestDraft';
+import { UrlRewrite } from '../../Http/UrlRewrite';
+import type { DnrRuleDraft } from '../DnrRuleDraft';
+import type { FieldSpec } from '../FieldSpec';
+import { type BrowserRulesOptions, type OnRequestOptions, RuleTypeBase } from '../RuleTypeBase';
 
 type UpgradeSchemeAction = Record<string, never>;
 
 export class UpgradeSchemeRule extends RuleTypeBase<UpgradeSchemeAction> {
-    readonly id = RuleTypeIds.UpgradeScheme;
-    readonly category = RuleCategory.UrlAndRedirects;
-    readonly label = "HTTP to HTTPS";
-    readonly description = "Upgrade http requests to https.";
+    readonly id = RULE_TYPE_IDS.UpgradeScheme;
+    readonly category = RULE_CATEGORY.UrlAndRedirects;
+    readonly label = 'HTTP to HTTPS';
+    readonly description = 'Upgrade http requests to https.';
     override readonly handlesRequest = true;
     readonly fields: FieldSpec[] = [];
 
@@ -29,29 +27,23 @@ export class UpgradeSchemeRule extends RuleTypeBase<UpgradeSchemeAction> {
     }
 
     protected describe(_action: UpgradeSchemeAction): string {
-        return "http -> https";
+        return 'http -> https';
     }
 
-    protected override onRequest(
-        draft: RequestDraft,
-        _action: UpgradeSchemeAction,
-        _context: RuleContext
-    ): RequestDraft {
+    protected override onRequest({ draft }: OnRequestOptions<UpgradeSchemeAction>): RequestDraft {
         return {
             ...draft,
             url: UrlRewrite.upgradeScheme(draft.url),
         };
     }
 
-    protected override browserRules(
-        _action: UpgradeSchemeAction,
-        condition: DnrCondition,
-        _context: RuleContext
-    ): Result<DnrRuleDraft[]> {
+    protected override browserRules({
+        condition,
+    }: BrowserRulesOptions<UpgradeSchemeAction>): Result<DnrRuleDraft[]> {
         return Result.ok([
             {
                 action: {
-                    type: "upgradeScheme",
+                    type: 'upgradeScheme',
                 },
                 condition,
             },

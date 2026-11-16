@@ -1,30 +1,30 @@
-import type { Protocol } from "devtools-protocol";
-import { LiveChannelKind } from "../../../Contracts/Live/LiveChannelKind";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { ILiveStore } from "./LiveStore";
+import type { Protocol } from 'devtools-protocol';
+import { LIVE_CHANNEL_KIND } from '../../../Contracts/Live/LiveChannelKind';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { LiveStore } from './LiveStore';
 
-const EventSourceType = "EventSource";
+const EVENT_SOURCE_TYPE = 'EventSource';
 
-export class EventSourceRequestHandler implements ICdpEventHandler<"Network.requestWillBeSent"> {
-    readonly event = "Network.requestWillBeSent";
+export class EventSourceRequestHandler implements CdpEventHandler<'Network.requestWillBeSent'> {
+    readonly event = 'Network.requestWillBeSent';
 
-    private readonly _liveStore: ILiveStore;
+    private readonly _liveStore: LiveStore;
     private readonly _now: () => Date;
 
-    constructor(liveStore: ILiveStore, now: () => Date) {
+    constructor(liveStore: LiveStore, now: () => Date) {
         this._liveStore = liveStore;
         this._now = now;
     }
 
-    async handle(tabId: number, params: Protocol.Network.RequestWillBeSentEvent): Promise<void> {
-        if (params.type !== EventSourceType) {
+    async handleAsync(tabId: number, params: Protocol.Network.RequestWillBeSentEvent): Promise<void> {
+        if (params.type !== EVENT_SOURCE_TYPE) {
             return;
         }
 
         this._liveStore.upsertChannel({
             id: params.requestId,
             tabId,
-            kind: LiveChannelKind.EventStream,
+            kind: LIVE_CHANNEL_KIND.EventStream,
             url: params.request.url,
             isOpen: true,
             isMine: false,

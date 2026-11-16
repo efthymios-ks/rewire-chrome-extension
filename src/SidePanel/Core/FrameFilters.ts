@@ -1,4 +1,4 @@
-export const FrameFilters = {
-    All: "all",
-    Top: "top",
-} as const;
+export const FRAME_FILTERS = Object.freeze({
+    All: 'all',
+    Top: 'top',
+} as const);

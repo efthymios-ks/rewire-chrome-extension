@@ -1,11 +1,12 @@
-import { DefaultSnippetParts } from "../../../Common/CodeGen/RequestSnapshot";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
-import type { ContextMenuItem } from "../../Core/Dom/ContextMenu";
-import { DetailSnippets } from "../Inspector/DetailSnippets";
-import { SnippetMenuItems } from "../Inspector/SnippetMenuItems";
-import type { PanelContext } from "../Shell/PanelContext";
+import { DEFAULT_SNIPPET_PARTS } from '../../../Common/CodeGen/DefaultSnippetParts';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { TimelineEntryDetail } from '../../../Contracts/Timeline/TimelineEntryDetail';
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
+import { copyWithNoticeAsync } from '../../Core/copyWithNoticeAsync';
+import type { ContextMenuItem } from '../../Core/Dom/ContextMenuItem';
+import { DetailSnippets } from '../Inspector/DetailSnippets';
+import { SnippetMenuItems } from '../Inspector/SnippetMenuItems';
+import type { PanelContext } from '../Shell/PanelContext';
 
 export class EntryContextMenu {
     private readonly _context: PanelContext;
@@ -17,22 +18,22 @@ export class EntryContextMenu {
     itemsFor(entry: TimelineEntrySummary): ContextMenuItem[] {
         return [
             {
-                label: "Open in HTTP Client",
-                run: () => void this.openInClient(entry),
+                label: 'Open in HTTP Client',
+                run: () => void this.openInClientAsync(entry),
             },
-            ...SnippetMenuItems.of(snippetId => void this.copy(entry, snippetId)),
+            ...SnippetMenuItems.of(snippetId => void this.copyAsync(entry, snippetId)),
         ];
     }
 
-    private async detailOf(entry: TimelineEntrySummary): Promise<TimelineEntryDetail | null> {
+    private async detailOfAsync(entry: TimelineEntrySummary): Promise<TimelineEntryDetail | null> {
         const { connection, notifier, store } = this._context;
         const selected = store.getState().selectedEntryDetail;
         if (selected?.summary.id === entry.id) {
             return selected;
         }
 
-        const detail = await connection.send<PanelCommandType.GetEntryDetail>({
-            type: PanelCommandType.GetEntryDetail,
+        const detail = await connection.sendAsync<typeof PANEL_COMMAND_TYPE.GetEntryDetail>({
+            type: PANEL_COMMAND_TYPE.GetEntryDetail,
             tabId: entry.tabId,
             entryId: entry.id,
         });
@@ -45,25 +46,28 @@ export class EntryContextMenu {
         return detail.value;
     }
 
-    private async openInClient(entry: TimelineEntrySummary): Promise<void> {
-        const detail = await this.detailOf(entry);
-        if (detail !== null) {
+    private async openInClientAsync(entry: TimelineEntrySummary): Promise<void> {
+        const detail = await this.detailOfAsync(entry);
+        if (detail != null) {
             this._context.viewLauncher.openClient(DetailSnippets.snapshotOf(detail));
         }
     }
 
-    private async copy(entry: TimelineEntrySummary, snippetId: string): Promise<void> {
-        const detail = await this.detailOf(entry);
-        if (detail === null) {
+    private async copyAsync(entry: TimelineEntrySummary, snippetId: string): Promise<void> {
+        const detail = await this.detailOfAsync(entry);
+        if (detail == null) {
             return;
         }
 
-        const snippet = DetailSnippets.of(
-            DetailSnippets.snapshotOf(detail),
+        const snippet = DetailSnippets.of({
+            snapshot: DetailSnippets.snapshotOf(detail),
             snippetId,
-            DefaultSnippetParts
-        );
-        const copied = await this._context.clipboardClient.copy(snippet);
-        this._context.notifier.show(copied.hasErrors ? copied.error : SnippetMenuItems.copiedText(snippetId));
+            options: DEFAULT_SNIPPET_PARTS,
+        });
+        await copyWithNoticeAsync({
+            context: this._context,
+            text: snippet,
+            successMessage: SnippetMenuItems.copiedText(snippetId),
+        });
     }
 }

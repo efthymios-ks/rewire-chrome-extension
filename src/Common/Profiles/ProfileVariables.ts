@@ -1,13 +1,14 @@
-import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
+import type { ProfileVariable } from '../../Contracts/Settings/ProfileVariable';
+import { mergeBy } from '../Collections/mergeBy';
 
-const SecretNameWords = [
-    "auth",
-    "cookie",
-    "key",
-    "pass",
-    "secret",
-    "session",
-    "token",
+const SECRET_NAME_WORDS = [
+    'auth',
+    'cookie',
+    'key',
+    'pass',
+    'secret',
+    'session',
+    'token',
 ];
 
 export const ProfileVariables = {
@@ -25,24 +26,23 @@ export const ProfileVariables = {
     looksSecret(name: string): boolean {
         const lowerName = name.toLowerCase();
 
-        return SecretNameWords.some(word => lowerName.includes(word));
+        return SECRET_NAME_WORDS.some(word => lowerName.includes(word));
     },
 
     withoutSecrets(variables: ProfileVariable[]): ProfileVariable[] {
         return variables.map(variable => ProfileVariables.looksSecret(variable.name)
             ? {
                 ...variable,
-                value: "",
+                value: '',
             }
             : variable);
     },
 
     mergeByName(current: ProfileVariable[], incoming: ProfileVariable[]): ProfileVariable[] {
-        const currentNames = new Set(current.map(variable => variable.name));
-
-        return [
-            ...current.map(variable => incoming.find(candidate => candidate.name === variable.name) ?? variable),
-            ...incoming.filter(variable => !currentNames.has(variable.name)),
-        ];
+        return mergeBy({
+            current,
+            incoming,
+            keyOf: variable => variable.name,
+        });
     },
 };

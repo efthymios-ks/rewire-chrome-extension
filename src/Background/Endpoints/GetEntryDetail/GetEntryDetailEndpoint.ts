@@ -1,24 +1,24 @@
-import { Result } from "../../../Common/Results/Result";
-import type { GetEntryDetailCommand } from "../../../Contracts/Messaging/Commands/GetEntryDetailCommand";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
-import type { ITimelineStore } from "../../Features/Capture/ITimelineStore";
-import { TimelineRecordMapper } from "../../Features/Capture/TimelineRecordMapper";
-import type { IPanelEndpoint } from "../IPanelEndpoint";
+import { Result } from '../../../Common/Results/Result';
+import type { GetEntryDetailCommand } from '../../../Contracts/Messaging/Commands/GetEntryDetailCommand';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { TimelineEntryDetail } from '../../../Contracts/Timeline/TimelineEntryDetail';
+import type { TimelineStore } from '../../Features/Capture/TimelineStore';
+import { TimelineRecordMapper } from '../../Features/Capture/TimelineRecordMapper';
+import type { PanelEndpoint } from '../PanelEndpoint';
 
-export class GetEntryDetailEndpoint implements IPanelEndpoint<PanelCommandType.GetEntryDetail> {
-    readonly commandType = PanelCommandType.GetEntryDetail;
+export class GetEntryDetailEndpoint implements PanelEndpoint<typeof PANEL_COMMAND_TYPE.GetEntryDetail> {
+    readonly commandType = PANEL_COMMAND_TYPE.GetEntryDetail;
 
-    private readonly _timelineStore: ITimelineStore;
+    private readonly _timelineStore: TimelineStore;
 
-    constructor(timelineStore: ITimelineStore) {
+    constructor(timelineStore: TimelineStore) {
         this._timelineStore = timelineStore;
     }
 
-    async handle(command: GetEntryDetailCommand): Promise<Result<TimelineEntryDetail>> {
+    async handleAsync(command: GetEntryDetailCommand): Promise<Result<TimelineEntryDetail>> {
         const record = this._timelineStore.get(command.tabId, command.entryId);
-        if (record === undefined) {
-            return Result.fail("The request is no longer in the timeline.");
+        if (record == null) {
+            return Result.fail('The request is no longer in the timeline.');
         }
 
         return Result.ok(TimelineRecordMapper.toDetail(record));

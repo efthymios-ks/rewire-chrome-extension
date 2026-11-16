@@ -1,13 +1,13 @@
-import { MediaTypes } from "../../Contracts/Http/MediaTypes";
-import { ContentKind } from "../../Contracts/Timeline/ContentKind";
-import type { ContentSignals } from "./ContentSignals";
-import type { IContentKindRule } from "./IContentKindRule";
+import { MEDIA_TYPES } from '../../Contracts/Http/MediaTypes';
+import { CONTENT_KIND } from '../../Contracts/Timeline/ContentKind';
+import type { ContentSignals } from './ContentSignals';
+import type { ContentKindRule } from './ContentKindRule';
 
-export class JsonContentRule implements IContentKindRule {
-    readonly kind = ContentKind.Json;
+export class JsonContentRule implements ContentKindRule {
+    readonly kind = CONTENT_KIND.Json;
 
     matches(signals: ContentSignals): boolean {
-        return signals.responseMimeType.toLowerCase().includes(MediaTypes.JsonMarker)
-            || signals.requestContentType.toLowerCase().includes(MediaTypes.JsonMarker);
+        return signals.responseMimeType.toLowerCase().includes(MEDIA_TYPES.JsonMarker)
+            || signals.requestContentType.toLowerCase().includes(MEDIA_TYPES.JsonMarker);
     }
 }

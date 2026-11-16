@@ -1,77 +1,37 @@
-import type { Protocol } from "devtools-protocol";
-import { TimelineEntryState } from "../../../Contracts/Timeline/TimelineEntryState";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { IBrowserRuleSimulator } from "./BrowserRuleSimulator";
-import { Durations } from "./Durations";
-import type { ITimelineStore } from "./ITimelineStore";
-import type { IPendingDocuments } from "./PendingDocuments";
-import { TimelineAnnotations } from "./TimelineAnnotations";
-import type { ITimelineAdmission } from "./TimelineAdmission";
-import type { TimelineRecord } from "./TimelineRecord";
+import type { Protocol } from 'devtools-protocol';
+import { TIMELINE_ENTRY_STATE } from '../../../Contracts/Timeline/TimelineEntryState';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import { Durations } from './Durations';
+import type { TimelineStore } from './TimelineStore';
 
-const CanceledErrorText = "Canceled";
+const CANCELED_ERROR_TEXT = 'Canceled';
 
-export interface LoadingFailedDependencies {
-    timelineStore: ITimelineStore;
-    pendingDocuments: IPendingDocuments;
-    admission: ITimelineAdmission;
-    browserRuleSimulator: IBrowserRuleSimulator;
-}
+export class LoadingFailedHandler implements CdpEventHandler<'Network.loadingFailed'> {
+    readonly event = 'Network.loadingFailed';
 
-function failed(
-    record: TimelineRecord,
-    errorText: string,
-    endedTimestamp: number
-): TimelineRecord {
-    return {
-        ...record,
-        summary: {
-            ...record.summary,
-            state: TimelineEntryState.Failed,
-            errorText,
-            durationInMilliseconds: Durations.betweenTimestamps(record.startedTimestamp, endedTimestamp),
-        },
-    };
-}
+    private readonly _timelineStore: TimelineStore;
 
-function wasTouchedByRule(pending: TimelineRecord, simulator: IBrowserRuleSimulator): boolean {
-    return TimelineAnnotations.isTouchedByRule(pending) || simulator.onRequest(pending) !== null;
-}
-
-export class LoadingFailedHandler implements ICdpEventHandler<"Network.loadingFailed"> {
-    readonly event = "Network.loadingFailed";
-
-    private readonly _dependencies: LoadingFailedDependencies;
-
-    constructor(dependencies: LoadingFailedDependencies) {
-        this._dependencies = dependencies;
+    constructor(timelineStore: TimelineStore) {
+        this._timelineStore = timelineStore;
     }
 
-    async handle(tabId: number, event: Protocol.Network.LoadingFailedEvent): Promise<void> {
-        const { timelineStore, pendingDocuments, admission, browserRuleSimulator } = this._dependencies;
-        const errorText = event.canceled === true ? CanceledErrorText : event.errorText;
-
-        const pending = pendingDocuments.take(tabId, event.requestId);
-        if (pending !== undefined) {
-            if (wasTouchedByRule(pending, browserRuleSimulator)) {
-                admission.admit(failed(
-                    pending,
-                    errorText,
-                    event.timestamp
-                ));
-            }
-
-            return;
-        }
-
-        timelineStore.update(
+    async handleAsync(tabId: number, event: Protocol.Network.LoadingFailedEvent): Promise<void> {
+        const errorText = event.canceled === true ? CANCELED_ERROR_TEXT : event.errorText;
+        this._timelineStore.update({
             tabId,
-            event.requestId,
-            record => failed(
-                record,
-                errorText,
-                event.timestamp
-            )
-        );
+            entryId: event.requestId,
+            change: record => ({
+                ...record,
+                summary: {
+                    ...record.summary,
+                    state: TIMELINE_ENTRY_STATE.Failed,
+                    errorText,
+                    durationInMilliseconds: Durations.betweenTimestamps(
+                        /* startedTimestamp: */ record.startedTimestamp,
+                        /* endedTimestamp: */ event.timestamp,
+                    ),
+                },
+            }),
+        });
     }
 }

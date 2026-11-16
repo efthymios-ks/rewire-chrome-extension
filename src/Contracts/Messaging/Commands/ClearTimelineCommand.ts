@@ -1,6 +1,6 @@
-import type { PanelCommandType } from "../PanelCommandType";
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface ClearTimelineCommand {
-    type: PanelCommandType.ClearTimeline;
+    type: typeof PANEL_COMMAND_TYPE.ClearTimeline;
     tabId: number;
 }

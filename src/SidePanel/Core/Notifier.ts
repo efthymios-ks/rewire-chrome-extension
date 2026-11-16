@@ -1,7 +1,7 @@
-import type { NoticeAction } from "./Notice";
-import { PanelLimits } from "./PanelLimits";
-import type { PanelState } from "./PanelState";
-import type { Store } from "./Store";
+import type { NoticeAction } from './NoticeAction';
+import { PANEL_LIMITS } from './PanelLimits';
+import type { PanelState } from './PanelState';
+import type { Store } from './Store';
 
 export class Notifier {
     private readonly _store: Store<PanelState>;
@@ -20,11 +20,13 @@ export class Notifier {
             },
         }));
 
-        if (this._clearTimer !== null) {
+        if (this._clearTimer != null) {
             clearTimeout(this._clearTimer);
         }
 
-        const duration = action === null ? PanelLimits.NoticeDurationInMilliseconds : PanelLimits.UndoDurationInMilliseconds;
+        const duration = action == null
+            ? PANEL_LIMITS.NoticeDurationInMilliseconds
+            : PANEL_LIMITS.UndoDurationInMilliseconds;
         this._clearTimer = setTimeout(() => this.dismiss(), duration);
     }
 

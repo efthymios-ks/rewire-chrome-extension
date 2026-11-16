@@ -1,15 +1,15 @@
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { FrameFilters } from "../../Core/FrameFilters";
-import type { PageFrame } from "./PageFrames";
+import { buildElement } from '../../Core/Dom/buildElement';
+import { FRAME_FILTERS } from '../../Core/FrameFilters';
+import type { PageFrame } from './PageFrame';
 
-const FixedOptions = [
+const FIXED_OPTIONS = [
     {
-        value: FrameFilters.All,
-        label: "All frames",
+        value: FRAME_FILTERS.All,
+        label: 'All frames',
     },
     {
-        value: FrameFilters.Top,
-        label: "top",
+        value: FRAME_FILTERS.Top,
+        label: 'top',
     },
 ];
 
@@ -17,24 +17,24 @@ export class FrameSelect {
     readonly root: HTMLSelectElement;
 
     constructor(onChange: (value: string) => void) {
-        this.root = buildElement("select", {
-            className: "input frame-select",
+        this.root = buildElement('select', {
+            className: 'input frame-select',
             attributes: {
-                "aria-label": "Frame",
+                'aria-label': 'Frame',
             },
         });
-        this.root.addEventListener("change", () => onChange(this.root.value));
+        this.root.addEventListener('change', () => onChange(this.root.value));
     }
 
     update(frames: PageFrame[], value: string): void {
         const options = [
-            ...FixedOptions,
+            ...FIXED_OPTIONS,
             ...frames.map(frame => ({
                 value: frame.id,
                 label: frame.label,
             })),
         ];
-        this.root.replaceChildren(...options.map(option => buildElement("option", {
+        this.root.replaceChildren(...options.map(option => buildElement('option', {
             text: option.label,
             attributes: {
                 value: option.value,

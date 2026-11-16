@@ -1,4 +1,4 @@
-export const PanelLimits = {
+export const PANEL_LIMITS = Object.freeze({
     MaxTimelineEntries: 500,
     MaxPinnedEndpoints: 3,
     DetailLoadDelayInMilliseconds: 150,
@@ -9,4 +9,4 @@ export const PanelLimits = {
     ReconnectDelayInMilliseconds: 1000,
     CommandTimeoutInMilliseconds: 30_000,
     TesterDebounceInMilliseconds: 250,
-} as const;
+} as const);

@@ -1,44 +1,37 @@
-import type { Protocol } from "devtools-protocol";
-import { HeaderLookup } from "../../../Common/Http/HeaderLookup";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { IBrowserRuleSimulator } from "./BrowserRuleSimulator";
-import type { ICaptureFilter } from "./CaptureFilter";
-import type { ITimelineStore } from "./ITimelineStore";
-import type { IPendingDocuments } from "./PendingDocuments";
-import type { ITimelineAdmission } from "./TimelineAdmission";
-import type { TimelineRecord } from "./TimelineRecord";
-import type { ITimelineRecordClassifier } from "./TimelineRecordClassifier";
+import type { Protocol } from 'devtools-protocol';
+import { HeaderLookup } from '../../../Common/Http/HeaderLookup';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { BrowserRuleSimulator } from './BrowserRuleSimulator';
+import type { TimelineStore } from './TimelineStore';
+import type { TimelineRecordClassifier } from './TimelineRecordClassifier';
 
-export interface ResponseReceivedDependencies {
-    timelineStore: ITimelineStore;
-    pendingDocuments: IPendingDocuments;
-    admission: ITimelineAdmission;
-    captureFilter: ICaptureFilter;
-    recordClassifier: ITimelineRecordClassifier;
-    browserRuleSimulator: IBrowserRuleSimulator;
+export interface ResponseReceivedHandlerDependencies {
+    timelineStore: TimelineStore;
+    recordClassifier: TimelineRecordClassifier;
+    browserRuleSimulator: BrowserRuleSimulator;
 }
 
-export class ResponseReceivedHandler implements ICdpEventHandler<"Network.responseReceived"> {
-    readonly event = "Network.responseReceived";
+export class ResponseReceivedHandler implements CdpEventHandler<'Network.responseReceived'> {
+    readonly event = 'Network.responseReceived';
 
-    private readonly _dependencies: ResponseReceivedDependencies;
+    private readonly _dependencies: ResponseReceivedHandlerDependencies;
 
-    constructor(dependencies: ResponseReceivedDependencies) {
+    constructor(dependencies: ResponseReceivedHandlerDependencies) {
         this._dependencies = dependencies;
     }
 
-    async handle(tabId: number, event: Protocol.Network.ResponseReceivedEvent): Promise<void> {
+    async handleAsync(tabId: number, event: Protocol.Network.ResponseReceivedEvent): Promise<void> {
         const { timelineStore, recordClassifier, browserRuleSimulator } = this._dependencies;
-        const record = timelineStore.get(tabId, event.requestId) ?? this.admitDocument(tabId, event);
-        if (record === undefined) {
+        const record = timelineStore.get(tabId, event.requestId);
+        if (record == null) {
             return;
         }
 
         const responseHeaders = HeaderLookup.fromRecord(event.response.headers);
-        timelineStore.update(
+        timelineStore.update({
             tabId,
-            event.requestId,
-            current => recordClassifier.reclassify({
+            entryId: event.requestId,
+            change: current => recordClassifier.reclassify({
                 ...current,
                 responseHeaders,
                 summary: {
@@ -47,36 +40,20 @@ export class ResponseReceivedHandler implements ICdpEventHandler<"Network.respon
                     statusText: event.response.statusText,
                     mimeType: event.response.mimeType,
                 },
-            })
-        );
+            }),
+        });
 
         if (record.summary.isAnsweredByRule) {
             return;
         }
 
-        const annotation = browserRuleSimulator.onResponse(
+        const annotation = browserRuleSimulator.simulateResponse({
             record,
-            event.response.status,
-            responseHeaders
-        );
-        if (annotation !== null) {
-            timelineStore.annotate(
-                tabId,
-                event.requestId,
-                annotation
-            );
+            status: event.response.status,
+            headers: responseHeaders,
+        });
+        if (annotation != null) {
+            timelineStore.annotate({ tabId, entryId: event.requestId, annotation });
         }
-    }
-
-    private admitDocument(tabId: number, event: Protocol.Network.ResponseReceivedEvent): TimelineRecord | undefined {
-        const { pendingDocuments, admission, captureFilter } = this._dependencies;
-        const document = pendingDocuments.take(tabId, event.requestId);
-        if (document === undefined || !captureFilter.isDataResponse(event.response.mimeType)) {
-            return undefined;
-        }
-
-        admission.admit(document);
-
-        return document;
     }
 }

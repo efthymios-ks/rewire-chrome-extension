@@ -7,27 +7,28 @@
 .DESCRIPTION
     Makes sure the tools are there first: Node.js (installed with winget when it is missing
     or too old) and the npm packages (restored with npm ci when node_modules is missing or
-    older than package-lock.json). Then type-checks src and tests with tsc, and runs Vitest
-    over the tests folder. For local use and CI; Start-Debug.ps1 and Publish-Extension.ps1
-    call it too.
+    older than package-lock.json). Then type-checks all of src (whatever -Path is), tests
+    included, with tsc --noEmit, and runs Vitest over the *.test.ts files under -Path.
+    Start-Debug.ps1 and Publish-Extension.ps1 call it too.
 
     Exit codes:
       0  all tests passed, or the tools are ready with -InstallOnly
       1  type errors, or one or more tests failed
-      2  no tests were discovered
+      2  -Path does not exist, or holds no *.test.ts files
       3  Node.js is missing or too old and could not be installed, or npm ci failed
 
 .PARAMETER Path
-    Test folder or file to run. Defaults to the tests folder beside this script.
+    Test folder or *.test.ts file to run. Default the src folder beside this script.
 
 .PARAMETER TestName
     Only run tests whose name contains this text, or matches it as a regex.
 
 .PARAMETER Output
-    Vitest output: None, Normal, Detailed. Default Detailed.
+    Vitest output: None (dot reporter), Normal (default reporter) or Detailed (verbose
+    reporter). Default Detailed.
 
 .PARAMETER ResultPath
-    Write JUnit XML test results to this path.
+    Also write JUnit XML test results to this path; its folder is created when missing.
 
 .PARAMETER Watch
     Rerun the affected tests on every save, until Ctrl+C. Skips the type check.
@@ -49,10 +50,13 @@
     ./Invoke-Test.ps1
 
 .EXAMPLE
-    ./Invoke-Test.ps1 -Path ./tests/Common/Redirects -Output Normal
+    ./Invoke-Test.ps1 -Path ./src/Common/Redirects -Output Normal
 
 .EXAMPLE
-    ./Invoke-Test.ps1 -TestName 'compile_Should' -Watch
+    ./Invoke-Test.ps1 -TestName 'compile_When' -Watch
+
+.EXAMPLE
+    ./Invoke-Test.ps1 -ResultPath ./testResults.xml
 
 .EXAMPLE
     ./Invoke-Test.ps1 -InstallOnly
@@ -89,10 +93,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # powershell.exe -File leaves $PSScriptRoot empty in the param defaults of an advanced script.
-if (-not $Path) { $Path = Join-Path -Path $PSScriptRoot -ChildPath 'tests' }
+if (-not $Path) { $Path = Join-Path -Path $PSScriptRoot -ChildPath 'src' }
 
 $script:NodePackageId = 'OpenJS.NodeJS.LTS'
-$script:TestFilePattern = '*Tests.ts'
+$script:TestFilePattern = '*.test.ts'
 $script:Reporters = @{
     None     = 'dot'
     Normal   = 'default'

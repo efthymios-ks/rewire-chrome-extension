@@ -1,6 +1,7 @@
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
 
 interface HeaderRow {
     name: HTMLInputElement;
@@ -8,7 +9,7 @@ interface HeaderRow {
     root: HTMLElement;
 }
 
-const HeadersLabel = "Headers";
+const HEADERS_LABEL = 'Headers';
 
 export class HeaderRowsEditor {
     readonly root: HTMLDetailsElement;
@@ -18,23 +19,23 @@ export class HeaderRowsEditor {
     private _items: HeaderRow[] = [];
 
     constructor() {
-        this._summary = buildElement("summary", {
-            text: `${HeadersLabel} · 0`,
+        this._summary = buildElement('summary', {
+            text: `${HEADERS_LABEL} · 0`,
         });
-        this._rows = buildElement("div", {
-            className: "header-rows",
+        this._rows = buildElement('div', {
+            className: 'header-rows',
         });
-        this.root = buildElement("details", {
-            className: "live-headers",
+        this.root = buildElement('details', {
+            className: 'live-headers',
             children: [
                 this._summary,
                 this._rows,
-                buildElement("div", {
-                    className: "actions",
+                buildElement('div', {
+                    className: 'actions',
                     children: [
                         FormControls.button({
-                            text: "Add header",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Add header',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => this.add(),
                         }),
                     ],
@@ -49,33 +50,34 @@ export class HeaderRowsEditor {
                 name: item.name.value.trim(),
                 value: item.value.value,
             }))
-            .filter(header => header.name !== "");
+            .filter(header => header.name !== '');
     }
 
     private add(): void {
         const item: HeaderRow = {
             name: FormControls.textInput({
-                value: "",
-                placeholder: "Header",
+                value: '',
+                placeholder: 'Header',
                 onInput: () => this.refreshCount(),
             }),
             value: FormControls.textInput({
-                value: "",
-                placeholder: "Value",
+                value: '',
+                placeholder: 'Value',
             }),
-            root: buildElement("div", {
-                className: "header-row",
+            root: buildElement('div', {
+                className: 'header-row',
             }),
         };
         item.root.replaceChildren(
-            item.name,
-            item.value,
-            FormControls.button({
-                text: "×",
-                variant: ButtonVariants.Ghost,
-                title: "Remove header",
+            /* nodes: */ item.name,
+            /* nodes: */ item.value,
+            /* nodes: */ FormControls.button({
+                text: '×',
+                variant: BUTTON_VARIANTS.Ghost,
+                title: 'Remove header',
+                ariaLabel: 'Remove header',
                 onClick: () => this.remove(item),
-            })
+            }),
         );
         this._items = [
             ...this._items,
@@ -94,6 +96,6 @@ export class HeaderRowsEditor {
     }
 
     private refreshCount(): void {
-        this._summary.textContent = `${HeadersLabel} · ${this.values().length}`;
+        this._summary.textContent = `${HEADERS_LABEL} · ${this.values().length}`;
     }
 }

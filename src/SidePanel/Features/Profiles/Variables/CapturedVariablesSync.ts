@@ -1,41 +1,26 @@
-import type { ILogger } from "../../../../Common/Logging/ILogger";
-import type { IRuleVariablesClient } from "../../../../Common/Storage/IRuleVariablesClient";
-import type { ProfileVariable } from "../../../../Contracts/Settings/ProfileVariable";
-import type { PanelState } from "../../../Core/PanelState";
-import type { Store } from "../../../Core/Store";
+import type { Logger } from '../../../../Common/Logging/Logger';
+import type { RuleVariablesClient } from '../../../../Common/Storage/RuleVariablesClient';
+import type { ProfileVariable } from '../../../../Contracts/Settings/ProfileVariable';
+import type { PanelState } from '../../../Core/PanelState';
+import type { Store } from '../../../Core/Store';
+import { StoreSync } from '../../../Core/StoreSync';
 
-export class CapturedVariablesSync {
-    private readonly _store: Store<PanelState>;
-    private readonly _variablesClient: IRuleVariablesClient;
-    private readonly _logger: ILogger;
+export interface CapturedVariablesSyncDependencies {
+    store: Store<PanelState>;
+    variablesClient: RuleVariablesClient;
+    logger: Logger;
+}
 
-    constructor(
-        store: Store<PanelState>,
-        variablesClient: IRuleVariablesClient,
-        logger: ILogger
-    ) {
-        this._store = store;
-        this._variablesClient = variablesClient;
-        this._logger = logger;
-    }
-
-    async start(): Promise<void> {
-        this._variablesClient.subscribe(variables => this.apply(variables));
-
-        const loaded = await this._variablesClient.load();
-        if (loaded.hasErrors) {
-            this._logger.warn(loaded.error);
-
-            return;
-        }
-
-        this.apply(loaded.value);
-    }
-
-    private apply(variables: ProfileVariable[]): void {
-        this._store.update(state => ({
-            ...state,
-            capturedVariables: variables,
-        }));
+export class CapturedVariablesSync extends StoreSync<ProfileVariable[]> {
+    constructor({ store, variablesClient, logger }: CapturedVariablesSyncDependencies) {
+        super({
+            store,
+            source: variablesClient,
+            logFailure: message => logger.warn(message),
+            applyTo: (state, capturedVariables) => ({
+                ...state,
+                capturedVariables,
+            }),
+        });
     }
 }

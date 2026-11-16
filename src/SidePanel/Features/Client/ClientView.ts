@@ -1,77 +1,96 @@
-import { CurlBashSnippet } from "../../../Common/CodeGen/CurlBashSnippet";
-import type { Result } from "../../../Common/Results/Result";
-import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import { ContextMenu } from "../../Core/Dom/ContextMenu";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { MenuButton } from "../../Core/Dom/MenuButton";
-import type { ClientLaunchRequest } from "../../Core/ViewLaunchRequests";
-import { SnippetMenuItems } from "../Inspector/SnippetMenuItems";
-import type { PanelContext } from "../Shell/PanelContext";
-import { ClientBodies } from "./ClientBodies";
-import { ClientForm } from "./ClientForm";
-import type { ClientRequest } from "./ClientRequest";
-import { ClientRequestDraft } from "./ClientRequestDraft";
-import { ClientResponseView } from "./ClientResponseView";
-import { ClientRoutes } from "./ClientRoutes";
-import { ClientSnippets } from "./ClientSnippets";
-import { DebuggerHttpClient } from "./DebuggerHttpClient";
-import { HttpClient, type IHttpClient } from "./HttpClient";
-import { RoutedHttpClient } from "./RoutedHttpClient";
+import { CurlBashSnippet } from '../../../Common/CodeGen/CurlBashSnippet';
+import type { Result } from '../../../Common/Results/Result';
+import type { ClientExchangeResponse } from '../../../Contracts/Messaging/Commands/ClientExchangeResponse';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import { copyWithNoticeAsync } from '../../Core/copyWithNoticeAsync';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { ContextMenu } from '../../Core/Dom/ContextMenu';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { MenuButton } from '../../Core/Dom/MenuButton';
+import type { ClientLaunchRequest } from '../../Core/ViewLaunchRequests/ClientLaunchRequest';
+import { SnippetMenuItems } from '../Inspector/SnippetMenuItems';
+import type { PanelContext } from '../Shell/PanelContext';
+import { ClientBodies } from './ClientBodies';
+import { ClientForm } from './ClientForm';
+import type { ClientRequest } from './ClientRequest';
+import { ClientRequestDraft } from './ClientRequestDraft';
+import { ClientResponseView } from './ClientResponseView';
+import { ClientRoutes } from './ClientRoutes';
+import { ClientSnippets } from './ClientSnippets';
+import { DebuggerHttpClient } from './DebuggerHttpClient';
+import { DefaultHttpClient } from './DefaultHttpClient';
+import type { HttpClient } from './HttpClient';
+import { RoutedHttpClient } from './RoutedHttpClient';
 
-const DefaultMethod = "GET";
+const DEFAULT_METHOD = 'GET';
 
 function defaultRequest(): ClientRequest {
     return {
-        method: DefaultMethod,
-        url: "",
+        method: DEFAULT_METHOD,
+        url: '',
         headers: [],
         body: ClientBodies.empty(),
     };
+}
+
+export interface LogOptions {
+    request: ClientRequest;
+    result: Result<ClientExchangeResponse>;
+    startedAt: string;
 }
 
 export class ClientView {
     readonly root: HTMLElement;
 
     private readonly _context: PanelContext;
-    private readonly _httpClient: IHttpClient;
+    private readonly _httpClient: HttpClient;
     private readonly _form: ClientForm;
     private readonly _response: ClientResponseView;
     private readonly _sendButton: HTMLButtonElement;
     private _isBusy = false;
 
-    constructor(context: PanelContext, httpClient: IHttpClient = new RoutedHttpClient(new HttpClient(), new DebuggerHttpClient(context.connection))) {
+    constructor(
+        context: PanelContext,
+        httpClient: HttpClient = new RoutedHttpClient(
+            /* browser: */ new DefaultHttpClient(),
+            /* viaDebugger: */ new DebuggerHttpClient(context.connection),
+        ),
+    ) {
         this._context = context;
         this._httpClient = httpClient;
         this._form = new ClientForm({
             initial: defaultRequest(),
-            onPasteFilled: () => context.notifier.show("Filled in from the pasted command. Pick any files it names."),
+            onPasteFilled: () => context.notifier.show(
+                'Filled in from the pasted command. Pick any files it names.',
+            ),
         });
         this._response = new ClientResponseView();
         this._sendButton = FormControls.button({
-            text: "Send",
-            variant: ButtonVariants.Primary,
-            onClick: () => void this.send(),
+            text: 'Send',
+            variant: BUTTON_VARIANTS.Primary,
+            onClick: () => void this.sendAsync(),
         });
 
-        this.root = buildElement("section", {
-            className: "client-view",
+        this.root = buildElement('section', {
+            className: 'client-view',
             children: [
-                buildElement("div", {
-                    className: "view-header",
+                buildElement('div', {
+                    className: 'view-header',
                     children: [
-                        buildElement("h2", {
-                            text: "HTTP Client",
+                        buildElement('h2', {
+                            text: 'HTTP Client',
                         }),
-                        buildElement("div", {
-                            className: "actions",
+                        buildElement('div', {
+                            className: 'actions',
                             children: [
                                 MenuButton.build({
-                                    text: "Copy as",
-                                    title: "Copy this request as a command or a script",
+                                    text: 'Copy as',
+                                    title: 'Copy this request as a command or a script',
                                     menu: new ContextMenu(),
-                                    items: () => SnippetMenuItems.of(snippetId => void this.copy(snippetId)),
+                                    items: () => SnippetMenuItems.of(
+                                        snippetId => void this.copyAsync(snippetId),
+                                    ),
                                 }),
                                 this._sendButton,
                             ],
@@ -83,40 +102,43 @@ export class ClientView {
             ],
         });
 
-        context.store.select(
-            state => state.clientLaunch,
-            launch => this.open(launch)
-        );
+        context.store.select({
+            selector: state => state.clientLaunch,
+            listener: launch => this.open(launch),
+        });
     }
 
     private open(launch: ClientLaunchRequest | null): void {
-        if (launch === null) {
+        if (launch == null) {
             return;
         }
 
         this._form.fill(ClientRequestDraft.fromSnippet(CurlBashSnippet.from(launch.snapshot)));
     }
 
-    private async copy(snippetId: string): Promise<void> {
+    private async copyAsync(snippetId: string): Promise<void> {
         const request = this._form.current();
-        if (request.url.trim() === "") {
-            this._context.notifier.show("Enter a URL first.");
+        if (request.url.trim() === '') {
+            this._context.notifier.show('Enter a URL first.');
 
             return;
         }
 
-        const copied = await this._context.clipboardClient.copy(ClientSnippets.of(request, snippetId));
-        this._context.notifier.show(copied.hasErrors ? copied.error : SnippetMenuItems.copiedText(snippetId));
+        await copyWithNoticeAsync({
+            context: this._context,
+            text: ClientSnippets.of(request, snippetId),
+            successMessage: SnippetMenuItems.copiedText(snippetId),
+        });
     }
 
-    private async send(): Promise<void> {
+    private async sendAsync(): Promise<void> {
         if (this._isBusy) {
             return;
         }
 
         const request = this._form.current();
-        if (request.url.trim() === "") {
-            this._context.notifier.show("Enter a URL first.");
+        if (request.url.trim() === '') {
+            this._context.notifier.show('Enter a URL first.');
 
             return;
         }
@@ -126,15 +148,11 @@ export class ClientView {
         this._response.showPending();
 
         const startedAt = new Date().toISOString();
-        const result = await this._httpClient.send(request);
+        const result = await this._httpClient.sendAsync(request);
 
         this._isBusy = false;
         this._sendButton.disabled = false;
-        this.log(
-            request,
-            result,
-            startedAt
-        );
+        this.log({ request, result, startedAt });
         if (result.hasErrors) {
             this._response.showError(result.error);
 
@@ -144,19 +162,15 @@ export class ClientView {
         this._response.showResponse(result.value);
     }
 
-    private log(
-        request: ClientRequest,
-        result: Result<ClientExchangeResponse>,
-        startedAt: string
-    ): void {
+    private log({ request, result, startedAt }: LogOptions): void {
         const tabId = this._context.store.getState().inspectedTab?.tabId;
-        if (tabId === undefined) {
+        if (tabId == null) {
             return;
         }
 
         const sentBody = ClientRoutes.bodySent(request);
-        void this._context.connection.send({
-            type: PanelCommandType.LogClientExchange,
+        void this._context.connection.sendAsync({
+            type: PANEL_COMMAND_TYPE.LogClientExchange,
             entryId: `client-${crypto.randomUUID()}`,
             tabId,
             startedAt,

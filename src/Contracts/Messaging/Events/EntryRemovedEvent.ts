@@ -1,7 +1,7 @@
-import type { WorkerEventType } from "../WorkerEventType";
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface EntryRemovedEvent {
-    type: WorkerEventType.EntryRemoved;
+    type: typeof WORKER_EVENT_TYPE.EntryRemoved;
     tabId: number;
     entryId: string;
 }

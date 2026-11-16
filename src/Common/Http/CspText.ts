@@ -1,19 +1,19 @@
-const PolicySeparator = ",";
-const DirectiveSeparator = ";";
-const DirectiveJoiner = "; ";
-const PolicyJoiner = ", ";
-const NamePattern = /^\s*([^\s]+)/;
+const POLICY_SEPARATOR = ',';
+const DIRECTIVE_SEPARATOR = ';';
+const DIRECTIVE_JOINER = '; ';
+const POLICY_JOINER = ', ';
+const NAME_PATTERN = /^\s*([^\s]+)/;
 
 function nameOf(directive: string): string {
-    return NamePattern.exec(directive)?.[1]?.toLowerCase() ?? "";
+    return NAME_PATTERN.exec(directive)?.[1]?.toLowerCase() ?? '';
 }
 
 function policyWithout(policy: string, directiveName: string): string {
     return policy
-        .split(DirectiveSeparator)
+        .split(DIRECTIVE_SEPARATOR)
         .map(directive => directive.trim())
-        .filter(directive => directive !== "" && nameOf(directive) !== directiveName)
-        .join(DirectiveJoiner);
+        .filter(directive => directive !== '' && nameOf(directive) !== directiveName)
+        .join(DIRECTIVE_JOINER);
 }
 
 export const CspText = {
@@ -21,9 +21,9 @@ export const CspText = {
         const name = directiveName.toLowerCase();
 
         return value
-            .split(PolicySeparator)
+            .split(POLICY_SEPARATOR)
             .map(policy => policyWithout(policy, name))
-            .filter(policy => policy !== "")
-            .join(PolicyJoiner);
+            .filter(policy => policy !== '')
+            .join(POLICY_JOINER);
     },
 };

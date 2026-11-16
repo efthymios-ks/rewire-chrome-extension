@@ -1,12 +1,14 @@
-import { FrameLabels } from "../../Contracts/Live/FrameLabels";
-import { SafeUrl } from "./SafeUrl";
+import { FRAME_LABELS } from '../../Contracts/Live/FrameLabels';
+import { SafeUrl } from './SafeUrl';
 
 export const FrameLabel = {
     ofUrl(url: string): string {
-        return SafeUrl.parse(url)?.hostname || url;
+        const hostname = SafeUrl.parse(url)?.hostname ?? '';
+
+        return hostname === '' ? url : hostname;
     },
 
     of(url: string, isTop: boolean): string {
-        return isTop ? FrameLabels.Top : FrameLabel.ofUrl(url);
+        return isTop ? FRAME_LABELS.Top : FrameLabel.ofUrl(url);
     },
 };

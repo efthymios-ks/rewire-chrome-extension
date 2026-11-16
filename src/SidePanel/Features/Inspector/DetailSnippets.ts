@@ -1,6 +1,13 @@
-import type { RequestSnapshot, SnippetOptions } from "../../../Common/CodeGen/RequestSnapshot";
-import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
-import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
+import type { RequestSnapshot } from '../../../Common/CodeGen/RequestSnapshot';
+import { RequestSnippets } from '../../../Common/CodeGen/RequestSnippets';
+import type { SnippetOptions } from '../../../Common/CodeGen/SnippetOptions';
+import type { TimelineEntryDetail } from '../../../Contracts/Timeline/TimelineEntryDetail';
+
+export interface DetailSnippetsOfOptions {
+    snapshot: RequestSnapshot;
+    snippetId: string;
+    options: SnippetOptions;
+}
 
 export const DetailSnippets = {
     snapshotOf(detail: TimelineEntryDetail): RequestSnapshot {
@@ -12,11 +19,7 @@ export const DetailSnippets = {
         };
     },
 
-    of(
-        snapshot: RequestSnapshot,
-        snippetId: string,
-        options: SnippetOptions
-    ): string {
+    of({ snapshot, snippetId, options }: DetailSnippetsOfOptions): string {
         return RequestSnippets
             .get(snippetId)
             .from(snapshot, options)

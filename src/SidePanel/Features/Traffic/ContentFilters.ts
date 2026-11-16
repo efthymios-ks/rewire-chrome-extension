@@ -1,6 +1,8 @@
-import { ContentKind } from "../../../Contracts/Timeline/ContentKind";
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
-import { ContentFilterId } from "../../Core/ContentFilterId";
+import { CONTENT_KIND } from '../../../Contracts/Timeline/ContentKind';
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
+import { CONTENT_FILTER_ID, type ContentFilterId } from '../../Core/ContentFilterId';
+
+const DOCUMENT_RESOURCE_TYPE = 'Document';
 
 export interface ContentFilterDefinition {
     id: ContentFilterId;
@@ -8,25 +10,31 @@ export interface ContentFilterDefinition {
     accepts(entry: TimelineEntrySummary): boolean;
 }
 
-export const ContentFilters: ContentFilterDefinition[] = [
+export const CONTENT_FILTERS: ContentFilterDefinition[] = [
     {
-        id: ContentFilterId.All,
-        label: "All",
+        id: CONTENT_FILTER_ID.All,
+        label: 'All',
         accepts: () => true,
     },
     {
-        id: ContentFilterId.Json,
-        label: "JSON",
-        accepts: entry => entry.contentKind === ContentKind.Json,
+        id: CONTENT_FILTER_ID.Json,
+        label: 'JSON',
+        accepts: entry => entry.contentKind === CONTENT_KIND.Json,
     },
     {
-        id: ContentFilterId.GraphQl,
-        label: "GraphQL",
-        accepts: entry => entry.contentKind === ContentKind.GraphQl,
+        id: CONTENT_FILTER_ID.GraphQl,
+        label: 'GraphQL',
+        accepts: entry => entry.contentKind === CONTENT_KIND.GraphQl,
     },
     {
-        id: ContentFilterId.FormData,
-        label: "Form Data",
-        accepts: entry => entry.contentKind === ContentKind.FormData,
+        id: CONTENT_FILTER_ID.FormData,
+        label: 'Form Data',
+        accepts: entry => entry.contentKind === CONTENT_KIND.FormData,
+    },
+    // A page navigation is a request type, not a content kind, so a form post shows under Form Data too.
+    {
+        id: CONTENT_FILTER_ID.Document,
+        label: 'Document',
+        accepts: entry => entry.resourceType === DOCUMENT_RESOURCE_TYPE,
     },
 ];

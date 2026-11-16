@@ -1,47 +1,46 @@
-import type { RuleCriteria } from "../../../../Contracts/Rules/Criterion";
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { RequestDraft } from "../../Drafts/Drafts";
-import { ActionReader } from "../ActionReader";
-import { FieldKind, type FieldSpec } from "../FieldSpec";
-import { RuleChecks } from "../RuleChecks";
-import { RuleTypeBase } from "../RuleTypeBase";
-import { RegexDestination } from "./RegexDestination";
+import { HEADER_NAMES } from '../../../../Contracts/Http/HeaderNames';
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import type { RuleCriteria } from '../../../../Contracts/Rules/RuleCriteria';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import type { RequestDraft } from '../../Drafts/RequestDraft';
+import { ActionReader } from '../ActionReader';
+import { FIELD_KIND } from '../FieldKind';
+import type { FieldSpec } from '../FieldSpec';
+import { RuleChecks } from '../RuleChecks';
+import { type OnRequestOptions, RuleTypeBase } from '../RuleTypeBase';
+import { DEFAULT_REDIRECT_STATUS } from './DefaultRedirectStatus';
+import { RegexDestination } from './RegexDestination';
 
 interface RedirectStatusOption {
     code: number;
     label: string;
 }
 
-const RedirectStatusOptions: readonly RedirectStatusOption[] = [
+const REDIRECT_STATUS_OPTIONS: readonly RedirectStatusOption[] = [
     {
         code: 301,
-        label: "301 Moved Permanently",
+        label: '301 Moved Permanently',
     },
     {
         code: 302,
-        label: "302 Found",
+        label: '302 Found',
     },
     {
         code: 303,
-        label: "303 See Other",
+        label: '303 See Other',
     },
     {
         code: 307,
-        label: "307 Temporary Redirect",
+        label: '307 Temporary Redirect',
     },
     {
         code: 308,
-        label: "308 Permanent Redirect",
+        label: '308 Permanent Redirect',
     },
 ];
 
-export const DefaultRedirectStatus = 308;
-
-const TargetLabel = "Location URL";
-const LocationHeader = "Location";
+const TARGET_LABEL = 'Location URL';
 
 interface RedirectAction {
     target: string;
@@ -49,31 +48,31 @@ interface RedirectAction {
 }
 
 function statusOf(action: RuleAction): number {
-    const status = Number(action["status"] ?? DefaultRedirectStatus);
-    const codes: readonly number[] = RedirectStatusOptions.map(option => option.code);
+    const status = Number(action['status'] ?? DEFAULT_REDIRECT_STATUS);
+    const codes: readonly number[] = REDIRECT_STATUS_OPTIONS.map(option => option.code);
 
-    return codes.includes(status) ? status : DefaultRedirectStatus;
+    return codes.includes(status) ? status : DEFAULT_REDIRECT_STATUS;
 }
 
 export class RedirectRule extends RuleTypeBase<RedirectAction> {
-    readonly id = RuleTypeIds.Redirect;
-    readonly category = RuleCategory.UrlAndRedirects;
-    readonly label = "Redirect";
-    readonly description = "Answer matching requests with an HTTP redirect (status + Location header). The browser follows it.";
+    readonly id = RULE_TYPE_IDS.Redirect;
+    readonly category = RULE_CATEGORY.UrlAndRedirects;
+    readonly label = 'Redirect';
+    readonly description = 'Answer matching requests with an HTTP redirect (status + Location header). The browser follows it.';
     override readonly handlesRequest = true;
     readonly fields: FieldSpec[] = [
         {
-            kind: FieldKind.Text,
-            key: "target",
-            label: TargetLabel,
-            placeholder: "https://example.com/$1",
-            hint: "$1 to $9 insert the groups of a URL condition that matches a regex. Can use {{variables}}.",
+            kind: FIELD_KIND.Text,
+            key: 'target',
+            label: TARGET_LABEL,
+            placeholder: 'https://example.com/$1',
+            hint: '$1 to $9 insert the groups of a URL condition that matches a regex. Can use {{variables}}.',
         },
         {
-            kind: FieldKind.Select,
-            key: "status",
-            label: "Status",
-            options: RedirectStatusOptions.map(option => ({
+            kind: FIELD_KIND.Select,
+            key: 'status',
+            label: 'Status',
+            options: REDIRECT_STATUS_OPTIONS.map(option => ({
                 value: String(option.code),
                 label: option.label,
             })),
@@ -82,14 +81,14 @@ export class RedirectRule extends RuleTypeBase<RedirectAction> {
 
     protected defaults(): RedirectAction {
         return {
-            target: "",
-            status: DefaultRedirectStatus,
+            target: '',
+            status: DEFAULT_REDIRECT_STATUS,
         };
     }
 
     protected read(action: RuleAction): RedirectAction {
         return {
-            target: ActionReader.text(action, "target"),
+            target: ActionReader.text({ raw: action, key: 'target' }),
             status: statusOf(action),
         };
     }
@@ -99,23 +98,23 @@ export class RedirectRule extends RuleTypeBase<RedirectAction> {
     }
 
     protected override check(action: RedirectAction, criteria: RuleCriteria): string[] {
-        const required = RuleChecks.required(action.target, TargetLabel);
+        const required = RuleChecks.required(action.target, TARGET_LABEL);
 
         return required.length > 0 ? required : RegexDestination.groupErrorsOf(action.target, criteria);
     }
 
-    protected override onRequest(
-        draft: RequestDraft,
-        action: RedirectAction,
-        context: RuleContext,
-        criteria: RuleCriteria
-    ): RequestDraft {
-        const url = RegexDestination.resolve(
-            draft.url,
-            context.render(action.target),
-            criteria
-        );
-        if (url === null) {
+    protected override onRequest({
+        draft,
+        action,
+        context,
+        criteria,
+    }: OnRequestOptions<RedirectAction>): RequestDraft {
+        const url = RegexDestination.resolve({
+            url: draft.url,
+            target: context.render(action.target),
+            criteria,
+        });
+        if (url == null) {
             return draft;
         }
 
@@ -125,11 +124,11 @@ export class RedirectRule extends RuleTypeBase<RedirectAction> {
                 status: action.status,
                 headers: [
                     {
-                        name: LocationHeader,
+                        name: HEADER_NAMES.Location,
                         value: url,
                     },
                 ],
-                body: "",
+                body: '',
             },
         };
     }

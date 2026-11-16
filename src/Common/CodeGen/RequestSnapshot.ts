@@ -1,4 +1,4 @@
-import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
+import type { HeaderEntry } from '../../Contracts/Timeline/HeaderEntry';
 
 export interface RequestSnapshot {
     method: string;
@@ -6,29 +6,3 @@ export interface RequestSnapshot {
     headers: HeaderEntry[];
     body: string | null;
 }
-
-export interface SnippetOptions {
-    excludedHeaders: string[];
-    excludedCookies: string[];
-    excludedQueryParams: string[];
-    includeBody: boolean;
-}
-
-const CacheValidatorHeaders = [
-    "if-none-match",
-    "if-modified-since",
-];
-
-export const DefaultSnippetParts: SnippetOptions = {
-    excludedHeaders: [...CacheValidatorHeaders],
-    excludedCookies: [],
-    excludedQueryParams: [],
-    includeBody: true,
-};
-
-export const AllSnippetParts: SnippetOptions = {
-    excludedHeaders: [],
-    excludedCookies: [],
-    excludedQueryParams: [],
-    includeBody: true,
-};

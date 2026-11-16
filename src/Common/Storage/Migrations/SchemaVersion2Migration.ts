@@ -1,8 +1,13 @@
-import { CriterionFieldIds, CriterionOperatorIds } from "../../../Contracts/Rules/Criterion";
-import { RuleTypeIds } from "../../../Contracts/Rules/RuleTypeIds";
-import { RegexText } from "../../Urls/RegexText";
-import { WildcardPattern } from "../../Urls/WildcardPattern";
-import { OperationKinds } from "../../Rules/Types/OperationKinds";
+import { CRITERION_FIELD_IDS } from '../../../Contracts/Rules/CriterionFieldIds';
+import { CRITERION_OPERATOR_IDS } from '../../../Contracts/Rules/CriterionOperatorIds';
+import { RULE_TYPE_IDS } from '../../../Contracts/Rules/RuleTypeId';
+import { OwnEntry } from '../../Objects/OwnEntry';
+import { RawRecords } from '../../Objects/RawRecords';
+import { RegexText } from '../../Urls/RegexText';
+import { WildcardPattern } from '../../Urls/WildcardPattern';
+import { OPERATION_KINDS } from '../../Rules/Types/OperationKinds';
+import { LegacyBaseUrl } from './LegacyBaseUrl';
+import { StoredRuleRecords } from './StoredRuleRecords';
 
 type RawRecord = Record<string, unknown>;
 
@@ -11,214 +16,195 @@ interface StoredRule {
     isActiveProfile: boolean;
 }
 
-const LegacyTypeIds = {
-    AuthToken: "authToken",
-    RegexRedirect: "regexRedirect",
-    RedirectWithStatus: "redirectWithStatus",
-    AddQueryParams: "addQueryParams",
-    RemoveQueryParams: "removeQueryParams",
-    StatusOverride: "statusOverride",
-} as const;
+const LEGACY_TYPE_IDS = Object.freeze({
+    AuthToken: 'authToken',
+    RegexRedirect: 'regexRedirect',
+    RedirectWithStatus: 'redirectWithStatus',
+    AddQueryParams: 'addQueryParams',
+    RemoveQueryParams: 'removeQueryParams',
+    StatusOverride: 'statusOverride',
+} as const);
 
-const LegacyOperatorIds = {
-    Equals: "equals",
-    Contains: "contains",
-    BaseUrl: "baseUrl",
-} as const;
+const LEGACY_OPERATOR_IDS = Object.freeze({
+    Equals: 'equals',
+    Contains: 'contains',
+    BaseUrl: 'baseUrl',
+} as const);
 
-const SimulatedFieldIds = [
-    "device",
-    "clientIp",
-    "country",
+const SIMULATED_FIELD_IDS = [
+    'device',
+    'clientIp',
+    'country',
 ];
 
-const HeaderOperationNames: Record<string, string> = {
-    set: OperationKinds.AddOrUpdate,
-    append: OperationKinds.Add,
-    remove: OperationKinds.Remove,
-};
+const HEADER_OPERATION_NAMES: Record<string, string> = Object.freeze({
+    set: OPERATION_KINDS.AddOrUpdate,
+    append: OPERATION_KINDS.Add,
+    remove: OPERATION_KINDS.Remove,
+});
 
-const CookieOperationNames: Record<string, string> = {
-    set: OperationKinds.AddOrUpdate,
-    add: OperationKinds.Add,
-    modify: OperationKinds.AddOrUpdate,
-    remove: OperationKinds.Remove,
-};
+const COOKIE_OPERATION_NAMES: Record<string, string> = Object.freeze({
+    set: OPERATION_KINDS.AddOrUpdate,
+    add: OPERATION_KINDS.Add,
+    modify: OPERATION_KINDS.AddOrUpdate,
+    remove: OPERATION_KINDS.Remove,
+});
 
-const DelayKey = "delayMs";
-const LatencySuffix = " latency";
-const TrailingSlashesPattern = /\/+$/;
-
-function isRecord(value: unknown): value is RawRecord {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function text(record: RawRecord, key: string): string {
-    const value = record[key];
-
-    return typeof value === "string" ? value : "";
-}
-
-function records(record: RawRecord, key: string): RawRecord[] {
-    const value = record[key];
-
-    return Array.isArray(value) ? value.filter(isRecord) : [];
-}
+const DELAY_KEY = 'delayMs';
+const LATENCY_SUFFIX = ' latency';
 
 function strings(record: RawRecord, key: string): string[] {
     const value = record[key];
 
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-function actionOf(rule: RawRecord): RawRecord {
-    return isRecord(rule["action"]) ? rule["action"] : {};
-}
-
-function criteriaOf(rule: RawRecord): RawRecord {
-    return isRecord(rule["criteria"]) ? rule["criteria"] : {};
-}
-
-function withCriterion(rule: RawRecord, criterion: RawRecord): RawRecord {
-    const criteria = criteriaOf(rule);
-
-    return {
-        ...rule,
-        criteria: {
-            ...criteria,
-            items: [
-                ...records(criteria, "items"),
-                criterion,
-            ],
-        },
-    };
-}
+const { actionOf, criteriaOf, withCriterion } = StoredRuleRecords;
 
 function renamedOperations(action: RawRecord, names: Record<string, string>): RawRecord[] {
-    return records(action, "operations").map(operation => ({
+    return RawRecords.records(action, 'operations').map(operation => ({
         ...operation,
-        op: names[text(operation, "op")] ?? OperationKinds.AddOrUpdate,
+        op: OwnEntry.of(names, RawRecords.text(operation, 'op')) ?? OPERATION_KINDS.AddOrUpdate,
     }));
 }
 
 type TypeMigration = (rule: RawRecord) => RawRecord;
 
-const TypeMigrations: Record<string, TypeMigration> = {
-    [LegacyTypeIds.AuthToken]: rule => {
+const TYPE_MIGRATIONS: Record<string, TypeMigration> = {
+    [LEGACY_TYPE_IDS.AuthToken]: rule => {
         const action = actionOf(rule);
-        const scheme = text(action, "scheme");
-        const token = text(action, "token");
+        const scheme = RawRecords.text(action, 'scheme');
+        const token = RawRecords.text(action, 'token');
+        const headerName = RawRecords.text(action, 'headerName');
 
         return {
             ...rule,
-            type: RuleTypeIds.RequestHeader,
+            type: RULE_TYPE_IDS.RequestHeader,
             action: {
                 operations: [
                     {
-                        op: OperationKinds.AddOrUpdate,
-                        name: text(action, "headerName") || "Authorization",
-                        value: scheme === "" ? token : `${scheme} ${token}`,
+                        op: OPERATION_KINDS.AddOrUpdate,
+                        name: headerName === '' ? 'Authorization' : headerName,
+                        value: scheme === '' ? token : `${scheme} ${token}`,
                     },
                 ],
             },
         };
     },
-    [LegacyTypeIds.RegexRedirect]: rule => {
+    [LEGACY_TYPE_IDS.RegexRedirect]: rule => {
         const action = actionOf(rule);
 
         return withCriterion(
-            {
+            /* rule: */ {
                 ...rule,
-                type: RuleTypeIds.Redirect,
+                type: RULE_TYPE_IDS.Redirect,
                 action: {
-                    target: text(action, "template"),
+                    target: RawRecords.text(action, 'template'),
                     status: 0,
                 },
             },
-            {
-                field: CriterionFieldIds.Url,
-                op: CriterionOperatorIds.Regex,
-                name: "",
-                value: text(action, "regex"),
+            /* criterion: */ {
+                field: CRITERION_FIELD_IDS.Url,
+                op: CRITERION_OPERATOR_IDS.Regex,
+                name: '',
+                value: RawRecords.text(action, 'regex'),
                 negate: false,
-            }
+            },
         );
     },
-    [LegacyTypeIds.RedirectWithStatus]: rule => {
+    [LEGACY_TYPE_IDS.RedirectWithStatus]: rule => {
         const action = actionOf(rule);
 
         return {
             ...rule,
-            type: RuleTypeIds.Redirect,
+            type: RULE_TYPE_IDS.Redirect,
             action: {
-                target: text(action, "targetUrl"),
-                status: action["status"] ?? 0,
+                target: RawRecords.text(action, 'targetUrl'),
+                status: action['status'] ?? 0,
             },
         };
     },
-    [LegacyTypeIds.AddQueryParams]: rule => ({
+    [LEGACY_TYPE_IDS.AddQueryParams]: rule => ({
         ...rule,
-        type: RuleTypeIds.QueryParams,
+        type: RULE_TYPE_IDS.QueryParams,
         action: {
-            operations: records(actionOf(rule), "params").map(param => ({
-                op: OperationKinds.AddOrUpdate,
-                name: text(param, "key"),
-                value: text(param, "value"),
+            operations: RawRecords.records(
+                /* record: */ actionOf(rule),
+                /* key: */ 'params',
+            ).map(param => ({
+                op: OPERATION_KINDS.AddOrUpdate,
+                name: RawRecords.text(param, 'key'),
+                value: RawRecords.text(param, 'value'),
             })),
         },
     }),
-    [LegacyTypeIds.RemoveQueryParams]: rule => ({
+    [LEGACY_TYPE_IDS.RemoveQueryParams]: rule => ({
         ...rule,
-        type: RuleTypeIds.QueryParams,
+        type: RULE_TYPE_IDS.QueryParams,
         action: {
-            operations: strings(actionOf(rule), "keys").map(key => ({
-                op: OperationKinds.Remove,
+            operations: strings(
+                /* record: */ actionOf(rule),
+                /* key: */ 'keys',
+            ).map(key => ({
+                op: OPERATION_KINDS.Remove,
                 name: key,
-                value: "",
+                value: '',
             })),
         },
     }),
-    [LegacyTypeIds.StatusOverride]: rule => ({
+    [LEGACY_TYPE_IDS.StatusOverride]: rule => ({
         ...rule,
-        type: RuleTypeIds.MockResponse,
+        type: RULE_TYPE_IDS.MockResponse,
         action: {
             overrideStatus: true,
-            status: actionOf(rule)["status"],
+            status: actionOf(rule)['status'],
             overrideBody: false,
-            contentType: "",
+            contentType: '',
             headers: [],
-            body: "",
+            body: '',
         },
     }),
-    [RuleTypeIds.RequestHeader]: rule => ({
+    [RULE_TYPE_IDS.RequestHeader]: rule => ({
         ...rule,
         action: {
             ...actionOf(rule),
-            operations: renamedOperations(actionOf(rule), HeaderOperationNames),
+            operations: renamedOperations(
+                /* action: */ actionOf(rule),
+                /* names: */ HEADER_OPERATION_NAMES,
+            ),
         },
     }),
-    [RuleTypeIds.ResponseHeader]: rule => ({
+    [RULE_TYPE_IDS.ResponseHeader]: rule => ({
         ...rule,
         action: {
             ...actionOf(rule),
-            operations: renamedOperations(actionOf(rule), HeaderOperationNames),
+            operations: renamedOperations(
+                /* action: */ actionOf(rule),
+                /* names: */ HEADER_OPERATION_NAMES,
+            ),
         },
     }),
-    [RuleTypeIds.RequestCookie]: rule => ({
+    [RULE_TYPE_IDS.RequestCookie]: rule => ({
         ...rule,
         action: {
             ...actionOf(rule),
-            op: CookieOperationNames[text(actionOf(rule), "op")] ?? OperationKinds.AddOrUpdate,
+            op: OwnEntry.of(
+                /* table: */ COOKIE_OPERATION_NAMES,
+                /* key: */ RawRecords.text(actionOf(rule), 'op'),
+            ) ?? OPERATION_KINDS.AddOrUpdate,
         },
     }),
-    [RuleTypeIds.ResponseCookie]: rule => ({
+    [RULE_TYPE_IDS.ResponseCookie]: rule => ({
         ...rule,
         action: {
             ...actionOf(rule),
-            op: CookieOperationNames[text(actionOf(rule), "op")] ?? OperationKinds.Add,
+            op: OwnEntry.of(
+                /* table: */ COOKIE_OPERATION_NAMES,
+                /* key: */ RawRecords.text(actionOf(rule), 'op'),
+            ) ?? OPERATION_KINDS.Add,
         },
     }),
-    [RuleTypeIds.MockResponse]: rule => ({
+    [RULE_TYPE_IDS.MockResponse]: rule => ({
         ...rule,
         action: {
             ...actionOf(rule),
@@ -228,47 +214,47 @@ const TypeMigrations: Record<string, TypeMigration> = {
     }),
 };
 
-const KeptTypeIds: string[] = Object.values(RuleTypeIds);
+const KEPT_TYPE_IDS: string[] = Object.values(RULE_TYPE_IDS);
 
 type OperatorMigration = (value: string) => {
     op: string;
     value: string;
 };
 
-const OperatorMigrations: Record<string, OperatorMigration> = {
-    [LegacyOperatorIds.Equals]: value => ({
-        op: CriterionOperatorIds.Wildcard,
+const OPERATOR_MIGRATIONS: Record<string, OperatorMigration> = {
+    [LEGACY_OPERATOR_IDS.Equals]: value => ({
+        op: CRITERION_OPERATOR_IDS.Wildcard,
         value: WildcardPattern.escape(value),
     }),
-    [LegacyOperatorIds.Contains]: value => ({
-        op: CriterionOperatorIds.Wildcard,
+    [LEGACY_OPERATOR_IDS.Contains]: value => ({
+        op: CRITERION_OPERATOR_IDS.Wildcard,
         value: `*${WildcardPattern.escape(value)}*`,
     }),
-    [LegacyOperatorIds.BaseUrl]: value => ({
-        op: CriterionOperatorIds.Regex,
-        value: `^${RegexText.escape(value.trim().replace(TrailingSlashesPattern, ""))}(?:[/?#].*)?$`,
+    [LEGACY_OPERATOR_IDS.BaseUrl]: value => ({
+        op: CRITERION_OPERATOR_IDS.Regex,
+        value: `^${RegexText.escape(LegacyBaseUrl.trimmed(value))}(?:[/?#].*)?$`,
     }),
 };
 
 function migratedCriterion(criterion: RawRecord): RawRecord {
-    const migration = OperatorMigrations[text(criterion, "op")];
+    const migration = OwnEntry.of(OPERATOR_MIGRATIONS, RawRecords.text(criterion, 'op'));
 
-    return migration === undefined
+    return migration == null
         ? criterion
         : {
             ...criterion,
-            ...migration(text(criterion, "value")),
+            ...migration(RawRecords.text(criterion, 'value')),
         };
 }
 
 function migratedCriteria(rule: RawRecord): RawRecord {
     const criteria = criteriaOf(rule);
-    const items = records(criteria, "items");
-    const kept = items.filter(item => !SimulatedFieldIds.includes(text(item, "field")));
+    const items = RawRecords.records(criteria, 'items');
+    const kept = items.filter(item => !SIMULATED_FIELD_IDS.includes(RawRecords.text(item, 'field')));
 
     return {
         ...rule,
-        enabled: kept.length === items.length ? rule["enabled"] : false,
+        enabled: kept.length === items.length ? rule['enabled'] : false,
         criteria: {
             ...criteria,
             items: kept.map(migratedCriterion),
@@ -278,12 +264,12 @@ function migratedCriteria(rule: RawRecord): RawRecord {
 
 function withoutDelay(rule: RawRecord): RawRecord[] {
     const action = actionOf(rule);
-    const delay = action[DelayKey];
-    if (rule["type"] === RuleTypeIds.Delay || typeof delay !== "number") {
+    const delay = action[DELAY_KEY];
+    if (rule['type'] === RULE_TYPE_IDS.Delay || typeof delay !== 'number') {
         return [rule];
     }
 
-    const { [DelayKey]: _removed, ...rest } = action;
+    const { [DELAY_KEY]: _removed, ...rest } = action;
     const plain = {
         ...rule,
         action: rest,
@@ -295,11 +281,11 @@ function withoutDelay(rule: RawRecord): RawRecord[] {
     return [
         {
             ...rule,
-            id: `${text(rule, "id")}-latency`,
-            name: `${text(rule, "name")}${LatencySuffix}`,
-            type: RuleTypeIds.Delay,
+            id: `${RawRecords.text(rule, 'id')}-latency`,
+            name: `${RawRecords.text(rule, 'name')}${LATENCY_SUFFIX}`,
+            type: RULE_TYPE_IDS.Delay,
             action: {
-                [DelayKey]: delay,
+                [DELAY_KEY]: delay,
             },
         },
         plain,
@@ -307,13 +293,16 @@ function withoutDelay(rule: RawRecord): RawRecord[] {
 }
 
 function typedRule(rule: RawRecord): RawRecord {
-    const migration = TypeMigrations[text(rule, "type")];
+    const migration = OwnEntry.of(TYPE_MIGRATIONS, RawRecords.text(rule, 'type'));
 
-    return migration === undefined ? rule : migration(rule);
+    return migration == null ? rule : migration(rule);
 }
 
 function isKept(rule: RawRecord): boolean {
-    return KeptTypeIds.includes(text(typedRule(rule), "type"));
+    return KEPT_TYPE_IDS.includes(RawRecords.text(
+        /* record: */ typedRule(rule),
+        /* key: */ 'type',
+    ));
 }
 
 function migratedRule(stored: StoredRule): RawRecord[] {
@@ -326,18 +315,20 @@ function migratedRule(stored: StoredRule): RawRecord[] {
 
         return {
             ...rule,
-            enabled: stored.isActiveProfile ? rule["enabled"] : false,
+            enabled: stored.isActiveProfile ? rule['enabled'] : false,
         };
     });
 }
 
 export const SchemaVersion2Migration = {
     rulesOf(settings: RawRecord): RawRecord[] {
-        const activeProfileId = text(settings, "activeProfileId");
+        const activeProfileId = RawRecords.text(settings, 'activeProfileId');
 
-        return records(settings, "rules").flatMap(rule => migratedRule({
+        return RawRecords.records(settings, 'rules').flatMap(rule => migratedRule({
             rule,
-            isActiveProfile: activeProfileId === "" || text(rule, "profileId") === "" || text(rule, "profileId") === activeProfileId,
+            isActiveProfile: activeProfileId === ''
+                || RawRecords.text(rule, 'profileId') === ''
+                || RawRecords.text(rule, 'profileId') === activeProfileId,
         }));
     },
 };

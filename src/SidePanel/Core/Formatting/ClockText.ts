@@ -1,9 +1,9 @@
-const TwoDigits = 2;
-const ThreeDigits = 3;
-const Zero = "0";
+const TWO_DIGITS = 2;
+const THREE_DIGITS = 3;
+const ZERO = '0';
 
 function padded(value: number, digits: number): string {
-    return String(value).padStart(digits, Zero);
+    return String(value).padStart(digits, ZERO);
 }
 
 function clockOf(date: Date): string {
@@ -12,20 +12,25 @@ function clockOf(date: Date): string {
         date.getUTCMinutes(),
         date.getUTCSeconds(),
     ]
-        .map(part => padded(part, TwoDigits))
-        .join(":");
+        .map(part => padded(part, TWO_DIGITS))
+        .join(':');
 }
 
 export const ClockText = {
     of(iso: string): string {
         const date = new Date(iso);
 
-        return Number.isNaN(date.getTime()) ? "" : clockOf(date);
+        return Number.isNaN(date.getTime()) ? '' : clockOf(date);
     },
 
     precise(iso: string): string {
         const date = new Date(iso);
 
-        return Number.isNaN(date.getTime()) ? "" : `${clockOf(date)}.${padded(date.getUTCMilliseconds(), ThreeDigits)}`;
+        return Number.isNaN(date.getTime())
+            ? ''
+            : `${clockOf(date)}.${padded(
+                /* value: */ date.getUTCMilliseconds(),
+                /* digits: */ THREE_DIGITS,
+            )}`;
     },
 };

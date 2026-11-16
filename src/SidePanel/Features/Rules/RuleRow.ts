@@ -1,17 +1,19 @@
-import type { RulePlan } from "../../../Common/Rules/Engine/RulePlan";
-import type { Rule } from "../../../Contracts/Rules/Rule";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { RuleScopes, ScopeAppearances } from "./RuleScopes";
+import type { RulePlan } from '../../../Common/Rules/Engine/RulePlan';
+import type { Rule } from '../../../Contracts/Rules/Rule';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { RuleScopes } from './RuleScopes';
+import { SCOPE_APPEARANCES } from './ScopeAppearance';
 
-const DragHandleGlyph = "⠿";
-const MoveKeys: Record<string, number> = {
+const DRAG_HANDLE_GLYPH = '⠿';
+const MOVE_KEYS: Record<string, number> = Object.freeze({
     ArrowUp: -1,
     ArrowDown: 1,
-};
+});
 
 export interface RuleRowActions {
-    onToggle(rule: Rule, enabled: boolean): void;
+    onToggle(rule: Rule, isEnabled: boolean): void;
     onEdit(rule: Rule): void;
     onDuplicate(rule: Rule): void;
     onRemove(rule: Rule): void;
@@ -26,24 +28,24 @@ export interface RuleRowModel {
     hits: number;
 }
 
-const DragDataType = "text/plain";
+const DRAG_DATA_TYPE = 'text/plain';
 
 export const RuleRow = {
     build(model: RuleRowModel, actions: RuleRowActions): HTMLLIElement {
         const { rule, plan } = model;
-        const appearance = ScopeAppearances[plan.engine];
-        const handle = buildElement("button", {
-            className: "drag-handle",
-            text: DragHandleGlyph,
-            title: "Drag, or focus and press the arrow keys, to reorder",
+        const appearance = SCOPE_APPEARANCES[plan.engine];
+        const handle = buildElement('button', {
+            className: 'drag-handle',
+            text: DRAG_HANDLE_GLYPH,
+            title: 'Drag, or focus and press the arrow keys, to reorder',
             attributes: {
-                type: "button",
-                "aria-label": `Reorder ${rule.name}`,
+                type: 'button',
+                'aria-label': `Reorder ${rule.name}`,
             },
             listeners: {
                 keydown: event => {
-                    const offset = MoveKeys[event.key];
-                    if (offset === undefined) {
+                    const offset = MOVE_KEYS[event.key];
+                    if (offset == null) {
                         return;
                     }
 
@@ -53,28 +55,29 @@ export const RuleRow = {
             },
         });
 
-        const row = buildElement("li", {
-            className: rule.enabled ? "rule-row" : "rule-row disabled",
+        const row = buildElement('li', {
+            className: 'rule-row',
             attributes: {
-                draggable: "true",
-                "data-rule-id": rule.id,
+                draggable: 'true',
+                'data-rule-id': rule.id,
+                ...(rule.enabled ? {} : { 'data-disabled': '' }),
             },
             listeners: {
                 dragstart: event => {
-                    event.dataTransfer?.setData(DragDataType, rule.id);
-                    row.classList.add("dragging");
+                    event.dataTransfer?.setData(DRAG_DATA_TYPE, rule.id);
+                    row.toggleAttribute('data-dragging', true);
                 },
-                dragend: () => row.classList.remove("dragging"),
+                dragend: () => row.toggleAttribute('data-dragging', false),
                 dragover: event => {
                     event.preventDefault();
-                    row.classList.add("drop-target");
+                    row.toggleAttribute('data-drop-target', true);
                 },
-                dragleave: () => row.classList.remove("drop-target"),
+                dragleave: () => row.toggleAttribute('data-drop-target', false),
                 drop: event => {
                     event.preventDefault();
-                    row.classList.remove("drop-target");
-                    const draggedRuleId = event.dataTransfer?.getData(DragDataType) ?? "";
-                    if (draggedRuleId !== "" && draggedRuleId !== rule.id) {
+                    row.toggleAttribute('data-drop-target', false);
+                    const draggedRuleId = event.dataTransfer?.getData(DRAG_DATA_TYPE) ?? '';
+                    if (draggedRuleId !== '' && draggedRuleId !== rule.id) {
                         actions.onDrop(draggedRuleId, rule);
                     }
                 },
@@ -83,68 +86,68 @@ export const RuleRow = {
                 handle,
                 FormControls.toggleSwitch({
                     checked: rule.enabled,
-                    label: "",
-                    onChange: enabled => actions.onToggle(rule, enabled),
+                    label: '',
+                    onChange: isEnabled => actions.onToggle(rule, isEnabled),
                 }),
-                buildElement("div", {
-                    className: "rule-main",
+                buildElement('div', {
+                    className: 'rule-main',
                     children: [
-                        buildElement("div", {
-                            className: "rule-title",
+                        buildElement('div', {
+                            className: 'rule-title',
                             children: [
-                                buildElement("span", {
-                                    className: "rule-name",
-                                    text: rule.name || model.typeLabel,
+                                buildElement('span', {
+                                    className: 'rule-name',
+                                    text: rule.name === '' ? model.typeLabel : rule.name,
                                 }),
-                                buildElement("span", {
-                                    className: "type-badge",
+                                buildElement('span', {
+                                    className: 'type-badge',
                                     text: model.typeLabel,
                                 }),
-                                buildElement("span", {
+                                buildElement('span', {
                                     className: `scope-badge ${appearance.className}`,
                                     text: appearance.label,
                                     title: [
                                         plan.reason,
                                         ...plan.errors,
-                                    ].join("\n"),
+                                    ].join('\n'),
                                 }),
-                                buildElement("span", {
-                                    className: "hit-count",
+                                buildElement('span', {
+                                    className: 'hit-count',
                                     text: String(model.hits),
                                     title: `${model.hits} hits since the browser started`,
                                 }),
                             ],
                         }),
-                        buildElement("div", {
-                            className: "rule-target",
+                        buildElement('div', {
+                            className: 'rule-target',
                             text: RuleScopes.criteriaSummary(rule),
                             title: RuleScopes.criteriaSummary(rule),
                         }),
                     ],
                 }),
-                buildElement("div", {
-                    className: "row-actions",
+                buildElement('div', {
+                    className: 'row-actions',
                     children: [
                         FormControls.button({
-                            text: "Edit",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Edit',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => actions.onEdit(rule),
                         }),
                         FormControls.button({
-                            text: "Duplicate",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Duplicate',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => actions.onDuplicate(rule),
                         }),
                         FormControls.button({
-                            text: "Remove",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Remove',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => actions.onRemove(rule),
                         }),
                     ],
                 }),
             ],
         });
-        row.querySelector(".switch input")?.setAttribute("aria-label", `Enable ${rule.name}`);
+        row.querySelector('.switch input')?.setAttribute('aria-label', `Enable ${rule.name}`);
 
         return row;
     },

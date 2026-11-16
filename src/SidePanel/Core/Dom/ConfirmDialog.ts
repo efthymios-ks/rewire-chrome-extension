@@ -1,5 +1,6 @@
-import { buildElement } from "./ElementBuilder";
-import { ButtonVariants, FormControls } from "./FormControls";
+import { buildElement } from './buildElement';
+import { BUTTON_VARIANTS } from './ButtonVariants';
+import { FormControls } from './FormControls';
 
 export interface ConfirmArguments {
     title: string;
@@ -8,48 +9,51 @@ export interface ConfirmArguments {
 }
 
 export const ConfirmDialog = {
-    ask(args: ConfirmArguments): Promise<boolean> {
+    askAsync(args: ConfirmArguments): Promise<boolean> {
         return new Promise(resolve => {
-            const dialog = buildElement("dialog", {
-                className: "confirm-dialog",
+            const dialog = buildElement('dialog', {
+                className: 'confirm-dialog',
             });
-            const finish = (confirmed: boolean): void => {
+            const finish = (isConfirmed: boolean): void => {
                 if (!dialog.isConnected) {
                     return;
                 }
 
                 dialog.close();
                 dialog.remove();
-                resolve(confirmed);
+                resolve(isConfirmed);
             };
-            dialog.addEventListener("cancel", event => {
-                event.preventDefault();
-                finish(false);
-            });
+            dialog.addEventListener(
+                /* type: */ 'cancel',
+                /* listener: */ event => {
+                    event.preventDefault();
+                    finish(false);
+                },
+            );
             const cancel = FormControls.button({
-                text: "Cancel",
-                variant: ButtonVariants.Ghost,
+                text: 'Cancel',
+                variant: BUTTON_VARIANTS.Ghost,
                 onClick: () => finish(false),
             });
             dialog.append(
-                buildElement("h2", {
-                    className: "confirm-title",
+                /* nodes: */ buildElement('h2', {
+                    className: 'confirm-title',
                     text: args.title,
                 }),
-                buildElement("p", {
+                /* nodes: */ buildElement('p', {
                     text: args.message,
                 }),
-                buildElement("div", {
-                    className: "actions",
+                /* nodes: */ buildElement('div', {
+                    className: 'actions',
                     children: [
                         FormControls.button({
                             text: args.confirmText,
-                            variant: ButtonVariants.Danger,
+                            variant: BUTTON_VARIANTS.Danger,
                             onClick: () => finish(true),
                         }),
                         cancel,
                     ],
-                })
+                }),
             );
             document.body.append(dialog);
             dialog.showModal();

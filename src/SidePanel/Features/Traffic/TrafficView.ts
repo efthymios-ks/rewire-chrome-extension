@@ -1,15 +1,15 @@
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { TrafficLayout } from "../../Core/TrafficLayout";
-import { InspectorPanel } from "../Inspector/InspectorPanel";
-import type { PanelContext } from "../Shell/PanelContext";
-import { PinnedShelf } from "./PinnedShelf";
-import { SplitPane } from "./SplitPane";
-import { TimelineList } from "./TimelineList";
-import { TrafficSearchBar } from "./TrafficSearchBar";
-import { TrafficToolbar } from "./TrafficToolbar";
-import { WaterfallView } from "./WaterfallView";
+import { buildElement } from '../../Core/Dom/buildElement';
+import { TRAFFIC_LAYOUT } from '../../Core/TrafficLayout';
+import { InspectorPanel } from '../Inspector/InspectorPanel';
+import type { PanelContext } from '../Shell/PanelContext';
+import { PinnedShelf } from './PinnedShelf';
+import { SplitPane } from './SplitPane';
+import { TimelineList } from './TimelineList';
+import { TrafficSearchBar } from './TrafficSearchBar';
+import { TrafficToolbar } from './TrafficToolbar';
+import { WaterfallView } from './WaterfallView';
 
-const NoSelections = 0;
+const NO_SELECTIONS = 0;
 
 export class TrafficView {
     readonly root: HTMLElement;
@@ -18,41 +18,41 @@ export class TrafficView {
         const list = new TimelineList(context).root;
         const waterfall = new WaterfallView(context).root;
         const splitPane = new SplitPane(
-            buildElement("div", {
-                className: "traffic-main",
+            /* first: */ buildElement('div', {
+                className: 'traffic-main',
                 children: [
                     list,
                     waterfall,
                 ],
             }),
-            new InspectorPanel(context).root
+            /* second: */ new InspectorPanel(context).root,
         );
 
-        this.root = buildElement("section", {
-            className: "traffic-view",
+        this.root = buildElement('section', {
+            className: 'traffic-view',
             children: [
                 new PinnedShelf(context).root,
-                new TrafficToolbar(context).root,
+                new TrafficToolbar({ context }).root,
                 new TrafficSearchBar(context).root,
                 splitPane.root,
             ],
         });
 
-        context.store.select(
-            state => state.selectionCount,
-            count => {
-                if (count > NoSelections) {
+        context.store.select({
+            selector: state => state.selectionCount,
+            listener: count => {
+                if (count > NO_SELECTIONS) {
                     splitPane.expand();
                 }
-            }
-        );
+            },
+        });
 
-        context.store.select(
-            state => state.trafficLayout,
-            layout => {
-                list.hidden = layout !== TrafficLayout.List;
-                waterfall.hidden = layout !== TrafficLayout.Waterfall;
-            }
-        );
+        context.store.select({
+            selector: state => state.trafficLayout,
+            listener: layout => {
+                list.hidden = layout !== TRAFFIC_LAYOUT.List;
+                waterfall.hidden = layout !== TRAFFIC_LAYOUT.Waterfall;
+            },
+        });
     }
 }

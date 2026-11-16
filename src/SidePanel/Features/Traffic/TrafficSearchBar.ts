@@ -1,41 +1,69 @@
-import type { SearchQuery } from "../../../Contracts/Search/SearchQuery";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { FormControls } from "../../Core/Dom/FormControls";
-import type { PanelContext } from "../Shell/PanelContext";
-import { SearchStatusText } from "./SearchStatusText";
+import type { SearchQuery } from '../../../Contracts/Search/SearchQuery';
+import { type SearchScope, SEARCH_SCOPES } from '../../../Contracts/Search/SearchScope';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { type CheckChoice, CheckDropdown } from '../../Core/Dom/CheckDropdown';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { Equalities } from '../../Core/Equalities';
+import type { PanelContext } from '../Shell/PanelContext';
+import { SearchStatusText } from './SearchStatusText';
 
-const EnterKey = "Enter";
+const SCOPE_CHOICES: readonly CheckChoice<SearchScope>[] = Object.freeze([
+    {
+        key: SEARCH_SCOPES.Url,
+        label: 'URL',
+        title: 'Search the URL without its query string',
+    },
+    {
+        key: SEARCH_SCOPES.Query,
+        label: 'Query',
+        title: 'Search the query string',
+    },
+    {
+        key: SEARCH_SCOPES.RequestHeaders,
+        label: 'Request Headers',
+        title: 'Search request header names and values',
+    },
+    {
+        key: SEARCH_SCOPES.RequestBody,
+        label: 'Request Body',
+        title: 'Search the request body',
+    },
+    {
+        key: SEARCH_SCOPES.RequestCookies,
+        label: 'Request Cookies',
+        title: 'Search the names and values of the cookies the request sends',
+    },
+    {
+        key: SEARCH_SCOPES.ResponseHeaders,
+        label: 'Response Headers',
+        title: 'Search response header names and values',
+    },
+    {
+        key: SEARCH_SCOPES.ResponseBody,
+        label: 'Response Body',
+        title: 'Search the response body',
+    },
+    {
+        key: SEARCH_SCOPES.ResponseCookies,
+        label: 'Response Cookies',
+        title: 'Search the names and values of the cookies the response sets',
+    },
+]);
 
-function toggleChip(
-    text: string,
-    title: string,
-    onClick: () => void
-): HTMLButtonElement {
-    return buildElement("button", {
-        className: "chip",
+interface ToggleChipOptions {
+    text: string;
+    title: string;
+    onClick: () => void;
+}
+
+function toggleChip({ text, title, onClick }: ToggleChipOptions): HTMLButtonElement {
+    return buildElement('button', {
+        className: 'chip',
         text,
         title,
         attributes: {
-            type: "button",
-        },
-        listeners: {
-            click: onClick,
-        },
-    });
-}
-
-function stepButton(
-    glyph: string,
-    title: string,
-    onClick: () => void
-): HTMLButtonElement {
-    return buildElement("button", {
-        className: "button button-ghost icon-button",
-        text: glyph,
-        title,
-        attributes: {
-            type: "button",
-            "aria-label": title,
+            type: 'button',
+            'aria-label': title,
         },
         listeners: {
             click: onClick,
@@ -54,69 +82,67 @@ export class TrafficSearchBar {
             ...patch,
         });
 
-        const input = FormControls.textInput({
+        const searchBox = FormControls.searchInput({
             value: current().text,
-            placeholder: "Search URLs, headers, bodies",
-            className: "input traffic-search",
+            placeholder: 'Search',
+            ariaLabel: 'Search traffic',
+            className: 'traffic-search',
             onInput: text => update({
                 text,
             }),
         });
-        input.setAttribute("aria-label", "Search traffic");
-        input.addEventListener("keydown", event => {
-            if (event.key !== EnterKey) {
-                return;
-            }
 
-            event.preventDefault();
-            search.step(event.shiftKey ? -1 : 1);
-        });
-
-        const regexChip = toggleChip(
-            ".*",
-            "Regular expression",
-            () => update({
+        const regexChip = toggleChip({
+            text: '.*',
+            title: 'Regular expression',
+            onClick: () => update({
                 isRegex: !current().isRegex,
-            })
-        );
-        const status = buildElement("span", {
-            className: "search-status",
+            }),
+        });
+        const scopeDropdown = new CheckDropdown({
+            label: 'Search in',
+            choices: SCOPE_CHOICES,
+            selected: current().scopes,
+            onChange: scopes => update({
+                scopes,
+            }),
+        });
+        const status = buildElement('span', {
+            className: 'search-status',
             attributes: {
-                "aria-live": "polite",
+                'aria-live': 'polite',
             },
         });
 
-        const previousButton = stepButton(
-            "↑",
-            "Previous match (Shift+Enter)",
-            () => search.step(-1)
-        );
-        const nextButton = stepButton(
-            "↓",
-            "Next match (Enter)",
-            () => search.step(1)
-        );
-
-        this.root = buildElement("div", {
-            className: "traffic-search-bar",
+        this.root = buildElement('div', {
+            className: 'traffic-search-bar',
             children: [
-                input,
+                searchBox,
                 status,
-                previousButton,
-                nextButton,
                 regexChip,
+                scopeDropdown.root,
             ],
         });
 
-        context.store.select(
-            state => state.search,
-            state => {
-                regexChip.setAttribute("aria-pressed", String(state.query.isRegex));
-                status.classList.toggle("form-error", state.error !== null);
+        context.store.select({
+            selector: state => [
+                state.search,
+                state.entries,
+                state.contentFilter,
+                state.frameFilter,
+            ],
+            listener: () => {
+                const state = context.store.getState();
+                const query = state.search.query;
+                regexChip.setAttribute(
+                    /* qualifiedName: */ 'aria-pressed',
+                    /* value: */ String(query.isRegex),
+                );
+                scopeDropdown.setSelected(query.scopes);
+                status.toggleAttribute('data-error', state.search.error != null);
                 status.textContent = SearchStatusText.of(state);
-                previousButton.disabled = state.matches.length === 0;
-                nextButton.disabled = state.matches.length === 0;
-            }
-        );
+            },
+            isEqual: Equalities.shallowArray,
+        });
     }
 }

@@ -1,4 +1,4 @@
-import type { RegexQuantifier } from "./RegexQuantifier";
+import type { RegexQuantifier } from './RegexQuantifier';
 
 export interface RegexFrame {
     id: number;

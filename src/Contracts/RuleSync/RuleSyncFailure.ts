@@ -1,5 +1,5 @@
 export interface RuleSyncFailure {
     sourceName: string;
-    settingId: string;
+    ruleId: string;
     message: string;
 }

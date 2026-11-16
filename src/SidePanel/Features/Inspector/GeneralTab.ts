@@ -1,24 +1,29 @@
-import { ChangeArea } from "../../../Contracts/Rules/ValueChange";
-import { SearchFields } from "../../../Contracts/Search/SearchQuery";
-import type { TimelineEntryDetail } from "../../../Contracts/Timeline/TimelineEntryDetail";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { DurationText } from "../../Core/Formatting/DurationText";
-import { StatusAppearance } from "../../Core/Formatting/StatusAppearance";
-import { UtcText } from "../../Core/Formatting/UtcText";
-import { InspectorTabId } from "../../Core/InspectorTabId";
-import type { PanelState } from "../../Core/PanelState";
-import { RuleFactory } from "../Rules/RuleFactory";
-import type { PanelContext } from "../Shell/PanelContext";
-import { AppliedRuleText } from "../Traffic/AppliedRuleText";
-import { ContentKindLabels } from "../Traffic/ContentKindLabels";
-import { DetailSections } from "./DetailSections";
-import type { IInspectorTab } from "./IInspectorTab";
+import { CHANGE_AREA } from '../../../Contracts/Rules/ChangeArea';
+import { SEARCH_FIELDS } from '../../../Contracts/Search/SearchField';
+import type { TimelineEntryDetail } from '../../../Contracts/Timeline/TimelineEntryDetail';
+import { copyWithNoticeAsync } from '../../Core/copyWithNoticeAsync';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { DurationText } from '../../Core/Formatting/DurationText';
+import { StatusAppearance } from '../../Core/Formatting/StatusAppearance';
+import { UtcText } from '../../Core/Formatting/UtcText';
+import { INSPECTOR_TAB_ID } from '../../Core/InspectorTabId';
+import type { PanelState } from '../../Core/PanelState';
+import { RuleFactory } from '../Rules/RuleFactory';
+import type { PanelContext } from '../Shell/PanelContext';
+import { AppliedRuleText } from '../Traffic/AppliedRuleText';
+import { CONTENT_KIND_LABELS } from '../Traffic/ContentKindLabels';
+import { DetailSections } from './DetailSections';
+import type { InspectorTab } from './InspectorTab';
 
-export class GeneralTab implements IInspectorTab {
-    readonly id = InspectorTabId.General;
-    readonly label = "General";
-    readonly searchFields = [SearchFields.Url];
+export class GeneralTab implements InspectorTab {
+    readonly id = INSPECTOR_TAB_ID.General;
+    readonly label = 'General';
+    readonly searchFields = [
+        SEARCH_FIELDS.Url,
+        SEARCH_FIELDS.Query,
+    ];
 
     private readonly _context: PanelContext;
 
@@ -37,64 +42,60 @@ export class GeneralTab implements IInspectorTab {
         const changes = detail.changes;
         const appliedRules = AppliedRuleText.unique(summary.appliedRules);
 
-        return buildElement("div", {
-            className: "general-tab",
+        return buildElement('div', {
+            className: 'general-tab',
             children: [
                 this.actionsFor(detail),
                 DetailSections.definitions([
                     {
-                        term: "URL",
+                        term: 'URL',
                         value: summary.url,
-                        change: DetailSections.changeOf(
-                            changes,
-                            ChangeArea.Url,
-                            "url"
-                        ),
+                        change: DetailSections.changeOf({ changes, area: CHANGE_AREA.Url, name: 'url' }),
                     },
                     {
-                        term: "Method",
+                        term: 'Method',
                         value: summary.method,
                     },
                     {
-                        term: "Status",
+                        term: 'Status',
                         value: StatusAppearance.describeOf(summary),
-                        change: DetailSections.changeOf(
+                        change: DetailSections.changeOf({
                             changes,
-                            ChangeArea.Status,
-                            "status"
-                        ),
+                            area: CHANGE_AREA.Status,
+                            name: 'status',
+                        }),
                     },
                     {
-                        term: "Type",
-                        value: `${summary.resourceType} ${ContentKindLabels[summary.contentKind]}`.trim(),
+                        term: 'Type',
+                        value: `${summary.resourceType} ${CONTENT_KIND_LABELS[summary.contentKind]}`.trim(),
                     },
                     {
-                        term: "Started",
+                        term: 'Started',
                         value: UtcText.ofText(summary.startedAt),
                     },
                     {
-                        term: "Duration",
+                        term: 'Duration',
                         value: DurationText.of(summary.durationInMilliseconds),
                     },
                     {
-                        term: "Redirected from",
-                        value: summary.redirectedFromUrl ?? "",
+                        term: 'Redirected from',
+                        value: summary.redirectedFromUrl ?? '',
                     },
                     {
-                        term: "Error",
-                        value: summary.errorText ?? "",
+                        term: 'Error',
+                        value: summary.errorText ?? '',
                     },
                 ]),
                 appliedRules.length === 0
                     ? null
-                    : buildElement("div", {
-                        className: "applied-rules",
+                    : buildElement('div', {
+                        className: 'applied-rules',
                         children: [
-                            buildElement("h4", {
-                                text: summary.isAnsweredByRule ? "Answered by rules" : "Applied rules",
+                            buildElement('h4', {
+                                text: summary.isAnsweredByRule ? 'Answered by rules' : 'Applied rules',
                             }),
-                            buildElement("ul", {
-                                children: appliedRules.map(rule => buildElement("li", {
+                            buildElement('ul', {
+                                children: appliedRules.map(rule => buildElement('li', {
                                     text: AppliedRuleText.describe(rule),
                                 })),
                             }),
@@ -105,34 +106,39 @@ export class GeneralTab implements IInspectorTab {
     }
 
     private actionsFor(detail: TimelineEntryDetail): HTMLElement {
-        const { settingsService, clipboardClient, notifier, ruleEditor } = this._context;
+        const { settingsService, ruleEditor } = this._context;
         const isPinned = settingsService.current().pinnedEndpoints.includes(detail.summary.endpointKey);
 
         const features = this._context.trafficFeatures;
 
-        return buildElement("div", {
-            className: "actions",
+        return buildElement('div', {
+            className: 'actions',
             children: [
                 features.canMock
                     ? FormControls.button({
-                        text: "Mock this",
-                        variant: ButtonVariants.Primary,
-                        title: "Open a mock rule prefilled from this response",
-                        onClick: () => ruleEditor.open(RuleFactory.mockOf(detail), true),
+                        text: 'Mock this',
+                        variant: BUTTON_VARIANTS.Primary,
+                        title: 'Open a mock rule prefilled from this response',
+                        onClick: () => ruleEditor.open(
+                            /* rule: */ RuleFactory.mockOf(detail),
+                            /* isNew: */ true,
+                        ),
                     })
                     : null,
                 features.canPin
                     ? FormControls.button({
-                        text: isPinned ? "Unpin" : "Pin",
-                        onClick: () => void settingsService.togglePin(detail.summary.endpointKey),
+                        text: isPinned ? 'Unpin' : 'Pin',
+                        onClick: () => void settingsService.togglePinAsync(detail.summary.endpointKey),
                     })
                     : null,
                 FormControls.button({
-                    text: "Copy URL",
-                    variant: ButtonVariants.Ghost,
-                    onClick: () => void clipboardClient
-                        .copy(detail.summary.url)
-                        .then(copied => notifier.show(copied.hasErrors ? copied.error : "URL copied.")),
+                    text: 'Copy URL',
+                    variant: BUTTON_VARIANTS.Ghost,
+                    onClick: () => copyWithNoticeAsync({
+                        context: this._context,
+                        text: detail.summary.url,
+                        successMessage: 'URL copied.',
+                    }),
                 }),
             ],
         });

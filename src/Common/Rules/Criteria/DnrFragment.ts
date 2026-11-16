@@ -1,44 +1,16 @@
-export type DnrCondition = chrome.declarativeNetRequest.RuleCondition;
-
-export enum DnrFragmentKind {
-    Condition = 1,
-    Regex = 2,
-    Unsupported = 3,
-}
+import type { DnrCondition } from './DnrCondition';
+import type { DNR_FRAGMENT_KIND } from './DnrFragmentKind';
 
 export type DnrFragment =
     | {
-        kind: DnrFragmentKind.Condition;
+        kind: typeof DNR_FRAGMENT_KIND.Condition;
         patch: DnrCondition;
     }
     | {
-        kind: DnrFragmentKind.Regex;
+        kind: typeof DNR_FRAGMENT_KIND.Regex;
         source: string;
     }
     | {
-        kind: DnrFragmentKind.Unsupported;
+        kind: typeof DNR_FRAGMENT_KIND.Unsupported;
         reason: string;
     };
-
-export const DnrFragments = {
-    condition(patch: DnrCondition): DnrFragment {
-        return {
-            kind: DnrFragmentKind.Condition,
-            patch,
-        };
-    },
-
-    regex(source: string): DnrFragment {
-        return {
-            kind: DnrFragmentKind.Regex,
-            source,
-        };
-    },
-
-    unsupported(reason: string): DnrFragment {
-        return {
-            kind: DnrFragmentKind.Unsupported,
-            reason,
-        };
-    },
-};

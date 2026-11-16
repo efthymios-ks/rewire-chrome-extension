@@ -1,17 +1,10 @@
-import type { RulePlan } from "../../../Common/Rules/Engine/RulePlan";
-import { RuleEngine } from "../../../Contracts/Rules/RuleEngine";
-import type { RuleSyncFailure } from "../../../Contracts/RuleSync/RuleSyncFailure";
+import type { RulePlan } from '../../../Common/Rules/Engine/RulePlan';
+import { RULE_ENGINE } from '../../../Contracts/Rules/RuleEngine';
+import type { RuleSyncFailure } from '../../../Contracts/RuleSync/RuleSyncFailure';
+import { BROWSER_RULE_PRIORITIES } from './BrowserRulePriorities';
+import type { DnrRuleOwner } from './DnrRuleOwner';
 
-export const BrowserRulePriorities = {
-    FirstRule: 1,
-} as const;
-
-const FirstDnrRuleId = 1;
-
-export interface DnrRuleOwner {
-    dnrRuleId: number;
-    ruleId: string;
-}
+const FIRST_DNR_RULE_ID = 1;
 
 export interface CompiledRule {
     rule: chrome.declarativeNetRequest.Rule;
@@ -26,33 +19,36 @@ export interface BrowserRuleSet {
 
 export const BrowserRuleCompiler = {
     compile(plans: RulePlan[]): BrowserRuleSet {
-        let nextId = FirstDnrRuleId;
-        const rules: CompiledRule[] = [];
         const failures: RuleSyncFailure[] = [];
-
-        plans.forEach((plan, index) => {
-            const sourceName = plan.rule.name || plan.type?.label || plan.rule.type;
-            if (plan.engine === RuleEngine.Invalid) {
+        const placedDrafts = plans.flatMap((plan, index) => {
+            const sourceName = plan.rule.name === '' ? (plan.type?.label ?? plan.rule.type) : plan.rule.name;
+            if (plan.engine === RULE_ENGINE.Invalid) {
                 failures.push({
                     sourceName,
-                    settingId: plan.rule.id,
+                    ruleId: plan.rule.id,
                     message: plan.reason,
                 });
 
-                return;
+                return [];
             }
 
-            plan.browserRules.forEach(draft => rules.push({
-                rule: {
-                    id: nextId++,
-                    priority: BrowserRulePriorities.FirstRule + index,
-                    action: draft.action,
-                    condition: draft.condition,
-                },
+            return plan.browserRules.map(draft => ({
+                draft,
+                priority: BROWSER_RULE_PRIORITIES.FirstRule + index,
                 sourceName,
                 settingId: plan.rule.id,
             }));
         });
+        const rules: CompiledRule[] = placedDrafts.map((placed, position) => ({
+            rule: {
+                id: FIRST_DNR_RULE_ID + position,
+                priority: placed.priority,
+                action: placed.draft.action,
+                condition: placed.draft.condition,
+            },
+            sourceName: placed.sourceName,
+            settingId: placed.settingId,
+        }));
 
         return {
             rules,

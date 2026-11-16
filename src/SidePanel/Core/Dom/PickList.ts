@@ -1,4 +1,4 @@
-import { buildElement } from "./ElementBuilder";
+import { buildElement } from './buildElement';
 
 export interface PickChoice {
     key: string;
@@ -12,20 +12,20 @@ export interface PickListArguments {
     onChange: (excluded: string[]) => void;
 }
 
-const AllLabel = "All";
+const ALL_LABEL = 'All';
 
 function checkboxRow(text: string, title: string): { row: HTMLLabelElement; input: HTMLInputElement } {
-    const input = buildElement("input", {
+    const input = buildElement('input', {
         attributes: {
-            type: "checkbox",
+            type: 'checkbox',
         },
     });
-    const row = buildElement("label", {
-        className: "checkbox pick-item",
+    const row = buildElement('label', {
+        className: 'checkbox pick-item',
         title,
         children: [
             input,
-            buildElement("span", {
+            buildElement('span', {
                 text,
             }),
         ],
@@ -40,10 +40,10 @@ function checkboxRow(text: string, title: string): { row: HTMLLabelElement; inpu
 export const PickList = {
     build(args: PickListArguments): HTMLDetailsElement {
         let excluded = args.excluded.filter(key => args.choices.some(choice => choice.key === key));
-        const summary = buildElement("summary", {
-            className: "pick-summary",
+        const summary = buildElement('summary', {
+            className: 'pick-summary',
         });
-        const all = checkboxRow(AllLabel, `Every ${args.label.toLowerCase()} item`);
+        const all = checkboxRow(ALL_LABEL, `Every ${args.label.toLowerCase()} item`);
         const items = args.choices.map(choice => ({
             choice,
             ...checkboxRow(choice.label, choice.label),
@@ -63,20 +63,23 @@ export const PickList = {
             args.onChange([...excluded]);
         };
 
-        all.input.addEventListener("change", () => publish(all.input.checked ? [] : args.choices.map(choice => choice.key)));
-        items.forEach(item => item.input.addEventListener("change", () => publish(item.input.checked
+        all.input.addEventListener(
+            /* type: */ 'change',
+            /* listener: */ () => publish(all.input.checked ? [] : args.choices.map(choice => choice.key)),
+        );
+        items.forEach(item => item.input.addEventListener('change', () => publish(item.input.checked
             ? excluded.filter(key => key !== item.choice.key)
             : [
                 ...excluded,
                 item.choice.key,
             ])));
 
-        const root = buildElement("details", {
-            className: "pick-list",
+        const root = buildElement('details', {
+            className: 'pick-list',
             children: [
                 summary,
-                buildElement("div", {
-                    className: "pick-panel",
+                buildElement('div', {
+                    className: 'pick-panel',
                     children: [
                         all.row,
                         ...items.map(item => item.row),
@@ -89,15 +92,18 @@ export const PickList = {
                 root.open = false;
             }
         };
-        root.addEventListener("toggle", () => {
-            if (root.open) {
-                document.addEventListener("pointerdown", closeOutside);
+        root.addEventListener(
+            /* type: */ 'toggle',
+            /* listener: */ () => {
+                if (root.open) {
+                    document.addEventListener('pointerdown', closeOutside);
 
-                return;
-            }
+                    return;
+                }
 
-            document.removeEventListener("pointerdown", closeOutside);
-        });
+                document.removeEventListener('pointerdown', closeOutside);
+            },
+        );
         render();
 
         return root;

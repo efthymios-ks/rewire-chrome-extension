@@ -1,36 +1,36 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { HeaderSuggestions } from "../../../Http/HeaderSuggestions";
-import { Result } from "../../../Results/Result";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { DnrCondition } from "../../Criteria/DnrFragment";
-import type { ResponseDraft } from "../../Drafts/Drafts";
-import type { DnrRuleDraft } from "../DnrRuleDraft";
-import { FieldKind, type FieldSpec } from "../FieldSpec";
-import { OperationHint, OperationKinds } from "../OperationKinds";
-import { type ResponseArguments, RuleTypeBase } from "../RuleTypeBase";
-import { type HeaderOperation, HeaderOperations } from "./HeaderOperations";
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { HeaderSuggestions } from '../../../Http/HeaderSuggestions';
+import { Result } from '../../../Results/Result';
+import type { ResponseDraft } from '../../Drafts/ResponseDraft';
+import type { DnrRuleDraft } from '../DnrRuleDraft';
+import { FIELD_KIND } from '../FieldKind';
+import type { FieldSpec } from '../FieldSpec';
+import { OPERATION_HINT } from '../OperationHint';
+import { OPERATION_KINDS } from '../OperationKinds';
+import { type BrowserRulesOptions, type OnResponseOptions, RuleTypeBase } from '../RuleTypeBase';
+import { type HeaderOperation, HeaderOperations } from './HeaderOperations';
 
 interface ResponseHeaderAction {
     operations: HeaderOperation[];
 }
 
 export class ResponseHeaderRule extends RuleTypeBase<ResponseHeaderAction> {
-    readonly id = RuleTypeIds.ResponseHeader;
-    readonly category = RuleCategory.Headers;
-    readonly label = "Response header";
-    readonly description = "Add, update or remove response headers.";
+    readonly id = RULE_TYPE_IDS.ResponseHeader;
+    readonly category = RULE_CATEGORY.Headers;
+    readonly label = 'Response header';
+    readonly description = 'Add, update or remove response headers.';
     override readonly handlesResponse = true;
     readonly fields: FieldSpec[] = [
         {
-            kind: FieldKind.Operations,
-            key: "operations",
-            label: "Headers",
-            nameLabel: "Header",
+            kind: FIELD_KIND.Operations,
+            key: 'operations',
+            label: 'Headers',
+            nameLabel: 'Header',
             nameSuggestions: HeaderSuggestions.names(),
             valueSuggestionsFor: HeaderSuggestions.valuesFor,
-            hint: `${OperationHint} Values can use {{variables}}.`,
+            hint: `${OPERATION_HINT} Values can use {{variables}}.`,
         },
     ];
 
@@ -38,9 +38,9 @@ export class ResponseHeaderRule extends RuleTypeBase<ResponseHeaderAction> {
         return {
             operations: [
                 {
-                    op: OperationKinds.AddOrUpdate,
-                    name: "",
-                    value: "",
+                    op: OPERATION_KINDS.AddOrUpdate,
+                    name: '',
+                    value: '',
                 },
             ],
         };
@@ -56,31 +56,35 @@ export class ResponseHeaderRule extends RuleTypeBase<ResponseHeaderAction> {
         return HeaderOperations.describe(action.operations);
     }
 
+    override withoutSecrets(action: RuleAction): RuleAction {
+        return HeaderOperations.withoutSecrets(action);
+    }
+
     protected override check(action: ResponseHeaderAction): string[] {
         return HeaderOperations.check(action.operations);
     }
 
-    protected override onResponse(args: ResponseArguments<ResponseHeaderAction>): ResponseDraft {
+    protected override onResponse(args: OnResponseOptions<ResponseHeaderAction>): ResponseDraft {
         return {
             ...args.draft,
-            headers: HeaderOperations.apply(
-                args.draft.headers,
-                args.action.operations,
-                args.context
-            ),
+            headers: HeaderOperations.apply({
+                headers: args.draft.headers,
+                operations: args.action.operations,
+                context: args.context,
+            }),
         };
     }
 
-    protected override browserRules(
-        action: ResponseHeaderAction,
-        condition: DnrCondition,
-        context: RuleContext
-    ): Result<DnrRuleDraft[]> {
-        const responseHeaders = HeaderOperations.toBrowser(
-            action.operations,
+    protected override browserRules({
+        action,
+        condition,
+        context,
+    }: BrowserRulesOptions<ResponseHeaderAction>): Result<DnrRuleDraft[]> {
+        const responseHeaders = HeaderOperations.toBrowser({
+            operations: action.operations,
             context,
-            false
-        );
+            isRequest: false,
+        });
         if (responseHeaders.hasErrors) {
             return responseHeaders;
         }
@@ -88,7 +92,7 @@ export class ResponseHeaderRule extends RuleTypeBase<ResponseHeaderAction> {
         return Result.ok([
             {
                 action: {
-                    type: "modifyHeaders",
+                    type: 'modifyHeaders',
                     responseHeaders: responseHeaders.value,
                 },
                 condition,

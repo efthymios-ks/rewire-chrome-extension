@@ -1,6 +1,6 @@
-import type { ValueChange } from "../../../Contracts/Rules/ValueChange";
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
+import type { ValueChange } from '../../../Contracts/Rules/ValueChange';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
 
 export interface TimelineRecord {
     summary: TimelineEntrySummary;
@@ -8,6 +8,9 @@ export interface TimelineRecord {
     rawRequestHeaders: HeaderEntry[] | null;
     requestContentType: string;
     requestBody: string | null;
+    requestBodyNote: string | null;
+    requestBodyBase64: string | null;
+    requestBodyByteSize: number | null;
     responseHeaders: HeaderEntry[];
     rawResponseHeaders: HeaderEntry[] | null;
     responseBody: string | null;

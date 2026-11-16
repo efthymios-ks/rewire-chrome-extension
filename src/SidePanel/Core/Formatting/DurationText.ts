@@ -1,17 +1,17 @@
-const MillisecondsPerSecond = 1000;
-const SecondsDecimals = 2;
-const PendingText = "...";
+const MILLISECONDS_PER_SECOND = 1000;
+const SECONDS_DECIMALS = 2;
+const PENDING_TEXT = '...';
 
 export const DurationText = {
     of(milliseconds: number | null): string {
-        if (milliseconds === null) {
-            return PendingText;
+        if (milliseconds == null) {
+            return PENDING_TEXT;
         }
 
-        if (milliseconds < MillisecondsPerSecond) {
+        if (milliseconds < MILLISECONDS_PER_SECOND) {
             return `${milliseconds} ms`;
         }
 
-        return `${(milliseconds / MillisecondsPerSecond).toFixed(SecondsDecimals)} s`;
+        return `${(milliseconds / MILLISECONDS_PER_SECOND).toFixed(SECONDS_DECIMALS)} s`;
     },
 };

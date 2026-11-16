@@ -1,45 +1,18 @@
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import type { RuleContext } from "../Context/RuleContext";
-import { type CriteriaEvaluation, CriteriaEvaluator } from "../Criteria/CriteriaEvaluator";
-import type { RequestDraft, ResponseDraft, SyntheticResponse } from "../Drafts/Drafts";
-import { type PipelineEntry, PipelineEntries, RulePipeline, type RequestStageResult, type ResponseStageResult } from "./RulePipeline";
-import type { RulePlan } from "./RulePlan";
+import { RollOnceRuleContext } from '../Context/RollOnceRuleContext';
+import type { RuleContext } from '../Context/RuleContext';
+import { CriteriaEvaluator } from '../Criteria/CriteriaEvaluator';
+import type { RequestDraft } from '../Drafts/RequestDraft';
+import type { ResponseDraft } from '../Drafts/ResponseDraft';
+import { PipelineEntries } from './PipelineEntries';
+import type { PipelineEntry } from './PipelineEntry';
+import { RulePipeline, type RequestStageResult, type ResponseStageResult } from './RulePipeline';
+import type { RulePlan } from './RulePlan';
+import type { TesterInput } from './TesterInput';
+import type { TesterOutcome } from './TesterOutcome';
+import { TESTER_OUTCOME_KIND } from './TesterOutcomeKind';
+import type { TesterReport } from './TesterReport';
 
-export interface TesterResponse {
-    status: number;
-    headers: HeaderEntry[];
-    body: string;
-}
-
-export interface TesterInput {
-    url: string;
-    method: string;
-    headers: HeaderEntry[];
-    body: string | null;
-    resourceType: string;
-    response: TesterResponse | null;
-}
-
-export enum TesterOutcomeKind {
-    Continued = 1,
-    Answered = 2,
-}
-
-export interface TesterOutcome {
-    kind: TesterOutcomeKind;
-    url: string;
-    response: SyntheticResponse | null;
-}
-
-export interface TesterReport {
-    requestEvaluation: CriteriaEvaluation | null;
-    responseEvaluation: CriteriaEvaluation | null;
-    requestStage: RequestStageResult;
-    responseStage: ResponseStageResult | null;
-    outcome: TesterOutcome;
-}
-
-const DefaultTestStatus = 200;
+const DEFAULT_TEST_STATUS = 200;
 
 function requestDraftOf(input: TesterInput): RequestDraft {
     return {
@@ -54,62 +27,71 @@ function requestDraftOf(input: TesterInput): RequestDraft {
 
 function responseDraftOf(input: TesterInput): ResponseDraft {
     return {
-        status: input.response?.status ?? DefaultTestStatus,
+        status: input.response?.status ?? DEFAULT_TEST_STATUS,
         headers: input.response?.headers ?? [],
-        body: input.response?.body ?? "",
+        body: input.response?.body ?? '',
         errorReason: null,
     };
 }
 
 function outcomeOf(request: RequestDraft, response: ResponseDraft | null): TesterOutcome {
     return {
-        kind: request.response === null ? TesterOutcomeKind.Continued : TesterOutcomeKind.Answered,
+        kind: request.response == null ? TESTER_OUTCOME_KIND.Continued : TESTER_OUTCOME_KIND.Answered,
         url: request.url,
-        response: response === null ? null : RulePipeline.syntheticResponseOf(response),
+        response: response == null ? null : RulePipeline.syntheticResponseOf(response),
     };
 }
 
-function responseStageOf(
-    requestStage: RequestStageResult,
-    answerEntries: PipelineEntry[],
-    input: TesterInput,
-    context: RuleContext
-): ResponseStageResult {
-    const request = requestStage.draft;
-    if (request.response !== null) {
-        return RulePipeline.runResponse(
-            RulePipeline.answeredCandidates(answerEntries, request),
-            request,
-            RulePipeline.answeredResponseOf(request.response),
-            context
-        );
-    }
-
-    return RulePipeline.runResponse(
-        requestStage.responseCandidates,
-        request,
-        responseDraftOf(input),
-        context
-    );
+interface ResponseStageOfOptions {
+    requestStage: RequestStageResult;
+    answerEntries: PipelineEntry[];
+    input: TesterInput;
+    context: RuleContext;
 }
 
-function run(
-    entries: PipelineEntry[],
-    answerEntries: PipelineEntry[],
-    input: TesterInput,
-    context: RuleContext
-): Omit<TesterReport, "requestEvaluation" | "responseEvaluation"> {
-    const requestStage = RulePipeline.runRequest(
+function responseStageOf({
+    requestStage,
+    answerEntries,
+    input,
+    context,
+}: ResponseStageOfOptions): ResponseStageResult {
+    const request = requestStage.draft;
+    if (request.response != null) {
+        return RulePipeline.runResponse({
+            candidates: RulePipeline.answeredCandidates(answerEntries, request),
+            request,
+            response: RulePipeline.answeredResponseOf(request.response),
+            context,
+        });
+    }
+
+    return RulePipeline.runResponse({
+        candidates: requestStage.responseCandidates,
+        request,
+        response: responseDraftOf(input),
+        context,
+    });
+}
+
+interface RunOptions {
+    entries: PipelineEntry[];
+    answerEntries: PipelineEntry[];
+    input: TesterInput;
+    context: RuleContext;
+}
+
+function run({
+    entries,
+    answerEntries,
+    input,
+    context,
+}: RunOptions): Omit<TesterReport, 'requestEvaluation' | 'responseEvaluation'> {
+    const requestStage = RulePipeline.runRequest({
         entries,
-        requestDraftOf(input),
-        context
-    );
-    const responseStage = responseStageOf(
-        requestStage,
-        answerEntries,
-        input,
-        context
-    );
+        draft: requestDraftOf(input),
+        context,
+    });
+    const responseStage = responseStageOf({ requestStage, answerEntries, input, context });
 
     return {
         requestStage,
@@ -118,47 +100,53 @@ function run(
     };
 }
 
+export interface TestRuleOptions {
+    plan: RulePlan;
+    input: TesterInput;
+    context: RuleContext;
+}
+
+export interface TestAllOptions {
+    plans: RulePlan[];
+    input: TesterInput;
+    context: RuleContext;
+}
+
 export const RuleTester = {
-    testRule(
-        plan: RulePlan,
-        input: TesterInput,
-        context: RuleContext
-    ): TesterReport {
+    testRule({ plan, input, context }: TestRuleOptions): TesterReport {
+        const runContext = new RollOnceRuleContext(context);
         const request = requestDraftOf(input);
-        const requestEvaluation = CriteriaEvaluator.evaluate(
-            plan.rule.criteria,
-            {
+        const requestEvaluation = CriteriaEvaluator.evaluate({
+            criteria: plan.rule.criteria,
+            facts: {
                 request,
                 response: null,
             },
-            context
-        );
-        const responseEvaluation = CriteriaEvaluator.evaluate(
-            plan.rule.criteria,
-            {
+            context: runContext,
+        });
+        const responseEvaluation = CriteriaEvaluator.evaluate({
+            criteria: plan.rule.criteria,
+            facts: {
                 request,
                 response: responseDraftOf(input),
             },
-            context
-        );
+            context: runContext,
+        });
 
         return {
             requestEvaluation,
             responseEvaluation,
-            ...run(
-                PipelineEntries.forWholeRule(plan),
-                PipelineEntries.forWholeRule(plan),
+            ...run({
+                entries: PipelineEntries.forWholeRule(plan),
+                answerEntries: PipelineEntries.forWholeRule(plan),
                 input,
-                context
-            ),
+                context: runContext,
+            }),
         };
     },
 
-    testAll(
-        plans: RulePlan[],
-        input: TesterInput,
-        context: RuleContext
-    ): TesterReport {
+    testAll({ plans, input, context }: TestAllOptions): TesterReport {
+        const runContext = new RollOnceRuleContext(context);
         const entries = [
             ...PipelineEntries.forBrowser(plans),
             ...PipelineEntries.forDebugger(plans),
@@ -167,12 +155,12 @@ export const RuleTester = {
         return {
             requestEvaluation: null,
             responseEvaluation: null,
-            ...run(
+            ...run({
                 entries,
-                PipelineEntries.forWholeRules(plans),
+                answerEntries: PipelineEntries.forWholeRules(plans),
                 input,
-                context
-            ),
+                context: runContext,
+            }),
         };
     },
 };

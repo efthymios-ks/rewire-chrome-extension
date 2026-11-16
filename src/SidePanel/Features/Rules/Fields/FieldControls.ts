@@ -1,28 +1,32 @@
-import { HeaderSuggestions } from "../../../../Common/Http/HeaderSuggestions";
-import { JsonText } from "../../../../Common/Json/JsonText";
-import { ActionReader } from "../../../../Common/Rules/Types/ActionReader";
-import { FieldKind, type FieldSpec } from "../../../../Common/Rules/Types/FieldSpec";
-import { OperationKinds, OperationOptions } from "../../../../Common/Rules/Types/OperationKinds";
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
-import type { IFileClient } from "../../../Core/FileClient";
-import type { Notifier } from "../../../Core/Notifier";
-import { SuggestionInput } from "../../../Core/Dom/SuggestionInput";
-import { LatencySlider } from "./LatencySlider";
-import { ColumnKind, type RowColumn, RowTable, type TableRow } from "./RowTable";
-import { StatusCodeSelect } from "./StatusCodeSelect";
+import { HeaderSuggestions } from '../../../../Common/Http/HeaderSuggestions';
+import { JsonText } from '../../../../Common/Json/JsonText';
+import { ActionReader } from '../../../../Common/Rules/Types/ActionReader';
+import { FIELD_KIND, type FieldKind } from '../../../../Common/Rules/Types/FieldKind';
+import type { FieldSpec } from '../../../../Common/Rules/Types/FieldSpec';
+import { OPERATION_KINDS } from '../../../../Common/Rules/Types/OperationKinds';
+import { OPERATION_OPTIONS } from '../../../../Common/Rules/Types/OperationOptions';
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../../Core/Dom/FormControls';
+import type { FileClient } from '../../../Core/FileClient';
+import type { Notifier } from '../../../Core/Notifier';
+import { SuggestionInput } from '../../../Core/Dom/SuggestionInput';
+import { COLUMN_KIND } from './ColumnKind';
+import { LatencySlider } from './LatencySlider';
+import { type RowColumn, RowTable, type TableRow } from './RowTable';
+import { StatusCodeSelect } from './StatusCodeSelect';
 
-const ListSeparator = ",";
-const DefaultRows = 3;
-const ValueKey = "value";
-const ValueLabel = "Value";
+const LIST_SEPARATOR = ',';
+const DEFAULT_ROWS = 3;
+const VALUE_KEY = 'value';
+const VALUE_LABEL = 'Value';
 
 export interface FieldControlArguments {
     spec: FieldSpec;
     action: RuleAction;
     onChange: (value: unknown) => void;
-    fileClient: IFileClient;
+    fileClient: FileClient;
     notifier: Notifier;
 }
 
@@ -30,24 +34,26 @@ type FieldControlBuilder = (args: FieldControlArguments) => HTMLElement;
 
 
 function isCell(entry: [string, unknown]): entry is [string, string | number] {
-    return typeof entry[1] === "string" || typeof entry[1] === "number";
+    return typeof entry[1] === 'string' || typeof entry[1] === 'number';
 }
 
 function rowsOf(action: RuleAction, key: string): TableRow[] {
-    return ActionReader.records(
-        action,
+    return ActionReader.records({
+        raw: action,
         key,
-        item => Object.fromEntries(Object
+        map: item => Object.fromEntries(Object
             .entries(item)
-            .filter(isCell))
-    );
+            .filter(isCell)),
+    });
 }
 
-function table(
-    args: FieldControlArguments,
-    columns: RowColumn[],
-    addLabel: string
-): RowTable {
+interface TableOptions {
+    args: FieldControlArguments;
+    columns: RowColumn[];
+    addLabel: string;
+}
+
+function table({ args, columns, addLabel }: TableOptions): RowTable {
     return new RowTable({
         columns,
         rows: rowsOf(args.action, args.spec.key),
@@ -56,33 +62,37 @@ function table(
     });
 }
 
-function textColumn(
-    key: string,
-    label: string,
-    placeholder: string = label
-): RowColumn {
+interface TextColumnOptions {
+    key: string;
+    label: string;
+    placeholder?: string;
+}
+
+function textColumn({ key, label, placeholder = label }: TextColumnOptions): RowColumn {
     return {
         key,
         label,
-        kind: ColumnKind.Text,
+        kind: COLUMN_KIND.Text,
         placeholder,
     };
 }
 
-function nameColumn(
-    args: FieldControlArguments,
-    key: string,
-    label: string
-): RowColumn {
+interface NameColumnOptions {
+    args: FieldControlArguments;
+    key: string;
+    label: string;
+}
+
+function nameColumn({ args, key, label }: NameColumnOptions): RowColumn {
     const suggestions = args.spec.nameSuggestions;
-    if (suggestions === undefined) {
-        return textColumn(key, label);
+    if (suggestions == null) {
+        return textColumn({ key, label });
     }
 
     return {
         key,
         label,
-        kind: ColumnKind.Suggested,
+        kind: COLUMN_KIND.Suggested,
         placeholder: label,
         suggestions,
     };
@@ -90,34 +100,34 @@ function nameColumn(
 
 function valueColumn(args: FieldControlArguments, nameKey: string): RowColumn {
     const suggestionsFor = args.spec.valueSuggestionsFor;
-    if (suggestionsFor === undefined) {
-        return textColumn(ValueKey, ValueLabel);
+    if (suggestionsFor == null) {
+        return textColumn({ key: VALUE_KEY, label: VALUE_LABEL });
     }
 
     return {
-        key: ValueKey,
-        label: ValueLabel,
-        kind: ColumnKind.Suggested,
-        placeholder: ValueLabel,
-        suggestionsOf: row => suggestionsFor(String(row[nameKey] ?? "")),
+        key: VALUE_KEY,
+        label: VALUE_LABEL,
+        kind: COLUMN_KIND.Suggested,
+        placeholder: VALUE_LABEL,
+        suggestionsOf: row => suggestionsFor(String(row[nameKey] ?? '')),
     };
 }
 
 function codeInput(args: FieldControlArguments): HTMLElement {
     const textArea = FormControls.textArea({
-        value: ActionReader.text(args.action, args.spec.key),
-        rows: args.spec.rows ?? DefaultRows,
-        placeholder: args.spec.placeholder ?? "",
+        value: ActionReader.text({ raw: args.action, key: args.spec.key }),
+        rows: args.spec.rows ?? DEFAULT_ROWS,
+        placeholder: args.spec.placeholder ?? '',
         onInput: args.onChange,
     });
 
-    return buildElement("div", {
-        className: "code-field",
+    return buildElement('div', {
+        className: 'code-field',
         children: [
             textArea,
             FormControls.button({
-                text: "Format JSON",
-                variant: ButtonVariants.Ghost,
+                text: 'Format JSON',
+                variant: BUTTON_VARIANTS.Ghost,
                 onClick: () => {
                     textArea.value = JsonText.format(textArea.value);
                     args.onChange(textArea.value);
@@ -129,100 +139,94 @@ function codeInput(args: FieldControlArguments): HTMLElement {
 
 function selectedValue(args: FieldControlArguments): string {
     const value = args.action[args.spec.key];
-    if (typeof value === "string" || typeof value === "number") {
+    if (typeof value === 'string' || typeof value === 'number') {
         return String(value);
     }
 
-    return args.spec.options?.[0]?.value ?? "";
+    return args.spec.options?.[0]?.value ?? '';
 }
 
-const Builders: Record<FieldKind, FieldControlBuilder> = {
-    [FieldKind.Text]: args => FormControls.textInput({
-        value: ActionReader.text(args.action, args.spec.key),
-        placeholder: args.spec.placeholder ?? "",
+const BUILDERS: Record<FieldKind, FieldControlBuilder> = {
+    [FIELD_KIND.Text]: args => FormControls.textInput({
+        value: ActionReader.text({ raw: args.action, key: args.spec.key }),
+        placeholder: args.spec.placeholder ?? '',
         onInput: args.onChange,
     }),
-    [FieldKind.TextArea]: args => FormControls.textArea({
-        value: ActionReader.text(args.action, args.spec.key),
-        rows: args.spec.rows ?? DefaultRows,
-        className: "input",
-        placeholder: args.spec.placeholder ?? "",
+    [FIELD_KIND.TextArea]: args => FormControls.textArea({
+        value: ActionReader.text({ raw: args.action, key: args.spec.key }),
+        rows: args.spec.rows ?? DEFAULT_ROWS,
+        className: 'input',
+        placeholder: args.spec.placeholder ?? '',
         onInput: args.onChange,
     }),
-    [FieldKind.Code]: codeInput,
-    [FieldKind.Number]: args => {
+    [FIELD_KIND.Code]: codeInput,
+    [FIELD_KIND.Number]: args => {
         const input = FormControls.textInput({
-            value: String(ActionReader.number(
-                args.action,
-                args.spec.key,
-                args.spec.min ?? 0
-            )),
-            type: "number",
+            value: String(ActionReader.number({
+                raw: args.action,
+                key: args.spec.key,
+                fallback: args.spec.min ?? 0,
+            })),
+            type: 'number',
             onInput: value => args.onChange(Number(value)),
         });
-        input.min = args.spec.min === undefined ? "" : String(args.spec.min);
-        input.max = args.spec.max === undefined ? "" : String(args.spec.max);
+        input.min = args.spec.min == null ? '' : String(args.spec.min);
+        input.max = args.spec.max == null ? '' : String(args.spec.max);
 
         return input;
     },
-    [FieldKind.Select]: args => FormControls.select({
+    [FIELD_KIND.Select]: args => FormControls.select({
         value: selectedValue(args),
         options: args.spec.options ?? [],
         onChange: args.onChange,
     }),
-    [FieldKind.Checkbox]: args => FormControls.checkbox({
-        checked: ActionReader.bool(
-            args.action,
-            args.spec.key,
-            false
-        ),
+    [FIELD_KIND.Checkbox]: args => FormControls.checkbox({
+        checked: ActionReader.bool({ raw: args.action, key: args.spec.key, fallback: false }),
         label: args.spec.label,
         onChange: args.onChange,
     }),
-    [FieldKind.Status]: args => new StatusCodeSelect(ActionReader.nullableNumber(args.action, args.spec.key), args.onChange).root,
-    [FieldKind.Latency]: args => new LatencySlider(ActionReader.delay(args.action), args.onChange).root,
-    [FieldKind.StringList]: args => FormControls.textInput({
-        value: ActionReader.strings(args.action, args.spec.key).join(`${ListSeparator} `),
-        placeholder: args.spec.placeholder ?? "",
+    [FIELD_KIND.Status]: args => new StatusCodeSelect(
+        /* statusCode: */ ActionReader.nullableNumber(args.action, args.spec.key),
+        /* onChange: */ args.onChange,
+    ).root,
+    [FIELD_KIND.Latency]: args => new LatencySlider(
+        /* delayInMilliseconds: */ ActionReader.delay(args.action),
+        /* onChange: */ args.onChange,
+    ).root,
+    [FIELD_KIND.StringList]: args => FormControls.textInput({
+        value: ActionReader.strings(args.action, args.spec.key).join(`${LIST_SEPARATOR} `),
+        placeholder: args.spec.placeholder ?? '',
         onInput: value => args.onChange(value
-            .split(ListSeparator)
+            .split(LIST_SEPARATOR)
             .map(item => item.trim())
             .filter(item => item.length > 0)),
     }),
-    [FieldKind.KeyValueList]: args => table(
+    [FIELD_KIND.KeyValueList]: args => table({
         args,
-        [
-            nameColumn(
-                args,
-                "key",
-                "Name"
-            ),
-            valueColumn(args, "key"),
+        columns: [
+            nameColumn({ args, key: 'key', label: 'Name' }),
+            valueColumn(args, 'key'),
         ],
-        "Add row"
-    ).root,
-    [FieldKind.Operations]: args => table(
+        addLabel: 'Add row',
+    }).root,
+    [FIELD_KIND.Operations]: args => table({
         args,
-        [
+        columns: [
             {
-                key: "op",
-                label: "Operation",
-                kind: ColumnKind.Select,
-                options: OperationOptions,
-                defaultValue: OperationKinds.AddOrUpdate,
+                key: 'op',
+                label: 'Operation',
+                kind: COLUMN_KIND.Select,
+                options: OPERATION_OPTIONS,
+                defaultValue: OPERATION_KINDS.AddOrUpdate,
             },
-            nameColumn(
-                args,
-                "name",
-                args.spec.nameLabel ?? "Name"
-            ),
-            valueColumn(args, "name"),
+            nameColumn({ args, key: 'name', label: args.spec.nameLabel ?? 'Name' }),
+            valueColumn(args, 'name'),
         ],
-        `Add ${(args.spec.nameLabel ?? "row").toLowerCase()}`
-    ).root,
-    [FieldKind.MediaType]: args => SuggestionInput.build({
-        value: ActionReader.text(args.action, args.spec.key),
-        placeholder: args.spec.placeholder ?? "",
+        addLabel: `Add ${(args.spec.nameLabel ?? 'row').toLowerCase()}`,
+    }).root,
+    [FIELD_KIND.MediaType]: args => SuggestionInput.build({
+        value: ActionReader.text({ raw: args.action, key: args.spec.key }),
+        placeholder: args.spec.placeholder ?? '',
         suggestions: HeaderSuggestions.mediaTypes(),
         onInput: args.onChange,
     }),
@@ -230,26 +234,22 @@ const Builders: Record<FieldKind, FieldControlBuilder> = {
 
 export const FieldControls = {
     build(args: FieldControlArguments): HTMLElement {
-        const control = Builders[args.spec.kind](args);
-        if (args.spec.kind === FieldKind.Checkbox) {
-            return buildElement("div", {
-                className: "field",
+        const control = BUILDERS[args.spec.kind](args);
+        if (args.spec.kind === FIELD_KIND.Checkbox) {
+            return buildElement('div', {
+                className: 'field',
                 children: [
                     control,
-                    args.spec.hint === undefined
+                    args.spec.hint == null
                         ? null
-                        : buildElement("span", {
-                            className: "field-hint",
+                        : buildElement('span', {
+                            className: 'field-hint',
                             text: args.spec.hint,
                         }),
                 ],
             });
         }
 
-        return FormControls.field(
-            args.spec.label,
-            control,
-            args.spec.hint ?? null
-        );
+        return FormControls.field({ label: args.spec.label, control, hint: args.spec.hint ?? null });
     },
 };

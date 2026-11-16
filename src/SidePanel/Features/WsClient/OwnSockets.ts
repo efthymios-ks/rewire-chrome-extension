@@ -1,22 +1,19 @@
-import { ByteSize } from "../../../Common/Encoding/ByteSize";
-import { Base64Text } from "../../../Common/Encoding/Base64Text";
-import { ErrorText } from "../../../Common/Errors/ErrorText";
-import { Result } from "../../../Common/Results/Result";
-import type { LiveChannel } from "../../../Contracts/Live/LiveChannel";
-import { LiveChannelKind } from "../../../Contracts/Live/LiveChannelKind";
-import { LiveMessageDirection } from "../../../Contracts/Live/LiveMessageDirection";
-import { OwnChannels } from "../../../Contracts/Live/OwnChannels";
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import type { LiveState } from "../../Core/LiveState";
-import type { PanelState } from "../../Core/PanelState";
-import type { Store } from "../../Core/Store";
-import { LiveEntries } from "../Live/LiveEntries";
-import type { IHandshakeHeaderRules } from "./HandshakeHeaderRules";
+import { ByteSize } from '../../../Common/Encoding/ByteSize';
+import { Base64Text } from '../../../Common/Encoding/Base64Text';
+import { Result } from '../../../Common/Results/Result';
+import type { LiveChannel } from '../../../Contracts/Live/LiveChannel';
+import { LIVE_CHANNEL_KIND } from '../../../Contracts/Live/LiveChannelKind';
+import { LIVE_MESSAGE_DIRECTION, type LiveMessageDirection } from '../../../Contracts/Live/LiveMessageDirection';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import type { PanelState } from '../../Core/PanelState';
+import type { Store } from '../../Core/Store';
+import { OwnChannelRegistry } from '../Live/OwnChannelRegistry';
+import type { HandshakeHeaderRules } from './HandshakeHeaderRules';
 
-const TextOpcode = 1;
-const BinaryOpcode = 2;
-const ChannelPrefix = "mine-ws-";
-const OpenState = 1;
+const TEXT_OPCODE = 1;
+const BINARY_OPCODE = 2;
+const CHANNEL_PREFIX = 'mine-ws-';
+const OPEN_STATE = 1;
 
 export type SocketFactory = (url: string) => WebSocket;
 
@@ -27,149 +24,139 @@ interface OwnSocket {
 
 export interface OwnSocketsDependencies {
     store: Store<PanelState>;
-    headerRules: IHandshakeHeaderRules;
+    headerRules: HandshakeHeaderRules;
     createSocket: SocketFactory;
     now: () => Date;
 }
 
+export interface AddMessageOptions {
+    channelId: string;
+    direction: LiveMessageDirection;
+    data: string;
+    opcode: number;
+}
+
 export class OwnSockets {
     private readonly _dependencies: OwnSocketsDependencies;
-    private readonly _sockets = new Map<string, OwnSocket>();
-    private _sequence = 0;
+    private readonly _channels: OwnChannelRegistry<OwnSocket>;
 
     constructor(dependencies: OwnSocketsDependencies) {
         this._dependencies = dependencies;
+        this._channels = new OwnChannelRegistry({
+            store: dependencies.store,
+            kind: LIVE_CHANNEL_KIND.WebSocket,
+            idPrefix: CHANNEL_PREFIX,
+            now: () => dependencies.now(),
+        });
     }
 
-    async connect(url: string, headers: HeaderEntry[]): Promise<Result<string>> {
-        const ruleId = await this.addHeaderRule(url, headers);
+    startAsync(): Promise<void> {
+        return this._dependencies.headerRules.startAsync();
+    }
+
+    async connectAsync(url: string, headers: HeaderEntry[]): Promise<Result<string>> {
+        await this.startAsync();
+        const ruleId = await this.addHeaderRuleAsync(url, headers);
         if (ruleId.hasErrors) {
             return ruleId;
         }
 
-        let socket: WebSocket;
-        try {
-            socket = this._dependencies.createSocket(url);
-        } catch (error) {
-            await this.removeHeaderRule(ruleId.value);
+        const created = this.createSocket(url);
+        if (created.hasErrors) {
+            await this.removeHeaderRuleAsync(ruleId.value);
 
-            return Result.fail(`Can't connect to ${url}: ${ErrorText.of(error)}`);
+            return created;
         }
 
-        this._sequence += 1;
-        const channel: LiveChannel = {
-            id: `${ChannelPrefix}${this._sequence}`,
-            tabId: OwnChannels.TabId,
-            kind: LiveChannelKind.WebSocket,
-            url,
-            isOpen: true,
-            isMine: true,
-            openedAt: this._dependencies.now().toISOString(),
-        };
-        this._sockets.set(
-            channel.id,
-            {
+        const socket = created.value;
+        const channel = this._channels.open(
+            /* url: */ url,
+            /* handle: */ {
                 socket,
                 ruleId: ruleId.value,
-            }
+            },
         );
         this.listen(channel, socket);
-        this.update(live => LiveEntries.upsertChannel(live, channel));
 
         return Result.ok(channel.id);
     }
 
     send(channelId: string, text: string): Result<void> {
-        const owned = this._sockets.get(channelId);
-        if (owned === undefined || owned.socket.readyState !== OpenState) {
+        const owned = this._channels.handleOf(channelId);
+        if (owned == null || owned.socket.readyState !== OPEN_STATE) {
             return Result.fail("This socket isn't open.");
         }
 
         owned.socket.send(text);
-        this.addMessage(
+        this.addMessage({
             channelId,
-            LiveMessageDirection.Sent,
-            text,
-            TextOpcode
-        );
+            direction: LIVE_MESSAGE_DIRECTION.Sent,
+            data: text,
+            opcode: TEXT_OPCODE,
+        });
 
         return Result.done();
     }
 
     close(channelId: string): void {
-        this._sockets.get(channelId)?.socket.close();
+        this._channels.handleOf(channelId)?.socket.close();
+    }
+
+    private createSocket(url: string): Result<WebSocket> {
+        return Result.attempt(() => this._dependencies.createSocket(url), `Can't connect to ${url}`);
     }
 
     private listen(channel: LiveChannel, socket: WebSocket): void {
-        socket.binaryType = "arraybuffer";
-        socket.addEventListener("message", event => {
-            const isText = typeof event.data === "string";
-            this.addMessage(
-                channel.id,
-                LiveMessageDirection.Received,
-                isText ? event.data as string : Base64Text.fromBytes(new Uint8Array(event.data as ArrayBuffer)),
-                isText ? TextOpcode : BinaryOpcode
-            );
-        });
-        socket.addEventListener("close", () => {
-            const owned = this._sockets.get(channel.id);
-            this._sockets.delete(channel.id);
-            if (owned !== undefined) {
-                void this.removeHeaderRule(owned.ruleId);
-            }
-
-            this.update(live => LiveEntries.upsertChannel(
-                live,
-                {
-                    ...channel,
-                    isOpen: false,
+        socket.binaryType = 'arraybuffer';
+        socket.addEventListener(
+            /* type: */ 'message',
+            /* listener: */ event => {
+                const isText = typeof event.data === 'string';
+                this.addMessage({
+                    channelId: channel.id,
+                    direction: LIVE_MESSAGE_DIRECTION.Received,
+                    data: isText
+                        ? event.data as string
+                        : Base64Text.fromBytes(new Uint8Array(event.data as ArrayBuffer)),
+                    opcode: isText ? TEXT_OPCODE : BINARY_OPCODE,
+                });
+            },
+        );
+        socket.addEventListener(
+            /* type: */ 'close',
+            /* listener: */ () => {
+                const owned = this._channels.close(channel);
+                if (owned != null) {
+                    void this.removeHeaderRuleAsync(owned.ruleId);
                 }
-            ));
+            },
+        );
+    }
+
+    private addMessage({ channelId, direction, data, opcode }: AddMessageOptions): void {
+        this._channels.addMessage({
+            channelId,
+            direction,
+            data,
+            size: opcode === BINARY_OPCODE ? ByteSize.ofBase64(data) : ByteSize.ofText(data),
+            opcode,
+            eventName: null,
+            eventId: null,
+            retry: null,
         });
     }
 
-    private addMessage(
-        channelId: string,
-        direction: LiveMessageDirection,
-        data: string,
-        opcode: number
-    ): void {
-        this._sequence += 1;
-        this.update(live => LiveEntries.addMessage(
-            live,
-            {
-                id: `${channelId}-${this._sequence}`,
-                channelId,
-                direction,
-                at: this._dependencies.now().toISOString(),
-                data,
-                size: opcode === BinaryOpcode ? ByteSize.ofBase64(data) : ByteSize.ofText(data),
-                opcode,
-                eventName: null,
-                eventId: null,
-                retry: null,
-            }
-        ));
-    }
-
-    private async addHeaderRule(url: string, headers: HeaderEntry[]): Promise<Result<number | null>> {
+    private async addHeaderRuleAsync(url: string, headers: HeaderEntry[]): Promise<Result<number | null>> {
         if (headers.length === 0) {
             return Result.ok(null);
         }
 
-        return this._dependencies.headerRules.add(url, headers);
+        return this._dependencies.headerRules.addAsync(url, headers);
     }
 
-    private async removeHeaderRule(ruleId: number | null): Promise<void> {
-        if (ruleId !== null) {
-            await this._dependencies.headerRules.remove(ruleId);
+    private async removeHeaderRuleAsync(ruleId: number | null): Promise<void> {
+        if (ruleId != null) {
+            await this._dependencies.headerRules.removeAsync(ruleId);
         }
-    }
-
-    private update(change: (live: LiveState) => LiveState): void {
-        this._dependencies.store.update(state => ({
-            ...state,
-            live: change(state.live),
-        }));
     }
 }

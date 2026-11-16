@@ -1,13 +1,19 @@
-import { CriterionFieldRegistry, CriterionFields } from "../../../../Common/Rules/Criteria/CriterionFields";
-import { CriterionOperatorRegistry } from "../../../../Common/Rules/Criteria/CriterionOperators";
-import { CriteriaMatches, type CriteriaMatch, type Criterion, CriterionFieldIds, type RuleCriteria } from "../../../../Contracts/Rules/Criterion";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
-import { SuggestionInput, type SuggestionSource } from "../../../Core/Dom/SuggestionInput";
+import { CriterionFieldRegistry } from '../../../../Common/Rules/Criteria/CriterionFieldRegistry';
+import { CRITERION_FIELDS } from '../../../../Common/Rules/Criteria/CriterionFields';
+import { CriterionOperatorRegistry } from '../../../../Common/Rules/Criteria/CriterionOperatorRegistry';
+import type { CriteriaMatch } from '../../../../Contracts/Rules/CriteriaMatch';
+import { CRITERIA_MATCHES } from '../../../../Contracts/Rules/CriteriaMatches';
+import type { Criterion } from '../../../../Contracts/Rules/Criterion';
+import { CRITERION_FIELD_IDS } from '../../../../Contracts/Rules/CriterionFieldIds';
+import type { RuleCriteria } from '../../../../Contracts/Rules/RuleCriteria';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../../Core/Dom/FormControls';
+import { SuggestionInput, type SuggestionSource } from '../../../Core/Dom/SuggestionInput';
 
-const CriterionValueClass = "input criterion-value";
-const CriterionNameClass = "input criterion-name";
-const NamePlaceholder = "Name";
+const CRITERION_VALUE_CLASS = 'input criterion-value';
+const CRITERION_NAME_CLASS = 'input criterion-name';
+const NAME_PLACEHOLDER = 'Name';
 
 interface TextInputArguments {
     value: string;
@@ -18,7 +24,7 @@ interface TextInputArguments {
 }
 
 function textInputOf(args: TextInputArguments): HTMLElement {
-    if (args.suggestions === undefined) {
+    if (args.suggestions == null) {
         return FormControls.textInput({
             value: args.value,
             placeholder: args.placeholder,
@@ -36,23 +42,29 @@ function textInputOf(args: TextInputArguments): HTMLElement {
     });
 }
 
-const NegateValues = {
-    Is: "is",
-    IsNot: "isNot",
-} as const;
+const NEGATE_VALUES = Object.freeze({
+    Is: 'is',
+    IsNot: 'isNot',
+} as const);
 
 function firstOperatorOf(fieldId: string): string {
-    return CriterionFieldRegistry.get(fieldId)?.operators[0] ?? "";
+    return CriterionFieldRegistry.get(fieldId)?.operators[0] ?? '';
 }
 
 function newCriterion(): Criterion {
     return {
-        field: CriterionFieldIds.Url,
-        op: firstOperatorOf(CriterionFieldIds.Url),
-        name: "",
-        value: "",
+        field: CRITERION_FIELD_IDS.Url,
+        op: firstOperatorOf(CRITERION_FIELD_IDS.Url),
+        name: '',
+        value: '',
         negate: false,
     };
+}
+
+export interface ChangeItemOptions {
+    index: number;
+    patch: Partial<Criterion>;
+    shouldRerender: boolean;
 }
 
 export class CriteriaBuilder {
@@ -65,29 +77,29 @@ export class CriteriaBuilder {
     constructor(criteria: RuleCriteria, onChange: (criteria: RuleCriteria) => void) {
         this._criteria = structuredClone(criteria);
         this._onChange = onChange;
-        this._list = buildElement("ol", {
-            className: "criteria-list",
+        this._list = buildElement('ol', {
+            className: 'criteria-list',
         });
 
-        this.root = buildElement("div", {
-            className: "criteria-builder",
+        this.root = buildElement('div', {
+            className: 'criteria-builder',
             children: [
-                buildElement("div", {
-                    className: "field-row",
+                buildElement('div', {
+                    className: 'field-row',
                     children: [
-                        buildElement("span", {
-                            text: "Match",
+                        buildElement('span', {
+                            text: 'Match',
                         }),
                         FormControls.select({
                             value: this._criteria.match,
                             options: [
                                 {
-                                    value: CriteriaMatches.All,
-                                    label: "all of",
+                                    value: CRITERIA_MATCHES.All,
+                                    label: 'all of',
                                 },
                                 {
-                                    value: CriteriaMatches.Any,
-                                    label: "any of",
+                                    value: CRITERIA_MATCHES.Any,
+                                    label: 'any of',
                                 },
                             ],
                             onChange: value => this.change({
@@ -95,16 +107,16 @@ export class CriteriaBuilder {
                                 match: value as CriteriaMatch,
                             }),
                         }),
-                        buildElement("span", {
-                            className: "muted",
-                            text: "these conditions. None means every request.",
+                        buildElement('span', {
+                            className: 'help-text',
+                            text: 'these conditions. None means every request.',
                         }),
                     ],
                 }),
                 this._list,
                 FormControls.button({
-                    text: "Add condition",
-                    variant: ButtonVariants.Ghost,
+                    text: 'Add condition',
+                    variant: BUTTON_VARIANTS.Ghost,
                     onClick: () => {
                         this.change({
                             ...this._criteria,
@@ -126,11 +138,7 @@ export class CriteriaBuilder {
         this._onChange(structuredClone(criteria));
     }
 
-    private changeItem(
-        index: number,
-        patch: Partial<Criterion>,
-        rerender: boolean
-    ): void {
+    private changeItem({ index, patch, shouldRerender }: ChangeItemOptions): void {
         this.change({
             ...this._criteria,
             items: this._criteria.items.map((current, itemIndex) => itemIndex === index
@@ -140,7 +148,7 @@ export class CriteriaBuilder {
                 }
                 : current),
         });
-        if (rerender) {
+        if (shouldRerender) {
             this.render();
         }
     }
@@ -155,18 +163,18 @@ export class CriteriaBuilder {
 
         return textInputOf({
             value: item.value,
-            placeholder: field?.valuePlaceholder ?? "",
-            suggestions: suggestionsFor === undefined
+            placeholder: field?.valuePlaceholder ?? '',
+            suggestions: suggestionsFor == null
                 ? field?.valueSuggestions
-                : () => suggestionsFor(this._criteria.items[index]?.name ?? ""),
-            className: CriterionValueClass,
-            onInput: value => this.changeItem(
+                : () => suggestionsFor(this._criteria.items[index]?.name ?? ''),
+            className: CRITERION_VALUE_CLASS,
+            onInput: value => this.changeItem({
                 index,
-                {
+                patch: {
                     value,
                 },
-                false
-            ),
+                shouldRerender: false,
+            }),
         });
     }
 
@@ -175,16 +183,16 @@ export class CriteriaBuilder {
 
         return textInputOf({
             value: item.name,
-            placeholder: NamePlaceholder,
+            placeholder: NAME_PLACEHOLDER,
             suggestions: field?.nameSuggestions,
-            className: CriterionNameClass,
-            onInput: name => this.changeItem(
+            className: CRITERION_NAME_CLASS,
+            onInput: name => this.changeItem({
                 index,
-                {
+                patch: {
                     name,
                 },
-                false
-            ),
+                shouldRerender: false,
+            }),
         });
     }
 
@@ -192,44 +200,44 @@ export class CriteriaBuilder {
         const field = CriterionFieldRegistry.get(item.field);
         const operator = CriterionOperatorRegistry.get(item.op);
 
-        return buildElement("li", {
-            className: "criterion-row",
+        return buildElement('li', {
+            className: 'criterion-row',
             children: [
                 FormControls.select({
                     value: item.field,
-                    options: CriterionFields.map(candidate => ({
+                    options: CRITERION_FIELDS.map(candidate => ({
                         value: candidate.id,
                         label: candidate.label,
                     })),
-                    onChange: value => this.changeItem(
+                    onChange: value => this.changeItem({
                         index,
-                        {
+                        patch: {
                             field: value,
                             op: firstOperatorOf(value),
                         },
-                        true
-                    ),
+                        shouldRerender: true,
+                    }),
                 }),
                 field?.needsName === true ? this.nameInputOf(item, index) : null,
                 FormControls.select({
-                    value: item.negate ? NegateValues.IsNot : NegateValues.Is,
+                    value: item.negate ? NEGATE_VALUES.IsNot : NEGATE_VALUES.Is,
                     options: [
                         {
-                            value: NegateValues.Is,
-                            label: "is",
+                            value: NEGATE_VALUES.Is,
+                            label: 'is',
                         },
                         {
-                            value: NegateValues.IsNot,
-                            label: "is not",
+                            value: NEGATE_VALUES.IsNot,
+                            label: 'is not',
                         },
                     ],
-                    onChange: value => this.changeItem(
+                    onChange: value => this.changeItem({
                         index,
-                        {
-                            negate: value === NegateValues.IsNot,
+                        patch: {
+                            negate: value === NEGATE_VALUES.IsNot,
                         },
-                        false
-                    ),
+                        shouldRerender: false,
+                    }),
                 }),
                 FormControls.select({
                     value: item.op,
@@ -237,18 +245,18 @@ export class CriteriaBuilder {
                         value: operatorId,
                         label: CriterionOperatorRegistry.get(operatorId)?.label ?? operatorId,
                     })),
-                    onChange: value => this.changeItem(
+                    onChange: value => this.changeItem({
                         index,
-                        {
+                        patch: {
                             op: value,
                         },
-                        true
-                    ),
+                        shouldRerender: true,
+                    }),
                 }),
                 operator?.needsValue === false ? null : this.valueInputOf(item, index),
                 FormControls.button({
-                    text: "Remove",
-                    variant: ButtonVariants.Ghost,
+                    text: 'Remove',
+                    variant: BUTTON_VARIANTS.Ghost,
                     onClick: () => {
                         this.change({
                             ...this._criteria,

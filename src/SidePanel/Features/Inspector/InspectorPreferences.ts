@@ -1,16 +1,7 @@
-export enum BodyMode {
-    Tree = 1,
-    Raw = 2,
-}
+import type { BodyMode } from './BodyMode';
 
 export interface InspectorPreferences {
     bodyMode: BodyMode;
-    wrap: boolean;
+    shouldWrap: boolean;
     snippetId: string;
 }
-
-export const CurrentInspectorPreferences: InspectorPreferences = {
-    bodyMode: BodyMode.Tree,
-    wrap: true,
-    snippetId: "curl",
-};

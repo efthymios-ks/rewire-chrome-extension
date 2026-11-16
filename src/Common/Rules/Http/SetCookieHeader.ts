@@ -1,76 +1,65 @@
-export interface SetCookie {
-    name: string;
-    value: string;
-    domain: string;
-    path: string;
-    expires: string;
-    maxAge: string;
-    secure: boolean;
-    httpOnly: boolean;
-    sameSite: string;
-    partitioned: boolean;
-}
+import type { SetCookie } from './SetCookie';
 
-const AttributeSeparator = ";";
-const ValueSeparator = "=";
+const ATTRIBUTE_SEPARATOR = ';';
+const VALUE_SEPARATOR = '=';
 
 interface AttributeHandler {
     name: string;
     apply(cookie: SetCookie, value: string): SetCookie;
 }
 
-const AttributeHandlers: AttributeHandler[] = [
+const ATTRIBUTE_HANDLERS: AttributeHandler[] = [
     {
-        name: "domain",
+        name: 'domain',
         apply: (cookie, value) => ({
             ...cookie,
             domain: value,
         }),
     },
     {
-        name: "path",
+        name: 'path',
         apply: (cookie, value) => ({
             ...cookie,
             path: value,
         }),
     },
     {
-        name: "expires",
+        name: 'expires',
         apply: (cookie, value) => ({
             ...cookie,
             expires: value,
         }),
     },
     {
-        name: "max-age",
+        name: 'max-age',
         apply: (cookie, value) => ({
             ...cookie,
             maxAge: value,
         }),
     },
     {
-        name: "secure",
+        name: 'secure',
         apply: cookie => ({
             ...cookie,
             secure: true,
         }),
     },
     {
-        name: "httponly",
+        name: 'httponly',
         apply: cookie => ({
             ...cookie,
             httpOnly: true,
         }),
     },
     {
-        name: "samesite",
+        name: 'samesite',
         apply: (cookie, value) => ({
             ...cookie,
             sameSite: value,
         }),
     },
     {
-        name: "partitioned",
+        name: 'partitioned',
         apply: cookie => ({
             ...cookie,
             partitioned: true,
@@ -79,11 +68,11 @@ const AttributeHandlers: AttributeHandler[] = [
 ];
 
 function splitPair(part: string): [string, string] {
-    const separatorIndex = part.indexOf(ValueSeparator);
+    const separatorIndex = part.indexOf(VALUE_SEPARATOR);
     if (separatorIndex === -1) {
         return [
             part.trim(),
-            "",
+            '',
         ];
     }
 
@@ -98,47 +87,48 @@ export const SetCookieHeader = {
         return {
             name,
             value,
-            domain: "",
-            path: "",
-            expires: "",
-            maxAge: "",
+            domain: '',
+            path: '',
+            expires: '',
+            maxAge: '',
             secure: false,
             httpOnly: false,
-            sameSite: "",
+            sameSite: '',
             partitioned: false,
         };
     },
 
     parse(header: string): SetCookie {
-        const [first = "", ...attributes] = header.split(AttributeSeparator);
+        const [first = '', ...attributes] = header.split(ATTRIBUTE_SEPARATOR);
         const [name, value] = splitPair(first);
 
         return attributes.reduce(
-            (cookie, attribute) => {
+            /* callbackfn: */ (cookie, attribute) => {
                 const [attributeName, attributeValue] = splitPair(attribute);
-                const handler = AttributeHandlers.find(candidate => candidate.name === attributeName.toLowerCase());
+                const handlerName = attributeName.toLowerCase();
+                const handler = ATTRIBUTE_HANDLERS.find(candidate => candidate.name === handlerName);
 
-                return handler === undefined ? cookie : handler.apply(cookie, attributeValue);
+                return handler == null ? cookie : handler.apply(cookie, attributeValue);
             },
-            SetCookieHeader.empty(name, value)
+            /* initialValue: */ SetCookieHeader.empty(name, value),
         );
     },
 
     serialize(cookie: SetCookie): string {
         const parts = [
-            `${cookie.name}${ValueSeparator}${cookie.value}`,
-            cookie.domain === "" ? "" : `Domain=${cookie.domain}`,
-            cookie.path === "" ? "" : `Path=${cookie.path}`,
-            cookie.expires === "" ? "" : `Expires=${cookie.expires}`,
-            cookie.maxAge === "" ? "" : `Max-Age=${cookie.maxAge}`,
-            cookie.secure ? "Secure" : "",
-            cookie.httpOnly ? "HttpOnly" : "",
-            cookie.sameSite === "" ? "" : `SameSite=${cookie.sameSite}`,
-            cookie.partitioned ? "Partitioned" : "",
+            `${cookie.name}${VALUE_SEPARATOR}${cookie.value}`,
+            cookie.domain === '' ? '' : `Domain=${cookie.domain}`,
+            cookie.path === '' ? '' : `Path=${cookie.path}`,
+            cookie.expires === '' ? '' : `Expires=${cookie.expires}`,
+            cookie.maxAge === '' ? '' : `Max-Age=${cookie.maxAge}`,
+            cookie.secure ? 'Secure' : '',
+            cookie.httpOnly ? 'HttpOnly' : '',
+            cookie.sameSite === '' ? '' : `SameSite=${cookie.sameSite}`,
+            cookie.partitioned ? 'Partitioned' : '',
         ];
 
         return parts
-            .filter(part => part !== "")
-            .join(`${AttributeSeparator} `);
+            .filter(part => part !== '')
+            .join(`${ATTRIBUTE_SEPARATOR} `);
     },
 };

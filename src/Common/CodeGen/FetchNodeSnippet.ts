@@ -1,20 +1,25 @@
-import { FetchCall } from "./FetchCall";
-import { DefaultSnippetParts, type RequestSnapshot, type SnippetOptions } from "./RequestSnapshot";
-import { RequestSnippetBase } from "./RequestSnippetBase";
-import { SnippetRequests } from "./SnippetRequest";
+import { HEADER_NAMES } from '../../Contracts/Http/HeaderNames';
+import { DEFAULT_SNIPPET_PARTS } from './DefaultSnippetParts';
+import { FetchCall } from './FetchCall';
+import type { RequestSnapshot } from './RequestSnapshot';
+import { RequestSnippetBase } from './RequestSnippetBase';
+import type { SnippetOptions } from './SnippetOptions';
+import { SnippetRequests } from './SnippetRequests';
 
-const CookieHeaderName = "Cookie";
-const FileImport = "import { readFile } from \"node:fs/promises\";";
+const FILE_IMPORT = 'import { readFile } from "node:fs/promises";';
 
 export class FetchNodeSnippet extends RequestSnippetBase {
-    static readonly id = "fetch-node";
-    static readonly label = "Fetch (Node.js)";
+    static readonly id = 'fetch-node';
+    static readonly label = 'Fetch (Node.js)';
 
     static tryParse(_text: string): FetchNodeSnippet | null {
         return null;
     }
 
-    static from(snapshot: RequestSnapshot, options: SnippetOptions = DefaultSnippetParts): FetchNodeSnippet {
+    static from(
+        snapshot: RequestSnapshot,
+        options: SnippetOptions = DEFAULT_SNIPPET_PARTS,
+    ): FetchNodeSnippet {
         return new FetchNodeSnippet(SnippetRequests.of(snapshot, options));
     }
 
@@ -25,11 +30,11 @@ export class FetchNodeSnippet extends RequestSnippetBase {
 
                 return [
                     ...FetchCall.withoutAcceptEncoding(request.headers),
-                    ...(cookie === null
+                    ...(cookie == null
                         ? []
                         : [
                             {
-                                name: CookieHeaderName,
+                                name: HEADER_NAMES.Cookie,
                                 value: cookie,
                             },
                         ]),
@@ -39,8 +44,8 @@ export class FetchNodeSnippet extends RequestSnippetBase {
             fileExpression: fileName => `new Blob([await readFile(${JSON.stringify(fileName)})])`,
             preamble: request => FetchCall.usesFiles(request.body)
                 ? [
-                    FileImport,
-                    "",
+                    FILE_IMPORT,
+                    '',
                 ]
                 : [],
         });

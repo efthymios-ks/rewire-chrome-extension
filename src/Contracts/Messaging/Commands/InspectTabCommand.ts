@@ -1,6 +1,6 @@
-import type { PanelCommandType } from "../PanelCommandType";
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface InspectTabCommand {
-    type: PanelCommandType.InspectTab;
+    type: typeof PANEL_COMMAND_TYPE.InspectTab;
     tabId: number;
 }

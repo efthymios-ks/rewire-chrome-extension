@@ -1,12 +1,13 @@
-import type { Protocol } from "devtools-protocol";
-import { Base64Text } from "../../../Common/Encoding/Base64Text";
-import { HeaderLookup } from "../../../Common/Http/HeaderLookup";
-import type { RequestDraft, ResponseDraft } from "../../../Common/Rules/Drafts/Drafts";
+import type { Protocol } from 'devtools-protocol';
+import { Base64Text } from '../../../Common/Encoding/Base64Text';
+import { HeaderLookup } from '../../../Common/Http/HeaderLookup';
+import type { RequestDraft } from '../../../Common/Rules/Drafts/RequestDraft';
+import type { ResponseDraft } from '../../../Common/Rules/Drafts/ResponseDraft';
 
-const ErrorStatus = 0;
+const ERROR_STATUS = 0;
 
 function bodyOf(request: Protocol.Network.Request): string | null {
-    if (request.postData !== undefined) {
+    if (request.postData != null) {
         return request.postData;
     }
 
@@ -16,8 +17,8 @@ function bodyOf(request: Protocol.Network.Request): string | null {
     }
 
     return entries
-        .map(entry => entry.bytes === undefined ? "" : Base64Text.toUtf8(entry.bytes))
-        .join("");
+        .map(entry => entry.bytes == null ? '' : Base64Text.toUtf8(entry.bytes))
+        .join('');
 }
 
 export const PausedDrafts = {
@@ -34,7 +35,7 @@ export const PausedDrafts = {
 
     responseOf(event: Protocol.Fetch.RequestPausedEvent, body: string | null): ResponseDraft {
         return {
-            status: event.responseStatusCode ?? ErrorStatus,
+            status: event.responseStatusCode ?? ERROR_STATUS,
             headers: event.responseHeaders ?? [],
             body,
             errorReason: event.responseErrorReason ?? null,

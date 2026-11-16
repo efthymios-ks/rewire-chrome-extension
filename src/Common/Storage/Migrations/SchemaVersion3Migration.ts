@@ -1,79 +1,36 @@
-import { CriterionFieldIds, CriterionOperatorIds } from "../../../Contracts/Rules/Criterion";
-import { RuleTypeIds } from "../../../Contracts/Rules/RuleTypeIds";
-import { RegexText } from "../../Urls/RegexText";
+import { CRITERION_FIELD_IDS } from '../../../Contracts/Rules/CriterionFieldIds';
+import { CRITERION_OPERATOR_IDS } from '../../../Contracts/Rules/CriterionOperatorIds';
+import { RULE_TYPE_IDS } from '../../../Contracts/Rules/RuleTypeId';
+import { RawRecords } from '../../Objects/RawRecords';
+import { LegacyBaseUrl } from './LegacyBaseUrl';
+import { StoredRuleRecords } from './StoredRuleRecords';
 
 type RawRecord = Record<string, unknown>;
 
-const LegacyRedirectTypeId = "redirect";
-const LegacyMirrorTypeId = "environmentMirror";
-const SilentRedirectStatus = 0;
-const TrailingSlashesPattern = /\/+$/;
+const LEGACY_REDIRECT_TYPE_ID = 'redirect';
+const LEGACY_MIRROR_TYPE_ID = 'environmentMirror';
+const SILENT_REDIRECT_STATUS = 0;
 
-function isRecord(value: unknown): value is RawRecord {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function text(record: RawRecord, key: string): string {
-    const value = record[key];
-
-    return typeof value === "string" ? value : "";
-}
-
-function records(record: RawRecord, key: string): RawRecord[] {
-    const value = record[key];
-
-    return Array.isArray(value) ? value.filter(isRecord) : [];
-}
-
-function actionOf(rule: RawRecord): RawRecord {
-    return isRecord(rule["action"]) ? rule["action"] : {};
-}
-
-function criteriaOf(rule: RawRecord): RawRecord {
-    return isRecord(rule["criteria"]) ? rule["criteria"] : {};
-}
-
-function withExtraCriterion(rule: RawRecord, criterion: RawRecord): RawRecord {
-    const criteria = criteriaOf(rule);
-
-    return {
-        ...rule,
-        criteria: {
-            ...criteria,
-            items: [
-                ...records(criteria, "items"),
-                criterion,
-            ],
-        },
-    };
-}
-
-function mirrorRegex(sourceBase: string): string {
-    return `^${RegexText.escape(sourceBase.trim().replace(TrailingSlashesPattern, ""))}((?:[/?#].*)?)$`;
-}
-
-function mirrorTarget(targetBase: string): string {
-    return `${targetBase.trim().replace(TrailingSlashesPattern, "")}$1`;
-}
+const { actionOf, withCriterion } = StoredRuleRecords;
 
 function fromLegacyRedirect(rule: RawRecord): RawRecord {
     const action = actionOf(rule);
-    const status = Number(action["status"] ?? SilentRedirectStatus);
-    if (status === SilentRedirectStatus) {
+    const status = Number(action['status'] ?? SILENT_REDIRECT_STATUS);
+    if (status === SILENT_REDIRECT_STATUS) {
         return {
             ...rule,
-            type: RuleTypeIds.Rewrite,
+            type: RULE_TYPE_IDS.Rewrite,
             action: {
-                target: text(action, "target"),
+                target: RawRecords.text(action, 'target'),
             },
         };
     }
 
     return {
         ...rule,
-        type: RuleTypeIds.Redirect,
+        type: RULE_TYPE_IDS.Redirect,
         action: {
-            target: text(action, "target"),
+            target: RawRecords.text(action, 'target'),
             status,
         },
     };
@@ -81,41 +38,41 @@ function fromLegacyRedirect(rule: RawRecord): RawRecord {
 
 function fromLegacyMirror(rule: RawRecord): RawRecord {
     const action = actionOf(rule);
-    const sourceBase = text(action, "sourceBase");
-    const targetBase = text(action, "targetBase");
+    const sourceBase = RawRecords.text(action, 'sourceBase');
+    const targetBase = RawRecords.text(action, 'targetBase');
     const rewrite: RawRecord = {
         ...rule,
-        type: RuleTypeIds.Rewrite,
+        type: RULE_TYPE_IDS.Rewrite,
         action: {
-            target: mirrorTarget(targetBase),
+            target: LegacyBaseUrl.mirrorTarget(targetBase),
         },
     };
-    if (sourceBase === "") {
+    if (sourceBase === '') {
         return rewrite;
     }
 
-    return withExtraCriterion(rewrite, {
-        field: CriterionFieldIds.Url,
-        op: CriterionOperatorIds.Regex,
-        name: "",
-        value: mirrorRegex(sourceBase),
+    return withCriterion(rewrite, {
+        field: CRITERION_FIELD_IDS.Url,
+        op: CRITERION_OPERATOR_IDS.Regex,
+        name: '',
+        value: LegacyBaseUrl.mirrorRegex(sourceBase),
         negate: false,
     });
 }
 
+const LEGACY_TYPE_MIGRATIONS = new Map<string, (rule: RawRecord) => RawRecord>([
+    [LEGACY_REDIRECT_TYPE_ID, fromLegacyRedirect],
+    [LEGACY_MIRROR_TYPE_ID, fromLegacyMirror],
+]);
+
+function migrateRule(rule: RawRecord): RawRecord {
+    const migration = LEGACY_TYPE_MIGRATIONS.get(RawRecords.text(rule, 'type'));
+
+    return migration == null ? rule : migration(rule);
+}
+
 export const SchemaVersion3Migration = {
     migrate(rules: RawRecord[]): RawRecord[] {
-        return rules.map(rule => SchemaVersion3Migration.migrateRule(rule));
-    },
-
-    migrateRule(rule: RawRecord): RawRecord {
-        switch (text(rule, "type")) {
-            case LegacyRedirectTypeId:
-                return fromLegacyRedirect(rule);
-            case LegacyMirrorTypeId:
-                return fromLegacyMirror(rule);
-            default:
-                return rule;
-        }
+        return rules.map(migrateRule);
     },
 };

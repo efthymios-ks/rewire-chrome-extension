@@ -1,32 +1,34 @@
-import { RuleTester } from "../../../../Common/Rules/Engine/RuleTester";
-import type { RulePlan } from "../../../../Common/Rules/Engine/RulePlan";
-import type { IRuleType } from "../../../../Common/Rules/Types/IRuleType";
-import type { Rule } from "../../../../Contracts/Rules/Rule";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
-import type { IFileClient } from "../../../Core/FileClient";
-import type { SettingsService } from "../../../Core/SettingsService";
-import type { PanelContext } from "../../Shell/PanelContext";
-import { RuleScopes, ScopeAppearances } from "../RuleScopes";
-import { RuleTesterPanel } from "../Tester/RuleTesterPanel";
-import { ActionForm } from "./ActionForm";
-import { CriteriaBuilder } from "./CriteriaBuilder";
+import { RuleTester } from '../../../../Common/Rules/Engine/RuleTester';
+import type { RulePlan } from '../../../../Common/Rules/Engine/RulePlan';
+import type { RuleType } from '../../../../Common/Rules/Types/RuleType';
+import type { Rule } from '../../../../Contracts/Rules/Rule';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../../Core/Dom/FormControls';
+import type { FileClient } from '../../../Core/FileClient';
+import type { SettingsService } from '../../../Core/SettingsService';
+import type { PanelContext } from '../../Shell/PanelContext';
+import { RuleScopes } from '../RuleScopes';
+import { SCOPE_APPEARANCES } from '../ScopeAppearance';
+import { RuleTesterPanel } from '../Tester/RuleTesterPanel';
+import { ActionForm } from './ActionForm';
+import { CriteriaBuilder } from './CriteriaBuilder';
 
 export interface RuleEditorArguments {
     context: PanelContext;
-    fileClient: IFileClient;
-    type: IRuleType;
+    fileClient: FileClient;
+    type: RuleType;
     rule: Rule;
     onSave: (rule: Rule) => void;
     onCancel: () => void;
 }
 
 function section(title: string, ...children: HTMLElement[]): HTMLElement {
-    return buildElement("section", {
-        className: "editor-section",
+    return buildElement('section', {
+        className: 'editor-section',
         children: [
-            buildElement("h3", {
-                className: "editor-section-title",
+            buildElement('h3', {
+                className: 'editor-section-title',
                 text: title,
             }),
             ...children,
@@ -41,66 +43,60 @@ export class RuleEditor {
     private readonly _scope: HTMLElement;
     private readonly _errors: HTMLElement;
     private readonly _tester: RuleTesterPanel;
-    private readonly _saveButton: HTMLButtonElement;
     private _draft: Rule;
 
     constructor(args: RuleEditorArguments) {
         this._draft = structuredClone(args.rule);
         this._settingsService = args.context.settingsService;
-        this._scope = buildElement("p", {
-            className: "editor-scope",
+        this._scope = buildElement('p', {
+            className: 'editor-scope',
         });
-        this._errors = buildElement("ul", {
-            className: "form-error",
+        this._errors = buildElement('ul', {
+            className: 'form-error',
         });
         const settings = args.context.settingsService.current();
         this._tester = new RuleTesterPanel(
-            settings.testerSamples[0] ?? "",
-            input => RuleTester.testRule(
-                this.plan(),
+            /* sampleUrl: */ settings.testerSamples[0] ?? '',
+            /* runner: */ input => RuleTester.testRule({
+                plan: this.plan(),
                 input,
-                RuleScopes.contextOf(this._settingsService.current())
-            )
+                context: RuleScopes.contextOf(this._settingsService.current()),
+            }),
         );
-        this._saveButton = FormControls.button({
-            text: "Save rule",
-            variant: ButtonVariants.Primary,
-            onClick: () => args.onSave(structuredClone(this._draft)),
-        });
 
-        this.root = buildElement("div", {
-            className: "rule-editor",
+        this.root = buildElement('div', {
+            className: 'rule-editor',
             children: [
-                buildElement("p", {
-                    className: "muted",
+                buildElement('p', {
+                    className: 'rule-description',
                     text: args.type.description,
                 }),
-                FormControls.field(
-                    "Name",
-                    FormControls.textInput({
+                FormControls.field({
+                    label: 'Name',
+                    control: FormControls.textInput({
                         value: this._draft.name,
                         placeholder: args.type.label,
                         onInput: value => this.change({
                             name: value,
                         }),
-                    })
-                ),
+                    }),
+                }),
                 FormControls.toggleSwitch({
                     checked: this._draft.enabled,
-                    label: "Enabled",
-                    onChange: enabled => this.change({
-                        enabled,
+                    label: 'Enabled',
+                    onChange: isEnabled => this.change({
+                        enabled: isEnabled,
                     }),
                 }),
                 section(
-                    "If",
-                    new CriteriaBuilder(this._draft.criteria, criteria => this.change({
+                    /* title: */ 'If',
+                    /* children: */ new CriteriaBuilder(this._draft.criteria, criteria => this.change({
                         criteria,
-                    })).root
+                    })).root,
                 ),
                 section(
-                    "Then",
-                    new ActionForm({
+                    /* title: */ 'Then',
+                    /* children: */ new ActionForm({
                         type: args.type,
                         action: this._draft.action,
                         fileClient: args.fileClient,
@@ -108,27 +104,31 @@ export class RuleEditor {
                         onChange: action => this.change({
                             action,
                         }),
-                    }).root
+                    }).root,
                 ),
                 this._scope,
                 this._errors,
-                buildElement("div", {
-                    className: "actions",
+                buildElement('div', {
+                    className: 'actions',
                     children: [
-                        this._saveButton,
                         FormControls.button({
-                            text: "Cancel",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Save rule',
+                            variant: BUTTON_VARIANTS.Primary,
+                            onClick: () => args.onSave(structuredClone(this._draft)),
+                        }),
+                        FormControls.button({
+                            text: 'Cancel',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => args.onCancel(),
                         }),
                     ],
                 }),
-                buildElement("details", {
-                    className: "editor-section editor-tester",
+                buildElement('details', {
+                    className: 'editor-section editor-tester',
                     children: [
-                        buildElement("summary", {
-                            className: "editor-section-title",
-                            text: "Test this rule",
+                        buildElement('summary', {
+                            className: 'editor-section-title',
+                            text: 'Test this rule',
                         }),
                         this._tester.root,
                     ],
@@ -149,25 +149,25 @@ export class RuleEditor {
 
     private plan(): RulePlan {
         return RuleScopes.planOf(
-            {
+            /* rule: */ {
                 ...this._draft,
                 enabled: true,
             },
-            RuleScopes.contextOf(this._settingsService.current())
+            /* context: */ RuleScopes.contextOf(this._settingsService.current()),
         );
     }
 
     private refresh(): void {
         const plan = this.plan();
-        const appearance = ScopeAppearances[plan.engine];
+        const appearance = SCOPE_APPEARANCES[plan.engine];
         this._scope.replaceChildren(
-            buildElement("span", {
+            /* nodes: */ buildElement('span', {
                 className: `scope-badge ${appearance.className}`,
                 text: appearance.label,
             }),
-            plan.errors.length === 0 ? ` ${plan.reason}` : ""
+            /* nodes: */ plan.errors.length === 0 ? ` ${plan.reason}` : '',
         );
-        this._errors.replaceChildren(...plan.errors.map(error => buildElement("li", {
+        this._errors.replaceChildren(...plan.errors.map(error => buildElement('li', {
             text: error,
         })));
         this._errors.hidden = plan.errors.length === 0;

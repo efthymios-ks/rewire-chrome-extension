@@ -1,11 +1,11 @@
-import type { Rule } from "../../../Contracts/Rules/Rule";
-import type { RuleEngine } from "../../../Contracts/Rules/RuleEngine";
-import type { DnrRuleDraft } from "../Types/DnrRuleDraft";
-import type { IRuleType } from "../Types/IRuleType";
+import type { Rule } from '../../../Contracts/Rules/Rule';
+import type { RuleEngine } from '../../../Contracts/Rules/RuleEngine';
+import type { DnrRuleDraft } from '../Types/DnrRuleDraft';
+import type { RuleType } from '../Types/RuleType';
 
 export interface RulePlan {
     rule: Rule;
-    type: IRuleType | null;
+    type: RuleType | null;
     engine: RuleEngine;
     errors: string[];
     reason: string;

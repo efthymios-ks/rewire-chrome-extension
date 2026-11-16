@@ -1,12 +1,16 @@
-import type { Plugin } from "vite";
-import { defineConfig } from "vitest/config";
+import type { Plugin } from 'vite';
+import { configDefaults, defineConfig } from 'vitest/config';
 
-const MarkdownSuffix = ".md";
+const MARKDOWN_SUFFIX = '.md';
 
-const markdownAsText: Plugin = {
-    name: "markdown-as-text",
+const MARKDOWN_AS_TEXT_PLUGIN: Plugin = {
+    name: 'markdown-as-text',
     transform(code, id) {
-        return id.endsWith(MarkdownSuffix) ? `export default ${JSON.stringify(code)};` : null;
+        if (!id.endsWith(MARKDOWN_SUFFIX)) {
+            return null;
+        }
+
+        return `export default ${JSON.stringify(code)};`;
     },
 };
 
@@ -15,20 +19,18 @@ export default defineConfig({
         projects: [
             {
                 test: {
-                    name: "logic",
-                    include: [
-                        "tests/Background/**/*Tests.ts",
-                        "tests/Common/**/*Tests.ts",
-                    ],
-                    environment: "node",
+                    name: 'logic',
+                    include: ['src/**/*.test.ts'],
+                    exclude: [...configDefaults.exclude, 'src/SidePanel/**'],
+                    environment: 'node',
                 },
             },
             {
-                plugins: [markdownAsText],
+                plugins: [MARKDOWN_AS_TEXT_PLUGIN],
                 test: {
-                    name: "panel",
-                    include: ["tests/SidePanel/**/*Tests.ts"],
-                    environment: "happy-dom",
+                    name: 'panel',
+                    include: ['src/SidePanel/**/*.test.ts'],
+                    environment: 'happy-dom',
                 },
             },
         ],

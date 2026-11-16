@@ -1,24 +1,26 @@
-import { JwtClaimNames, JwtClaims, JwtValidity } from "../../../Common/Jwt/JwtClaims";
-import type { JwtObject } from "../../../Common/Jwt/JwtToken";
-import { UtcText } from "../../Core/Formatting/UtcText";
+import { JWT_CLAIM_NAMES } from '../../../Common/Jwt/JwtClaimNames';
+import { JwtClaims } from '../../../Common/Jwt/JwtClaims';
+import type { JwtObject } from '../../../Common/Jwt/JwtObject';
+import { JWT_VALIDITY, type JwtValidity } from '../../../Common/Jwt/JwtValidity';
+import { UtcText } from '../../Core/Formatting/UtcText';
 
 function timeOf(payload: JwtObject, claim: string): string {
     const time = JwtClaims
         .timesOf(payload)
         .find(candidate => candidate.claim === claim);
 
-    return time === undefined ? "" : UtcText.of(time.at);
+    return time == null ? '' : UtcText.of(time.at);
 }
 
-const StatusTexts: Record<JwtValidity, (payload: JwtObject) => string> = {
-    [JwtValidity.Valid]: payload => `Valid until ${timeOf(payload, JwtClaimNames.Expiry)}`,
-    [JwtValidity.Expired]: payload => `Expired at ${timeOf(payload, JwtClaimNames.Expiry)}`,
-    [JwtValidity.NotYetValid]: payload => `Not valid before ${timeOf(payload, JwtClaimNames.NotBefore)}`,
-    [JwtValidity.NoExpiry]: () => "Never expires",
+const STATUS_TEXTS: Record<JwtValidity, (payload: JwtObject) => string> = {
+    [JWT_VALIDITY.Valid]: payload => `Valid until ${timeOf(payload, JWT_CLAIM_NAMES.Expiry)}`,
+    [JWT_VALIDITY.Expired]: payload => `Expired at ${timeOf(payload, JWT_CLAIM_NAMES.Expiry)}`,
+    [JWT_VALIDITY.NotYetValid]: payload => `Not valid before ${timeOf(payload, JWT_CLAIM_NAMES.NotBefore)}`,
+    [JWT_VALIDITY.NoExpiry]: () => 'Never expires',
 };
 
 export const JwtStatusText = {
     of(payload: JwtObject, now: Date): string {
-        return StatusTexts[JwtClaims.validityOf(payload, now)](payload);
+        return STATUS_TEXTS[JwtClaims.validityOf(payload, now)](payload);
     },
 };

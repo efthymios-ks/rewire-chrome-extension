@@ -1,20 +1,7 @@
-export const SearchFields = {
-    Url: "url",
-    RequestBody: "requestBody",
-    ResponseBody: "responseBody",
-    RequestHeaders: "requestHeaders",
-    ResponseHeaders: "responseHeaders",
-} as const;
-
-export type SearchField = typeof SearchFields[keyof typeof SearchFields];
+import type { SearchScope } from './SearchScope';
 
 export interface SearchQuery {
     text: string;
     isRegex: boolean;
-}
-
-export interface SearchMatch {
-    entryId: string;
-    fields: SearchField[];
-    count: number;
+    scopes: SearchScope[];
 }

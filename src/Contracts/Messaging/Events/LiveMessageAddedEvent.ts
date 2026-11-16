@@ -1,8 +1,8 @@
-import type { LiveMessage } from "../../Live/LiveMessage";
-import type { WorkerEventType } from "../WorkerEventType";
+import type { LiveMessage } from '../../Live/LiveMessage';
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface LiveMessageAddedEvent {
-    type: WorkerEventType.LiveMessageAdded;
+    type: typeof WORKER_EVENT_TYPE.LiveMessageAdded;
     tabId: number;
     message: LiveMessage;
 }

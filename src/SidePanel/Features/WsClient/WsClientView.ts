@@ -1,35 +1,30 @@
-import type { LiveChannel } from "../../../Contracts/Live/LiveChannel";
-import { LiveChannelKind } from "../../../Contracts/Live/LiveChannelKind";
-import type { LiveMessage } from "../../../Contracts/Live/LiveMessage";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { Equalities } from "../../Core/Equalities";
-import { PanelVariables } from "../../Core/PanelVariables";
-import { HeaderRowsEditor } from "../Live/HeaderRowsEditor";
-import { LiveChannelList } from "../Live/LiveChannelList";
-import { LiveChannelRemover } from "../Live/LiveChannelRemover";
-import { LiveEntries } from "../Live/LiveEntries";
-import { LiveList, type LiveListItem } from "../Live/LiveList";
-import { ListeningToggle } from "../Live/ListeningToggle";
-import { LiveMessageFacts } from "../Live/LiveMessageFacts";
-import { LiveSendBar } from "../Live/LiveSendBar";
-import type { PanelContext } from "../Shell/PanelContext";
-import { HandshakeHeaderRules } from "./HandshakeHeaderRules";
-import { OwnSockets } from "./OwnSockets";
+import type { LiveChannel } from '../../../Contracts/Live/LiveChannel';
+import { LIVE_CHANNEL_KIND } from '../../../Contracts/Live/LiveChannelKind';
+import type { LiveMessage } from '../../../Contracts/Live/LiveMessage';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { PanelVariables } from '../../Core/PanelVariables';
+import { LiveClientPane } from '../Live/LiveClientPane';
+import type { LiveListItem } from '../Live/LiveList';
+import { LiveMessageFacts } from '../Live/LiveMessageFacts';
+import { LiveSendBar } from '../Live/LiveSendBar';
+import type { PanelContext } from '../Shell/PanelContext';
+import { ChromeHandshakeHeaderRules } from './ChromeHandshakeHeaderRules';
+import { OwnSockets } from './OwnSockets';
 
 function frameItemOf(message: LiveMessage): LiveListItem {
     const isControl = LiveMessageFacts.isControl(message);
-    const label = isControl ? LiveMessageFacts.opcodeName(message.opcode ?? 0) : message.data ?? "";
+    const label = isControl ? LiveMessageFacts.opcodeName(message.opcode ?? 0) : message.data ?? '';
 
     return {
         id: message.id,
         title: [
-            buildElement("span", {
-                className: "live-arrow",
+            buildElement('span', {
+                className: 'live-arrow',
                 text: LiveMessageFacts.arrowOf(message),
             }),
-            buildElement("span", {
-                className: "live-inline-preview",
+            buildElement('span', {
+                className: 'live-inline-preview',
                 text: label,
             }),
         ],
@@ -43,7 +38,7 @@ function frameItemOf(message: LiveMessage): LiveListItem {
 }
 
 function matches(message: LiveMessage, filter: string): boolean {
-    return filter === "" || (message.data ?? "").toLowerCase().includes(filter);
+    return filter === '' || (message.data ?? '').toLowerCase().includes(filter);
 }
 
 export class WsClientView {
@@ -51,196 +46,88 @@ export class WsClientView {
 
     private readonly _context: PanelContext;
     private readonly _sockets: OwnSockets;
-    private readonly _urlInput: HTMLInputElement;
-    private readonly _headers = new HeaderRowsEditor();
-    private readonly _channelList: LiveChannelList;
-    private readonly _frames: LiveList;
-    private readonly _filter: HTMLInputElement;
     private readonly _sendBar: LiveSendBar;
-    private readonly _remover: LiveChannelRemover;
-    private readonly _clearClosed: HTMLButtonElement;
-    private _selectedId: string | null = null;
+    private readonly _pane: LiveClientPane;
 
     constructor(context: PanelContext, sockets?: OwnSockets) {
         this._context = context;
         this._sockets = sockets ?? new OwnSockets({
             store: context.store,
-            headerRules: new HandshakeHeaderRules(),
+            headerRules: new ChromeHandshakeHeaderRules(),
             createSocket: url => new WebSocket(url),
             now: () => new Date(),
         });
-        this._urlInput = FormControls.textInput({
-            value: "",
-            placeholder: "wss://ws.postman-echo.com/raw",
-            className: "input live-url",
-        });
-        this._channelList = new LiveChannelList({
-            emptyText: "No sockets yet. Connect one, or listen to page sockets.",
-            closeTitle: "Close this socket",
-            removeTitle: "Remove this socket",
-            onSelect: channelId => this.select(channelId),
-            onClose: channelId => this._sockets.close(channelId),
-            onRemove: channelId => void this._remover.remove([channelId]),
-        });
-        this._remover = new LiveChannelRemover(context);
-        this._clearClosed = FormControls.button({
-            text: "Clear closed",
-            variant: ButtonVariants.Ghost,
-            title: "Remove every closed socket and its frames",
-            onClick: () => void this._remover.remove(this.closedIds()),
-        });
-        this._frames = new LiveList(context, "No frames.");
-        this._filter = FormControls.textInput({
-            value: "",
-            placeholder: "Filter",
-            className: "input live-filter",
-            onInput: () => this.render(),
-        });
         this._sendBar = new LiveSendBar({
-            className: "ws-send",
-            placeholder: "Message",
+            className: 'ws-send',
+            placeholder: 'Message',
             leading: null,
             onSend: text => this.send(text),
         });
-
-        this.root = buildElement("section", {
-            className: "live-view ws-view",
-            children: [
-                buildElement("div", {
-                    className: "view-header",
-                    children: [
-                        buildElement("h2", {
-                            text: "WS Client",
-                        }),
-                        ListeningToggle.build(context, "webSockets"),
-                    ],
-                }),
-                buildElement("div", {
-                    className: "live-connect",
-                    children: [
-                        this._urlInput,
-                        FormControls.button({
-                            text: "Connect",
-                            variant: ButtonVariants.Primary,
-                            onClick: () => void this.connect(),
-                        }),
-                    ],
-                }),
-                this._headers.root,
-                buildElement("div", {
-                    className: "live-section-row",
-                    children: [
-                        buildElement("h3", {
-                            className: "live-section-title",
-                            text: "Sockets",
-                        }),
-                        this._clearClosed,
-                    ],
-                }),
-                this._channelList.root,
-                buildElement("div", {
-                    className: "live-section-row",
-                    children: [
-                        buildElement("h3", {
-                            className: "live-section-title",
-                            text: "Frames",
-                        }),
-                        this._filter,
-                    ],
-                }),
-                this._frames.root,
-                this._sendBar.root,
-            ],
+        this._pane = new LiveClientPane({
+            context,
+            kind: LIVE_CHANNEL_KIND.WebSocket,
+            className: 'ws-view',
+            title: 'WS Client',
+            listeningKind: 'webSockets',
+            connect: {
+                placeholder: 'wss://ws.postman-echo.com/raw',
+                buttonText: 'Connect',
+                missingUrlText: 'Enter a WebSocket URL first.',
+                onConnect: (url, headers) => void this.connectAsync(url, headers),
+            },
+            channels: {
+                title: 'Sockets',
+                emptyText: 'No sockets yet. Connect one, or listen to page sockets.',
+                closeTitle: 'Close this socket',
+                removeTitle: 'Remove this socket',
+                clearClosedTitle: 'Remove every closed socket and its frames',
+                onClose: channelId => this._sockets.close(channelId),
+            },
+            messages: {
+                title: 'Frames',
+                emptyText: 'No frames.',
+                itemOf: frameItemOf,
+                matches,
+            },
+            footer: this._sendBar.root,
+            onRender: selected => this.renderSendBar(selected),
         });
-
-        context.store.select(
-            state => [
-                state.live.channels,
-                state.live.messages,
-            ],
-            () => this.render(),
-            Equalities.shallowArray
-        );
+        this.root = this._pane.root;
+        void this._sockets.startAsync();
     }
 
-    private async connect(): Promise<void> {
-        const state = this._context.store.getState();
-        const url = PanelVariables.render(state, this._urlInput.value.trim());
-        if (url === "") {
-            this._context.notifier.show("Enter a WebSocket URL first.");
-
-            return;
-        }
-
-        const headers = this._headers
-            .values()
-            .map(header => ({
-                name: header.name,
-                value: PanelVariables.render(state, header.value),
-            }));
-        const connected = await this._sockets.connect(url, headers);
+    private async connectAsync(url: string, headers: HeaderEntry[]): Promise<void> {
+        const connected = await this._sockets.connectAsync(url, headers);
         if (connected.hasErrors) {
             this._context.notifier.show(connected.error);
 
             return;
         }
 
-        this.select(connected.value);
+        this._pane.select(connected.value);
     }
 
     private send(text: string): void {
-        if (this._selectedId === null) {
+        const selected = this._pane.selected();
+        if (selected == null) {
             return;
         }
 
-        const sent = this._sockets.send(this._selectedId, PanelVariables.render(this._context.store.getState(), text));
+        const sent = this._sockets.send(
+            /* channelId: */ selected.id,
+            /* text: */ PanelVariables.render(
+                /* state: */ this._context.store.getState(),
+                /* text: */ text,
+            ),
+        );
         if (sent.hasErrors) {
             this._context.notifier.show(sent.error);
         }
     }
 
-    private select(channelId: string): void {
-        this._selectedId = channelId;
-        this.render();
-    }
-
-    private render(): void {
-        const { live } = this._context.store.getState();
-        const channels = this.channels();
-        this._clearClosed.hidden = !channels.some(channel => !channel.isOpen);
-        const selected = this.selectedOf(channels);
-        this._channelList.update(
-            channels.map(channel => ({
-                channel,
-                count: LiveEntries.messagesOf(live, channel.id).length,
-            })),
-            selected?.id ?? null
-        );
-
-        const filter = this._filter.value.trim().toLowerCase();
-        this._frames.update(selected === undefined
-            ? []
-            : LiveEntries
-                .messagesOf(live, selected.id)
-                .filter(message => matches(message, filter))
-                .map(frameItemOf));
-        this._sendBar.root.hidden = selected === undefined || !selected.isMine || !selected.isOpen;
-    }
-
-    private channels(): LiveChannel[] {
-        return this._context.store
-            .getState()
-            .live.channels
-            .filter(channel => channel.kind === LiveChannelKind.WebSocket);
-    }
-
-    private closedIds(): string[] {
-        return this.channels()
-            .filter(channel => !channel.isOpen)
-            .map(channel => channel.id);
-    }
-
-    private selectedOf(channels: LiveChannel[]): LiveChannel | undefined {
-        return channels.find(channel => channel.id === this._selectedId) ?? channels.at(-1);
+    private renderSendBar(selected: LiveChannel | undefined): void {
+        this._sendBar.root.hidden = selected == null
+            || !selected.isMine
+            || !selected.isOpen;
     }
 }

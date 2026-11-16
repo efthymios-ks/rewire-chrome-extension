@@ -2,15 +2,16 @@
 
 The **postMessage** tab shows the `window.postMessage` messages between the inspected page and its iframes, and sends your own.  
 postMessage messages never show in the [Traffic](Traffic.md) timeline.  
-The tab badge counts the messages.
+The tab badge counts the messages the panel holds, the newest 1,000 at most.
 
 ## Listen to page messages
 
 The **Listen to page messages** switch in the header is off each time the panel opens.
 
-- While it is off, Rewire adds nothing to the page, so it costs nothing.
+- Until it is first turned on, Rewire adds nothing to the page, so it costs nothing.
 - While it is on, Rewire adds a `message` listener to the inspected tab and its iframes, and the messages show in the list.
 - Sending works either way; while the switch is off, a notice says where to see the message.
+- When the switch can't be applied to the tab, a notice says why.
 
 ## Messages
 
@@ -41,10 +42,12 @@ The send bar holds the target frame, such as `To top` or `To pay.example.com`, t
 
 ## How capture works
 
-While **Listen to page messages** is on, Rewire adds a listener for `message` events to the page and to every iframe, through the debugger, and removes it when the switch goes off.
+While **Listen to page messages** is on, Rewire adds a listener for `message` events to the page and to every iframe, through the debugger.  
+Turning the switch off removes the listener from the page and every iframe, and stops adding it to frames that load later; turning it on again adds it back.  
+Closing the panel, or inspecting another tab, while the switch is on leaves the listener in that page, reporting nothing, until the page reloads or the switch goes on there again.
 
+- Frames already loaded, same-origin and cross-origin iframes included, get the listener as soon as the switch goes on.
 - Frames that load after the switch goes on are captured from their first message.
-- Same-origin iframes that were already loaded join after the page reloads.
 - Messages a page sends before the switch goes on are not captured.
 
 ## Left out

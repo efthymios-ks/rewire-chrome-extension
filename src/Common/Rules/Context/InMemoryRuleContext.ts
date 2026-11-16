@@ -1,4 +1,4 @@
-import { RuleContextBase } from "./RuleContextBase";
+import { RuleContextBase } from './RuleContextBase';
 
 export class InMemoryRuleContext extends RuleContextBase {
     private readonly _variables: Map<string, string>;
@@ -14,9 +14,5 @@ export class InMemoryRuleContext extends RuleContextBase {
 
     setVariable(name: string, value: string): void {
         this._variables.set(name, value);
-    }
-
-    variables(): Map<string, string> {
-        return new Map(this._variables);
     }
 }

@@ -1,16 +1,20 @@
-import { JsonText } from "../../../Common/Json/JsonText";
+import { JsonText } from '../../../Common/Json/JsonText';
 
-const PacketPrefix = /^\d+(?=[[{])/;
+const PACKET_PREFIX = /^\d+(?=[[{])/;
 
 export const LivePayload = {
     jsonOf(data: string): unknown {
         const parsed = JsonText.tryParse(data);
-        if (!parsed.hasErrors && typeof parsed.value === "object" && parsed.value !== null) {
+        if (
+            !parsed.hasErrors
+            && typeof parsed.value === 'object'
+            && parsed.value != null
+        ) {
             return parsed.value;
         }
 
-        const prefix = PacketPrefix.exec(data);
-        if (prefix === null) {
+        const prefix = PACKET_PREFIX.exec(data);
+        if (prefix == null) {
             return undefined;
         }
 

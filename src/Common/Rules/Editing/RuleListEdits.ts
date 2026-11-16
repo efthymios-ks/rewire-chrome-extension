@@ -1,20 +1,37 @@
-import type { Rule } from "../../../Contracts/Rules/Rule";
+import type { Rule } from '../../../Contracts/Rules/Rule';
 
-const CopySuffix = " copy";
+const COPY_SUFFIX = ' copy';
+
+export interface MoveOptions {
+    rules: Rule[];
+    ruleId: string;
+    targetIndex: number;
+}
+
+export interface InsertAfterOptions {
+    rules: Rule[];
+    rule: Rule;
+    afterRuleId: string | null;
+}
+
+export interface RestoreOptions {
+    rules: Rule[];
+    rule: Rule;
+    index: number;
+}
 
 export const RuleListEdits = {
-    move(
-        rules: Rule[],
-        ruleId: string,
-        targetIndex: number
-    ): Rule[] {
+    move({ rules, ruleId, targetIndex }: MoveOptions): Rule[] {
         const moving = rules.find(rule => rule.id === ruleId);
-        if (moving === undefined) {
+        if (moving == null) {
             return rules;
         }
 
         const remaining = rules.filter(rule => rule.id !== ruleId);
-        const boundedIndex = Math.max(0, Math.min(targetIndex, remaining.length));
+        const boundedIndex = Math.max(
+            /* values: */ 0,
+            /* values: */ Math.min(targetIndex, remaining.length),
+        );
 
         return [
             ...remaining.slice(0, boundedIndex),
@@ -23,12 +40,8 @@ export const RuleListEdits = {
         ];
     },
 
-    insertAfter(
-        rules: Rule[],
-        rule: Rule,
-        afterRuleId: string | null
-    ): Rule[] {
-        const index = afterRuleId === null ? -1 : rules.findIndex(candidate => candidate.id === afterRuleId);
+    insertAfter({ rules, rule, afterRuleId }: InsertAfterOptions): Rule[] {
+        const index = afterRuleId == null ? -1 : rules.findIndex(candidate => candidate.id === afterRuleId);
         if (index === -1) {
             return [
                 ...rules,
@@ -47,13 +60,13 @@ export const RuleListEdits = {
         return {
             ...structuredClone(rule),
             id: newId,
-            name: `${rule.name}${CopySuffix}`,
+            name: `${rule.name}${COPY_SUFFIX}`,
         };
     },
 
-    replace(rules: Rule[], rule: Rule): Rule[] {
-        const exists = rules.some(candidate => candidate.id === rule.id);
-        if (!exists) {
+    upsert(rules: Rule[], rule: Rule): Rule[] {
+        const isExistingRule = rules.some(candidate => candidate.id === rule.id);
+        if (!isExistingRule) {
             return [
                 ...rules,
                 rule,
@@ -67,12 +80,11 @@ export const RuleListEdits = {
         return rules.filter(rule => rule.id !== ruleId);
     },
 
-    restore(
-        rules: Rule[],
-        rule: Rule,
-        index: number
-    ): Rule[] {
-        const boundedIndex = Math.max(0, Math.min(index, rules.length));
+    restore({ rules, rule, index }: RestoreOptions): Rule[] {
+        const boundedIndex = Math.max(
+            /* values: */ 0,
+            /* values: */ Math.min(index, rules.length),
+        );
 
         return [
             ...rules.slice(0, boundedIndex),

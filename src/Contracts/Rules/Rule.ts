@@ -1,6 +1,5 @@
-import type { RuleCriteria } from "./Criterion";
-
-export type RuleAction = Record<string, unknown>;
+import type { RuleAction } from './RuleAction';
+import type { RuleCriteria } from './RuleCriteria';
 
 export interface Rule {
     id: string;

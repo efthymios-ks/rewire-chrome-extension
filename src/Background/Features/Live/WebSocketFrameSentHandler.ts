@@ -1,29 +1,29 @@
-import type { Protocol } from "devtools-protocol";
-import { LiveMessageDirection } from "../../../Contracts/Live/LiveMessageDirection";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { ILiveStore } from "./LiveStore";
-import { WebSocketFrames } from "./WebSocketFrames";
+import type { Protocol } from 'devtools-protocol';
+import { LIVE_MESSAGE_DIRECTION } from '../../../Contracts/Live/LiveMessageDirection';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { LiveStore } from './LiveStore';
+import { WebSocketFrames } from './WebSocketFrames';
 
-export class WebSocketFrameSentHandler implements ICdpEventHandler<"Network.webSocketFrameSent"> {
-    readonly event = "Network.webSocketFrameSent";
+export class WebSocketFrameSentHandler implements CdpEventHandler<'Network.webSocketFrameSent'> {
+    readonly event = 'Network.webSocketFrameSent';
 
-    private readonly _liveStore: ILiveStore;
+    private readonly _liveStore: LiveStore;
     private readonly _now: () => Date;
 
-    constructor(liveStore: ILiveStore, now: () => Date) {
+    constructor(liveStore: LiveStore, now: () => Date) {
         this._liveStore = liveStore;
         this._now = now;
     }
 
-    async handle(tabId: number, params: Protocol.Network.WebSocketFrameSentEvent): Promise<void> {
+    async handleAsync(tabId: number, params: Protocol.Network.WebSocketFrameSentEvent): Promise<void> {
         this._liveStore.addMessage(
-            tabId,
-            WebSocketFrames.toDraft(
-                params.requestId,
-                LiveMessageDirection.Sent,
-                params.response,
-                this._now()
-            )
+            /* tabId: */ tabId,
+            /* draft: */ WebSocketFrames.toDraft({
+                requestId: params.requestId,
+                direction: LIVE_MESSAGE_DIRECTION.Sent,
+                frame: params.response,
+                at: this._now(),
+            }),
         );
     }
 }

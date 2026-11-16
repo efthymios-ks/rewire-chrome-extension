@@ -1,6 +1,6 @@
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
-import { PanelLimits } from "../../Core/PanelLimits";
-import type { PanelState } from "../../Core/PanelState";
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
+import { PANEL_LIMITS } from '../../Core/PanelLimits';
+import type { PanelState } from '../../Core/PanelState';
 
 export const TimelineEntries = {
     upsert(entries: TimelineEntrySummary[], entry: TimelineEntrySummary): TimelineEntrySummary[] {
@@ -9,7 +9,7 @@ export const TimelineEntries = {
             return [
                 ...entries,
                 entry,
-            ].slice(-PanelLimits.MaxTimelineEntries);
+            ].slice(-PANEL_LIMITS.MaxTimelineEntries);
         }
 
         return entries.map(candidate => candidate.id === entry.id ? entry : candidate);

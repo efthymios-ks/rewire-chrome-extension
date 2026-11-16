@@ -1,6 +1,6 @@
-import type { WorkerEventType } from "../WorkerEventType";
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface TimelineClearedEvent {
-    type: WorkerEventType.TimelineCleared;
+    type: typeof WORKER_EVENT_TYPE.TimelineCleared;
     tabId: number;
 }

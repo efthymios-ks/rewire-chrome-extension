@@ -12,6 +12,7 @@ The **Listen to page sockets** switch in the header is off each time the panel o
 - While it is on, the sockets the inspected tab and its iframes open from then on show in the list.
 - Your own sockets work either way.
 - The switch follows you when you inspect another tab.
+- When the switch can't be applied to the tab, a notice says why.
 
 ## Connect
 
@@ -20,8 +21,10 @@ Type the socket URL, such as `wss://ws.postman-echo.com/raw`, a public echo serv
 - The URL, header values and messages take the active profile's `{{variables}}`.
 - The browser sends the target site's cookies with the handshake.
 - **Headers · N** folds out to name and value rows, with **Add header** and **×**.
-  The headers go on the handshake through a temporary `declarativeNetRequest` session rule for that exact URL.
+  The headers go on the handshake through a temporary `declarativeNetRequest` session rule for that exact URL, where `wss://echo.example.com` and `wss://echo.example.com/` are the same.
   The rule is removed when the socket closes.
+  Each browser window's panel numbers its rules apart from the others, so a panel never removes the rules of sockets open in another window.
+  A rule left behind, such as by a panel closed while its socket was open, is removed when a panel opens again in that window; once that window is closed, it is removed when a panel opens or connects in any window.
 
 ## Sockets
 
@@ -31,12 +34,14 @@ The **Sockets** list holds your own sockets, and the page's sockets captured whi
 | ----------- | ------------------------------------------------- |
 | Dot         | green while the socket is open, grey once closed  |
 | Tag         | **Page** for the page's socket, **Mine** for yours |
-| Address     | host and path                                     |
-| Count       | how many frames the socket carried                |
+| Address     | host, path and query                              |
+| Count       | how many of its frames the panel holds            |
 | **×**       | closes your own open socket, or removes a closed socket and its frames |
 
 - **Clear closed** next to the title removes every closed socket and its frames; it shows while there is one.
-- Pick a socket to show its frames.  
+- Pick a socket to show its frames; until you do, the newest socket is shown, and **Connect** picks the socket it opens.
+- The panel holds the newest 2,000 frames and events of all sockets and streams together; older ones drop off.
+
 The page's sockets are read only, and nothing is ever sent through them.
 
 ## Frames

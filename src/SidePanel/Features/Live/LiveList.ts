@@ -1,10 +1,12 @@
-import { JwtFinder } from "../../../Common/Jwt/JwtFinder";
-import { buildElement, type ElementChild } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { ClockText } from "../../Core/Formatting/ClockText";
-import { JsonTreeView } from "../Inspector/JsonTreeView";
-import type { PanelContext } from "../Shell/PanelContext";
-import { LivePayload } from "./LivePayload";
+import { JwtFinder } from '../../../Common/Jwt/JwtFinder';
+import { copyWithNoticeAsync } from '../../Core/copyWithNoticeAsync';
+import { buildElement, type ElementChild } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import { ClockText } from '../../Core/Formatting/ClockText';
+import { JsonTreeView } from '../Inspector/JsonTreeView';
+import type { PanelContext } from '../Shell/PanelContext';
+import { LivePayload } from './LivePayload';
 
 export interface LiveListAction {
     label: string;
@@ -22,10 +24,10 @@ export interface LiveListItem {
     actions: LiveListAction[];
 }
 
-const FactSeparator = " · ";
+const FACT_SEPARATOR = ' · ';
 
-const RowSelector = ":scope > .live-item";
-const RowIdAttribute = "data-id";
+const ROW_SELECTOR = ':scope > .live-item';
+const ROW_ID_ATTRIBUTE = 'data-id';
 
 interface RenderedRow {
     element: HTMLElement;
@@ -37,26 +39,23 @@ interface ScrollAnchor {
     offset: number;
 }
 
-function classesOf(item: LiveListItem, isExpanded: boolean): string {
-    return [
-        "live-item",
-        item.isMuted ? "muted-item" : "",
-        isExpanded ? "expanded" : "",
-    ]
-        .filter(name => name !== "")
-        .join(" ");
+function stateAttributesOf(item: LiveListItem, isExpanded: boolean): Record<string, string> {
+    return {
+        ...(item.isMuted ? { 'data-muted': '' } : {}),
+        ...(isExpanded ? { 'data-expanded': '' } : {}),
+    };
 }
 
 function payloadOf(data: string): HTMLElement | null {
-    if (data === "") {
+    if (data === '') {
         return null;
     }
 
     const json = LivePayload.jsonOf(data);
 
     return json === undefined
-        ? buildElement("pre", {
-            className: "code-block live-raw",
+        ? buildElement('pre', {
+            className: 'code-block live-raw',
             text: data,
         })
         : JsonTreeView.build(json, true);
@@ -74,8 +73,8 @@ export class LiveList {
     constructor(context: PanelContext, emptyText: string) {
         this._context = context;
         this._emptyText = emptyText;
-        this.root = buildElement("ul", {
-            className: "live-list",
+        this.root = buildElement('ul', {
+            className: 'live-list',
         });
     }
 
@@ -87,8 +86,8 @@ export class LiveList {
     private render(): void {
         if (this._items.length === 0) {
             this._rows.clear();
-            this.root.replaceChildren(buildElement("li", {
-                className: "muted live-empty",
+            this.root.replaceChildren(buildElement('li', {
+                className: 'live-empty',
                 text: this._emptyText,
             }));
 
@@ -108,10 +107,10 @@ export class LiveList {
 
     private anchorOf(): ScrollAnchor | null {
         const scrollTop = this.root.scrollTop;
-        const row = [...this.root.querySelectorAll<HTMLElement>(RowSelector)]
+        const row = [...this.root.querySelectorAll<HTMLElement>(ROW_SELECTOR)]
             .find(element => element.offsetTop + element.offsetHeight > scrollTop);
-        const id = row?.getAttribute(RowIdAttribute);
-        if (row === undefined || id === null || id === undefined) {
+        const id = row?.getAttribute(ROW_ID_ATTRIBUTE);
+        if (row == null || id == null) {
             return null;
         }
 
@@ -122,8 +121,12 @@ export class LiveList {
     }
 
     private restore(anchor: ScrollAnchor | null): void {
-        const row = anchor === null ? undefined : this._rows.get(anchor.id);
-        if (anchor === null || row === undefined) {
+        if (anchor == null) {
+            return;
+        }
+
+        const row = this._rows.get(anchor.id);
+        if (row == null) {
             return;
         }
 
@@ -133,42 +136,43 @@ export class LiveList {
     private rowFor(item: LiveListItem): HTMLElement {
         const isExpanded = item.id === this._expandedId;
         const existing = this._rows.get(item.id);
-        if (existing !== undefined && existing.isExpanded === isExpanded) {
+        if (existing != null && existing.isExpanded === isExpanded) {
             return existing.element;
         }
 
         const element = this.rowOf(item, isExpanded);
         this._rows.set(
-            item.id,
-            {
+            /* key: */ item.id,
+            /* value: */ {
                 element,
                 isExpanded,
-            }
+            },
         );
 
         return element;
     }
 
     private rowOf(item: LiveListItem, isExpanded: boolean): HTMLElement {
-        return buildElement("li", {
-            className: classesOf(item, isExpanded),
+        return buildElement('li', {
+            className: 'live-item',
             attributes: {
-                [RowIdAttribute]: item.id,
+                [ROW_ID_ATTRIBUTE]: item.id,
+                ...stateAttributesOf(item, isExpanded),
             },
             children: [
-                buildElement("button", {
-                    className: "live-item-head",
+                buildElement('button', {
+                    className: 'live-item-head',
                     attributes: {
-                        type: "button",
-                        "aria-expanded": String(isExpanded),
+                        type: 'button',
+                        'aria-expanded': String(isExpanded),
                     },
                     children: [
-                        buildElement("span", {
-                            className: "live-item-title",
+                        buildElement('span', {
+                            className: 'live-item-title',
                             children: item.title,
                         }),
-                        buildElement("span", {
-                            className: "live-item-time",
+                        buildElement('span', {
+                            className: 'live-item-time',
                             text: ClockText.of(item.at),
                         }),
                     ],
@@ -176,10 +180,10 @@ export class LiveList {
                         click: () => this.toggle(item.id),
                     },
                 }),
-                !item.hasDataLine || item.data === null || item.data === ""
+                !item.hasDataLine || item.data == null || item.data === ''
                     ? null
-                    : buildElement("div", {
-                        className: "live-item-preview",
+                    : buildElement('div', {
+                        className: 'live-item-preview',
                         text: item.data,
                     }),
                 isExpanded ? this.detailsOf(item) : null,
@@ -188,34 +192,38 @@ export class LiveList {
     }
 
     private detailsOf(item: LiveListItem): HTMLElement {
-        const data = item.data ?? "";
+        const data = item.data ?? '';
         const token = JwtFinder.find(data);
 
-        return buildElement("div", {
-            className: "live-item-details",
+        return buildElement('div', {
+            className: 'live-item-details',
             children: [
-                buildElement("p", {
-                    className: "muted live-facts",
-                    text: item.facts.join(FactSeparator),
+                buildElement('p', {
+                    className: 'live-facts',
+                    text: item.facts.join(FACT_SEPARATOR),
                 }),
-                buildElement("div", {
-                    className: "actions",
+                buildElement('div', {
+                    className: 'actions',
                     children: [
                         FormControls.button({
-                            text: "Copy",
-                            variant: ButtonVariants.Ghost,
-                            onClick: () => void this.copy(data),
+                            text: 'Copy',
+                            variant: BUTTON_VARIANTS.Ghost,
+                            onClick: () => void copyWithNoticeAsync({
+                                context: this._context,
+                                text: data,
+                                successMessage: 'Payload copied.',
+                            }),
                         }),
-                        token === null
+                        token == null
                             ? null
                             : FormControls.button({
-                                text: "Open JWT",
-                                variant: ButtonVariants.Ghost,
+                                text: 'Open JWT',
+                                variant: BUTTON_VARIANTS.Ghost,
                                 onClick: () => this._context.viewLauncher.openJwt(token),
                             }),
                         ...item.actions.map(action => FormControls.button({
                             text: action.label,
-                            variant: ButtonVariants.Ghost,
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: action.run,
                         })),
                     ],
@@ -228,10 +236,5 @@ export class LiveList {
     private toggle(itemId: string): void {
         this._expandedId = this._expandedId === itemId ? null : itemId;
         this.render();
-    }
-
-    private async copy(text: string): Promise<void> {
-        const copied = await this._context.clipboardClient.copy(text);
-        this._context.notifier.show(copied.hasErrors ? copied.error : "Payload copied.");
     }
 }

@@ -32,13 +32,13 @@ Each profile:
 | Key         | Type   | Meaning                                                                                  |
 | ----------- | ------ | ---------------------------------------------------------------------------------------- |
 | `id`        | string | Any unique text. Missing, a random id is given. The first profile of every install is `default`. |
-| `name`      | string | Shown in the profile list. Empty becomes `Unnamed profile`.                               |
+| `name`      | string | Shown in the profile list. Empty becomes `Profile`.                                       |
 | `rules`     | array  | The rules, in the order they run, top to bottom.                                         |
 | `variables` | array  | `{ "name": "...", "value": "..." }` pairs, see [Variables](#variables).                  |
 
 Import, in the Rules tab under **Import / export**, offers two modes:
 
-- **Merge** adds new profiles and patches a profile with the same `id`: rules with the same `id` are replaced, new ones added.
+- **Merge** adds new profiles and patches a profile with the same `id`: rules with the same `id` are replaced, new ones added. The active profile stays active, so a new profile's rules run once it is picked in the header.
 - **Replace** deletes every profile and keeps only the imported ones.
 
 A new profile `id`, such as `orders-mocks`, keeps imported rules apart from yours.  
@@ -84,7 +84,8 @@ A rule type that isn't listed under [Rule types](#rule-types) makes the whole fi
 | `criteria` | object  | When the rule acts, see [Conditions](#conditions).                          |
 | `action`   | object  | What the rule does; its keys depend on `type`.                              |
 
-- A key an action doesn't know is ignored; a key it needs and doesn't find takes its default.
+- A key an action doesn't know is ignored.
+  A key it needs and doesn't find reads as empty, `0` or `false`, which isn't always the **Default** below: a missing `delayMs` makes the rule `Invalid`, a missing `path` leaves `Path` off a response cookie, and a missing `mode` means `findReplace` when `find` is set. Write every key out.
 - A rule with an empty required value, such as a header with no name, imports, but shows as `Invalid` and does nothing until fixed.
 
 ## Conditions
@@ -148,8 +149,16 @@ A value that isn't a string, such as `10` instead of `"10"`, is read as empty.
 | `timeWindow`     | the local time of day                       | `between`                       | no      | `09:00-17:30`           | yes      |
 
 - A negated condition works on the inspected tab only, except `host` with `domains`, `method` and `resourceType`.
-- Response conditions, `responseStatus`, `responseHeader` and `contentType`, only make sense on types that act on the response.
-- With no `resourceType` condition, a rule acts on Fetch, XHR and documents, such as an API URL opened in the address bar.
+- Response conditions, `responseStatus`, `responseHeader` and `contentType`, work only on types that act on the response; on a type that acts before it, they make the rule `Invalid`.
+- With no `resourceType` condition, a rule acts on Fetch, XHR and documents, such as an API URL opened in the address bar, and on all tabs on Chrome's `other` type too.
+- `url`, `host`, `path`, `extension` and `query` ignore case, on all tabs, on the inspected tab and in the testers alike, and so does the regex that feeds [capture groups](#capture-groups).
+  `requestHeader`, `requestCookie` and `responseHeader` values match case as written, and `contentType` is compared in lower case.
+- `extension` takes each value with or without its dot, in any case: `.js`, `js` and `JS` are the same.
+- `query` compares the decoded value, so `/home` matches both `next=/home` and `next=%2Fhome`.
+- With `all`, more than one `url`, `path`, `extension`, `query` or `host` `wildcard` condition moves the rule to the inspected tab.
+- With `all`, two `host` `domains`, `method` or `resourceType` conditions combine: their lists intersect, and the lists of negated ones add up.
+  Conditions that can never match the same request, such as `method` `GET` next to `method` `POST`, move the rule to the inspected tab, with that reason.
+- A `host` `domains`, `method`, `extension` or `resourceType` value with no items, such as `","`, and a `resourceType` value not listed below make the rule `Invalid`.
 
 ### Operators
 
@@ -183,7 +192,7 @@ A value that isn't a string, such as `10` instead of `"10"`, is read as empty.
 ### Capture groups
 
 A `url` condition with `regex` feeds `$1` to `$9` into the `target` of **Rewrite** and **Redirect**.  
-`$0` is the whole URL and `$$` is a `$`.
+`$0` is the whole URL and needs that condition too; `$$` is a `$`.
 
 ```json
 {
@@ -350,8 +359,8 @@ It takes the same `operations` as **Request header**.
 | Key               | Type    | Values                                                                 | Default                                         |
 | ----------------- | ------- | ---------------------------------------------------------------------- | ----------------------------------------------- |
 | `allowedOrigin`   | string  | An origin such as `http://localhost:3000`; empty allows any origin. A specific origin also allows credentials. | `""` |
-| `allowedMethods`  | string  | Methods split by commas; empty sends the default.                     | `GET, POST, PUT, PATCH, DELETE, OPTIONS`        |
-| `allowedHeaders`  | string  | Headers split by commas; empty sends the default.                     | `Authorization, Content-Type, X-Requested-With` |
+| `allowedMethods`  | string  | Methods split by commas; empty sends the default, or to a preflight the method it asks for. | `GET, POST, PUT, PATCH, DELETE, OPTIONS` |
+| `allowedHeaders`  | string  | Headers split by commas; empty sends the default, or to a preflight the headers it asks for. | `Authorization, Content-Type, X-Requested-With` |
 | `answerPreflight` | boolean | `true` answers `OPTIONS` preflights with `204` on the inspected tab.  | `true`                                          |
 
 ```json
@@ -577,7 +586,7 @@ It takes the same `operations` as **Request header**.
 | -------- | ------ | -------------------------------------------------------------------------------------- | ------- |
 | `target` | string | The new URL; required. `$1` to `$9` from a `url` regex condition; can use `{{variables}}`. | `""` |
 
-- A `target` that uses `$1` to `$9` needs a `url` condition with `regex`.
+- A `target` that uses `$0` to `$9` needs a `url` condition with `regex`.
 - With groups, the rule works on all tabs only when that regex is its one URL condition.
 
 ```json
@@ -613,6 +622,7 @@ It takes the same `operations` as **Request header**.
 | `operations` | array | [Operations](#operations); `name` is the parameter, `value` can use `{{variables}}`. `remove` takes wildcard names such as `utm_*`. | one `addOrUpdate` with an empty name and value |
 
 - Wildcard names, **Add** and **Add if missing** work on the inspected tab only.
+- A rule with only `remove` operations and a `url`, `path`, `extension`, `query` or `host` `wildcard` condition works on the inspected tab only.
 
 ```json
 {
@@ -684,7 +694,8 @@ Its `action` is `{}`.
 - At least one of `overrideStatus` and `overrideBody` must be `true`.
 - With only one on, the server answers and the rule changes that part of its answer.
 - With a response condition, the rule waits for the server and changes its answer even with both on.
-- It answers the CORS preflight of a call it mocks, so a cross-origin mock needs no **CORS** rule.
+- With both on, it answers the CORS preflight of a call it mocks, so a cross-origin mock needs no **CORS** rule.
+  The preflight is an `OPTIONS` request that must match the conditions too, so a `method` condition has to list `OPTIONS`.
 - To block a request, mock it with a status such as `403`.
 
 ```json
@@ -700,7 +711,7 @@ Its `action` is `{}`.
         "field": "method",
         "op": "oneOf",
         "name": "",
-        "value": "GET",
+        "value": "GET, OPTIONS",
         "negate": false
       },
       {
@@ -776,7 +787,9 @@ Its `action` is `{}`.
 | `replace`     | string | `findReplace`           | The replacement; with `regex`, `$1` inserts a group. Can use `{{variables}}`. | `""` |
 
 - `jsonMerge` follows RFC 7386: keys in the patch are set, `null` removes a key.
-  A patch that isn't valid JSON makes the rule invalid.
+  A patch that isn't valid JSON before `{{variables}}` are filled in makes the rule invalid, so variables go inside JSON strings, such as `{"name":"{{user}}"}`.
+  A body that isn't JSON is left as it is.
+- With `regex`, a pattern that can match empty text, such as `x*`, also inserts `replace` between the characters it doesn't match.
 - Without a body, only `replace` acts.
 
 ```json
@@ -879,7 +892,10 @@ Its `action` is `{}`.
 | XPath    | `/` child, `//` any depth, `*`, `[1]` (`[-1]` is the last), `[@name='value']`, `@name`, `text()`; the first match wins | `//item[@kind='primary']/@sku` |
 
 - Objects and arrays come out as JSON text.
+- A request source, `url`, `query`, `requestHeader`, `requestCookie` or a request body, is read as the request goes out; with a response condition, such as `responseStatus` `2xx`, it is read once the response matches.
+  `responseHeader` reads the headers only; only `responseBodyJson` and `responseBodyXml` wait for the body.
 - A source or path that finds nothing leaves the variable as it was.
+  A `pattern` that matches empty text, such as `\d*` on a value without digits, stores an empty value.
 
 ```json
 {
@@ -919,7 +935,7 @@ Its `action` is `{}`.
 ## Ask an assistant
 
 **Copy rule format**, under **Write rules with AI** in **Import / export**, copies this file.  
-Paste it into a chat with an assistant, add what you want, then paste the whole answer in the **Import** box, press **Read pasted JSON**, and import it with **Merge**.
+Paste it into a chat with an assistant, add what you want, then paste the whole answer in the **Import** box, press **Read pasted JSON**, import it with **Merge**, and pick the new profile in the header.
 
 ```text
 Using the Rewire rule JSON above, write rules that:

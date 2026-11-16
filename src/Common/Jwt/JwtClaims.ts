@@ -1,11 +1,6 @@
-import type { JwtObject } from "./JwtToken";
-
-export enum JwtValidity {
-    Valid = 1,
-    Expired = 2,
-    NotYetValid = 3,
-    NoExpiry = 4,
-}
+import { JWT_CLAIM_NAMES } from './JwtClaimNames';
+import type { JwtObject } from './JwtObject';
+import { JWT_VALIDITY, type JwtValidity } from './JwtValidity';
 
 export interface JwtTime {
     claim: string;
@@ -13,45 +8,41 @@ export interface JwtTime {
     at: Date;
 }
 
-export const JwtClaimNames = {
-    IssuedAt: "iat",
-    NotBefore: "nbf",
-    Expiry: "exp",
-} as const;
+const MILLISECONDS_PER_SECOND = 1000;
 
-const MillisecondsPerSecond = 1000;
-
-const TimeClaims = [
+const TIME_CLAIMS = [
     {
-        claim: JwtClaimNames.IssuedAt,
-        label: "Issued at",
+        claim: JWT_CLAIM_NAMES.IssuedAt,
+        label: 'Issued at',
     },
     {
-        claim: JwtClaimNames.NotBefore,
-        label: "Not before",
+        claim: JWT_CLAIM_NAMES.NotBefore,
+        label: 'Not before',
     },
     {
-        claim: JwtClaimNames.Expiry,
-        label: "Expires at",
+        claim: JWT_CLAIM_NAMES.Expiry,
+        label: 'Expires at',
     },
 ];
 
 function dateOf(payload: JwtObject, claim: string): Date | null {
     const seconds = payload[claim];
 
-    return typeof seconds === "number" && Number.isFinite(seconds) ? new Date(seconds * MillisecondsPerSecond) : null;
+    return typeof seconds === 'number' && Number.isFinite(seconds)
+        ? new Date(seconds * MILLISECONDS_PER_SECOND)
+        : null;
 }
 
 export const JwtClaims = {
     isTimeClaim(name: string): boolean {
-        return TimeClaims.some(definition => definition.claim === name);
+        return TIME_CLAIMS.some(definition => definition.claim === name);
     },
 
     timesOf(payload: JwtObject): JwtTime[] {
-        return TimeClaims.flatMap(definition => {
+        return TIME_CLAIMS.flatMap(definition => {
             const at = dateOf(payload, definition.claim);
 
-            return at === null
+            return at == null
                 ? []
                 : [
                     {
@@ -63,16 +54,16 @@ export const JwtClaims = {
     },
 
     validityOf(payload: JwtObject, now: Date): JwtValidity {
-        const notBefore = dateOf(payload, JwtClaimNames.NotBefore);
-        if (notBefore !== null && notBefore > now) {
-            return JwtValidity.NotYetValid;
+        const notBefore = dateOf(payload, JWT_CLAIM_NAMES.NotBefore);
+        if (notBefore != null && notBefore > now) {
+            return JWT_VALIDITY.NotYetValid;
         }
 
-        const expiry = dateOf(payload, JwtClaimNames.Expiry);
-        if (expiry === null) {
-            return JwtValidity.NoExpiry;
+        const expiry = dateOf(payload, JWT_CLAIM_NAMES.Expiry);
+        if (expiry == null) {
+            return JWT_VALIDITY.NoExpiry;
         }
 
-        return expiry <= now ? JwtValidity.Expired : JwtValidity.Valid;
+        return expiry <= now ? JWT_VALIDITY.Expired : JWT_VALIDITY.Valid;
     },
 };

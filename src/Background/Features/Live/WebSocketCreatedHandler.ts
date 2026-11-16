@@ -1,24 +1,24 @@
-import type { Protocol } from "devtools-protocol";
-import { LiveChannelKind } from "../../../Contracts/Live/LiveChannelKind";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { ILiveStore } from "./LiveStore";
+import type { Protocol } from 'devtools-protocol';
+import { LIVE_CHANNEL_KIND } from '../../../Contracts/Live/LiveChannelKind';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { LiveStore } from './LiveStore';
 
-export class WebSocketCreatedHandler implements ICdpEventHandler<"Network.webSocketCreated"> {
-    readonly event = "Network.webSocketCreated";
+export class WebSocketCreatedHandler implements CdpEventHandler<'Network.webSocketCreated'> {
+    readonly event = 'Network.webSocketCreated';
 
-    private readonly _liveStore: ILiveStore;
+    private readonly _liveStore: LiveStore;
     private readonly _now: () => Date;
 
-    constructor(liveStore: ILiveStore, now: () => Date) {
+    constructor(liveStore: LiveStore, now: () => Date) {
         this._liveStore = liveStore;
         this._now = now;
     }
 
-    async handle(tabId: number, params: Protocol.Network.WebSocketCreatedEvent): Promise<void> {
+    async handleAsync(tabId: number, params: Protocol.Network.WebSocketCreatedEvent): Promise<void> {
         this._liveStore.upsertChannel({
             id: params.requestId,
             tabId,
-            kind: LiveChannelKind.WebSocket,
+            kind: LIVE_CHANNEL_KIND.WebSocket,
             url: params.url,
             isOpen: true,
             isMine: false,

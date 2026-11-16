@@ -1,74 +1,69 @@
-import { RegexText } from "./RegexText";
+import { RegexText } from './RegexText';
 
-const EscapeCharacter = "\\";
-const AnySequenceCharacter = "*";
-const AnySingleCharacter = "?";
-const EscapableCharacterPattern = /[\\*?]/g;
-const AnyCharacter = ".";
-const EscapedCharacterPattern = /\\(.)/gs;
+const ESCAPE_CHARACTER = '\\';
+const ANY_SEQUENCE_CHARACTER = '*';
+const ANY_SINGLE_CHARACTER = '?';
+const ESCAPABLE_CHARACTER_PATTERN = /[\\*?]/g;
+const ANY_CHARACTER = '.';
+const ESCAPED_CHARACTER_PATTERN = /\\(.)/gs;
+const DOT_ALL_FLAG = 's';
+const IGNORE_CASE_FLAG = 'i';
+
+interface ToRegexSourceOptions {
+    pattern: string;
+    index: number;
+    anyCharacter: string;
+}
 
 interface WildcardToken {
     character: string;
     length: number;
-    toRegexSource(
-        pattern: string,
-        index: number,
-        anyCharacter: string
-    ): string;
+    toRegexSource(options: ToRegexSourceOptions): string;
 }
 
-const WildcardTokens: WildcardToken[] = [
+const WILDCARD_TOKENS: WildcardToken[] = [
     {
-        character: EscapeCharacter,
+        character: ESCAPE_CHARACTER,
         length: 2,
-        toRegexSource: (pattern, index) => RegexText.escape(pattern.charAt(index + 1)),
+        toRegexSource: ({ pattern, index }) => RegexText.escape(pattern.charAt(index + 1)),
     },
     {
-        character: AnySequenceCharacter,
+        character: ANY_SEQUENCE_CHARACTER,
         length: 1,
-        toRegexSource: (
-            _pattern,
-            _index,
-            anyCharacter
-        ) => `${anyCharacter}*`,
+        toRegexSource: ({ anyCharacter }) => `${anyCharacter}*`,
     },
     {
-        character: AnySingleCharacter,
+        character: ANY_SINGLE_CHARACTER,
         length: 1,
-        toRegexSource: (
-            _pattern,
-            _index,
-            anyCharacter
-        ) => anyCharacter,
+        toRegexSource: ({ anyCharacter }) => anyCharacter,
     },
 ];
 
 export const WildcardPattern = {
     toRegExp(pattern: string): RegExp {
-        return new RegExp(WildcardPattern.toRegexSource(pattern), "s");
+        return new RegExp(
+            /* pattern: */ WildcardPattern.toRegexSource(pattern),
+            /* flags: */ DOT_ALL_FLAG,
+        );
     },
 
     toRegexSource(pattern: string): string {
         return `^${WildcardPattern.toRegexFragment(pattern)}$`;
     },
 
-    toRegexFragment(pattern: string, anyCharacter: string = AnyCharacter): string {
-        let source = "";
+    toRegexFragment(pattern: string, anyCharacter: string = ANY_CHARACTER): string {
+        let source = '';
         let index = 0;
         while (index < pattern.length) {
             const character = pattern.charAt(index);
-            const token = WildcardTokens.find(candidate => candidate.character === character);
-            if (token === undefined) {
+            const token = WILDCARD_TOKENS.find(candidate => candidate.character === character);
+            if (token == null) {
                 source += RegexText.escape(character);
                 index += 1;
                 continue;
             }
 
-            source += token.toRegexSource(
-                pattern,
-                index,
-                anyCharacter
-            );
+            source += token.toRegexSource({ pattern, index, anyCharacter });
             index += token.length;
         }
 
@@ -81,16 +76,23 @@ export const WildcardPattern = {
             .test(url);
     },
 
+    matchesIgnoringCase(pattern: string, text: string): boolean {
+        return new RegExp(
+            /* pattern: */ WildcardPattern.toRegexSource(pattern),
+            /* flags: */ `${DOT_ALL_FLAG}${IGNORE_CASE_FLAG}`,
+        ).test(text);
+    },
+
     hasWildcards(pattern: string): boolean {
         let index = 0;
         while (index < pattern.length) {
             const character = pattern.charAt(index);
-            if (character === EscapeCharacter) {
+            if (character === ESCAPE_CHARACTER) {
                 index += 2;
                 continue;
             }
 
-            if (character === AnySequenceCharacter || character === AnySingleCharacter) {
+            if (character === ANY_SEQUENCE_CHARACTER || character === ANY_SINGLE_CHARACTER) {
                 return true;
             }
 
@@ -101,10 +103,10 @@ export const WildcardPattern = {
     },
 
     unescape(pattern: string): string {
-        return pattern.replace(EscapedCharacterPattern, "$1");
+        return pattern.replace(ESCAPED_CHARACTER_PATTERN, '$1');
     },
 
     escape(text: string): string {
-        return text.replace(EscapableCharacterPattern, match => `${EscapeCharacter}${match}`);
+        return text.replace(ESCAPABLE_CHARACTER_PATTERN, match => `${ESCAPE_CHARACTER}${match}`);
     },
 };

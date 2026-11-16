@@ -1,26 +1,26 @@
-import { SerialTaskQueue } from "../../../Common/Async/SerialTaskQueue";
-import type { ILogger } from "../../../Common/Logging/ILogger";
-import type { IRuleSyncReportClient } from "../../../Common/Storage/IRuleSyncReportClient";
-import type { RuleSyncFailure } from "../../../Contracts/RuleSync/RuleSyncFailure";
-import type { IActiveRules } from "../Rules/ActiveRules";
-import type { IRuleHitCounter } from "../Rules/RuleHitCounter";
-import { BrowserRuleCompiler, type CompiledRule } from "./BrowserRuleCompiler";
-import type { IDeclarativeNetRequestClient } from "./IDeclarativeNetRequestClient";
-import type { ITimeWindowScheduler } from "./TimeWindowScheduler";
+import { SerialTaskQueue } from '../../../Common/Async/SerialTaskQueue';
+import type { Logger } from '../../../Common/Logging/Logger';
+import type { RuleSyncReportClient } from '../../../Common/Storage/RuleSyncReportClient';
+import type { RuleSyncFailure } from '../../../Contracts/RuleSync/RuleSyncFailure';
+import type { ActiveRules } from '../Rules/ActiveRules';
+import type { RuleHitCounter } from '../Rules/RuleHitCounter';
+import { BrowserRuleCompiler, type CompiledRule } from './BrowserRuleCompiler';
+import type { DeclarativeNetRequestClient } from './DeclarativeNetRequestClient';
+import type { TimeWindowScheduler } from './TimeWindowScheduler';
 
 export interface DeclarativeRuleSyncDependencies {
-    activeRules: IActiveRules;
-    netRequestClient: IDeclarativeNetRequestClient;
-    reportClient: IRuleSyncReportClient;
-    hitCounter: IRuleHitCounter;
-    timeWindowScheduler: ITimeWindowScheduler;
-    logger: ILogger;
+    activeRules: ActiveRules;
+    netRequestClient: DeclarativeNetRequestClient;
+    reportClient: RuleSyncReportClient;
+    hitCounter: RuleHitCounter;
+    timeWindowScheduler: TimeWindowScheduler;
+    logger: Logger;
 }
 
 function failureOf(compiled: CompiledRule, message: string): RuleSyncFailure {
     return {
         sourceName: compiled.sourceName,
-        settingId: compiled.settingId,
+        ruleId: compiled.settingId,
         message,
     };
 }
@@ -33,11 +33,11 @@ export class DeclarativeRuleSync {
         this._dependencies = dependencies;
     }
 
-    sync(): Promise<void> {
-        return this._queue.enqueue(() => this.run());
+    syncAsync(): Promise<void> {
+        return this._queue.enqueueAsync(() => this.runAsync());
     }
 
-    private async run(): Promise<void> {
+    private async runAsync(): Promise<void> {
         const { activeRules, reportClient, hitCounter, timeWindowScheduler, logger } = this._dependencies;
         const ruleSet = activeRules.isEnabled()
             ? BrowserRuleCompiler.compile(activeRules.plans())
@@ -46,12 +46,12 @@ export class DeclarativeRuleSync {
                 failures: [],
             };
         const failures = [...ruleSet.failures];
-        const supported = await this.keepSupportedRegexes(ruleSet.rules, failures);
-        const applied = await this.apply(supported, failures);
+        const supported = await this.keepSupportedRegexesAsync(ruleSet.rules, failures);
+        const applied = await this.applyAsync(supported, failures);
         hitCounter.setOwners(BrowserRuleCompiler.ownersOf(applied));
-        await timeWindowScheduler.schedule(activeRules.isEnabled() ? activeRules.plans() : []);
+        await timeWindowScheduler.scheduleAsync(activeRules.isEnabled() ? activeRules.plans() : []);
 
-        const saved = await reportClient.save({
+        const saved = await reportClient.saveAsync({
             syncedAt: new Date().toISOString(),
             activeRuleCount: applied.length,
             failures,
@@ -61,16 +61,19 @@ export class DeclarativeRuleSync {
         }
     }
 
-    private async keepSupportedRegexes(rules: CompiledRule[], failures: RuleSyncFailure[]): Promise<CompiledRule[]> {
+    private async keepSupportedRegexesAsync(
+        rules: CompiledRule[],
+        failures: RuleSyncFailure[],
+    ): Promise<CompiledRule[]> {
         const supported: CompiledRule[] = [];
         for (const compiled of rules) {
             const regexFilter = compiled.rule.condition.regexFilter;
-            if (regexFilter === undefined) {
+            if (regexFilter == null) {
                 supported.push(compiled);
                 continue;
             }
 
-            const check = await this._dependencies.netRequestClient.checkRegex(regexFilter);
+            const check = await this._dependencies.netRequestClient.checkRegexAsync(regexFilter);
             if (check.hasErrors) {
                 failures.push(failureOf(compiled, check.error));
                 continue;
@@ -82,25 +85,25 @@ export class DeclarativeRuleSync {
         return supported;
     }
 
-    private async apply(rules: CompiledRule[], failures: RuleSyncFailure[]): Promise<CompiledRule[]> {
+    private async applyAsync(rules: CompiledRule[], failures: RuleSyncFailure[]): Promise<CompiledRule[]> {
         const { netRequestClient, logger } = this._dependencies;
-        const replaced = await netRequestClient.replaceAll(rules.map(compiled => compiled.rule));
+        const replaced = await netRequestClient.replaceAllAsync(rules.map(compiled => compiled.rule));
         if (!replaced.hasErrors) {
             return rules;
         }
 
-        logger.warn("Bulk rule update failed, adding rules one by one.", replaced.error);
+        logger.warn('Bulk rule update failed, adding rules one by one.', replaced.error);
 
-        const removed = await netRequestClient.removeAll();
+        const removed = await netRequestClient.removeAllAsync();
         if (removed.hasErrors) {
-            logger.error("Clearing network rules failed.", removed.error);
+            logger.error('Clearing network rules failed.', removed.error);
 
             return [];
         }
 
         const applied: CompiledRule[] = [];
         for (const compiled of rules) {
-            const added = await netRequestClient.add(compiled.rule);
+            const added = await netRequestClient.addAsync(compiled.rule);
             if (added.hasErrors) {
                 failures.push(failureOf(compiled, added.error));
                 continue;

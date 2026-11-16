@@ -1,63 +1,60 @@
-import type { IContentKindClassifier } from "../../../Common/Content/ContentKindClassifier";
-import { HeaderLookup } from "../../../Common/Http/HeaderLookup";
-import { Result } from "../../../Common/Results/Result";
-import { EndpointKey } from "../../../Common/Urls/EndpointKey";
-import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import { HeaderNames } from "../../../Contracts/Http/HeaderNames";
-import type { LogClientExchangeCommand } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import { ContentKind } from "../../../Contracts/Timeline/ContentKind";
-import { TimelineEntryState } from "../../../Contracts/Timeline/TimelineEntryState";
-import type { ITimelineStore } from "../../Features/Capture/ITimelineStore";
-import type { TimelineRecord } from "../../Features/Capture/TimelineRecord";
-import type { IPanelEndpoint } from "../IPanelEndpoint";
+import type { ContentKindClassifier } from '../../../Common/Content/ContentKindClassifier';
+import { ByteSize } from '../../../Common/Encoding/ByteSize';
+import { HeaderLookup } from '../../../Common/Http/HeaderLookup';
+import { Result } from '../../../Common/Results/Result';
+import { requestLocationOf } from '../../../Common/Urls/requestLocationOf';
+import { HEADER_NAMES } from '../../../Contracts/Http/HeaderNames';
+import type { LogClientExchangeCommand } from '../../../Contracts/Messaging/Commands/LogClientExchangeCommand';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import { CONTENT_KIND } from '../../../Contracts/Timeline/ContentKind';
+import { TIMELINE_ENTRY_STATE } from '../../../Contracts/Timeline/TimelineEntryState';
+import type { TimelineStore } from '../../Features/Capture/TimelineStore';
+import type { TimelineRecord } from '../../Features/Capture/TimelineRecord';
+import type { PanelEndpoint } from '../PanelEndpoint';
 
-const ClientResourceType = "Fetch";
+const CLIENT_RESOURCE_TYPE = 'Fetch';
 
-export class LogClientExchangeEndpoint implements IPanelEndpoint<PanelCommandType.LogClientExchange> {
-    readonly commandType = PanelCommandType.LogClientExchange;
+export class LogClientExchangeEndpoint implements PanelEndpoint<typeof PANEL_COMMAND_TYPE.LogClientExchange> {
+    readonly commandType = PANEL_COMMAND_TYPE.LogClientExchange;
 
-    private readonly _timelineStore: ITimelineStore;
-    private readonly _classifier: IContentKindClassifier;
+    private readonly _timelineStore: TimelineStore;
+    private readonly _classifier: ContentKindClassifier;
 
-    constructor(timelineStore: ITimelineStore, classifier: IContentKindClassifier) {
+    constructor(timelineStore: TimelineStore, classifier: ContentKindClassifier) {
         this._timelineStore = timelineStore;
         this._classifier = classifier;
     }
 
-    async handle(command: LogClientExchangeCommand): Promise<Result<void>> {
+    async handleAsync(command: LogClientExchangeCommand): Promise<Result<void>> {
         this._timelineStore.add(this.recordOf(command));
 
         return Result.done();
     }
 
     private recordOf(command: LogClientExchangeCommand): TimelineRecord {
-        const url = SafeUrl.parse(command.request.url);
-        const requestContentType = HeaderLookup.find(command.request.headers, HeaderNames.ContentType) ?? "";
-        const responseMimeType = HeaderLookup.find(command.response?.headers ?? [], HeaderNames.ContentType) ?? "";
-        const contentKind = command.error === null
+        const requestBody = command.request.body === '' ? null : command.request.body;
+        const requestContentType = HeaderLookup.find(command.request.headers, HEADER_NAMES.ContentType) ?? '';
+        const responseHeaders = command.response?.headers ?? [];
+        const responseMimeType = HeaderLookup.find(responseHeaders, HEADER_NAMES.ContentType) ?? '';
+        const contentKind = command.error == null
             ? this._classifier.classify({
                 url: command.request.url,
                 requestContentType,
                 responseMimeType,
-                requestBody: command.request.body === "" ? null : command.request.body,
+                requestBody,
             })
-            : ContentKind.Other;
+            : CONTENT_KIND.Other;
 
         return {
             summary: {
                 id: command.entryId,
                 tabId: command.tabId,
-                method: command.request.method,
-                url: command.request.url,
-                host: url?.hostname ?? "",
-                path: url === null ? command.request.url : `${url.pathname}${url.search}`,
-                endpointKey: EndpointKey.create(command.request.method, command.request.url),
-                resourceType: ClientResourceType,
+                ...requestLocationOf(command.request.method, command.request.url),
+                resourceType: CLIENT_RESOURCE_TYPE,
                 contentKind,
-                state: command.error === null ? TimelineEntryState.Completed : TimelineEntryState.Failed,
+                state: command.error == null ? TIMELINE_ENTRY_STATE.Completed : TIMELINE_ENTRY_STATE.Failed,
                 statusCode: command.response?.status ?? null,
-                statusText: command.response?.statusText ?? "",
+                statusText: command.response?.statusText ?? '',
                 mimeType: responseMimeType,
                 startedAt: command.startedAt,
                 durationInMilliseconds: command.response?.durationInMilliseconds ?? null,
@@ -70,7 +67,10 @@ export class LogClientExchangeEndpoint implements IPanelEndpoint<PanelCommandTyp
             requestHeaders: command.request.headers,
             rawRequestHeaders: null,
             requestContentType,
-            requestBody: command.request.body === "" ? null : command.request.body,
+            requestBody,
+            requestBodyNote: null,
+            requestBodyBase64: null,
+            requestBodyByteSize: requestBody == null ? null : ByteSize.ofText(requestBody),
             responseHeaders: command.response?.headers ?? [],
             rawResponseHeaders: null,
             responseBody: command.response?.body ?? null,

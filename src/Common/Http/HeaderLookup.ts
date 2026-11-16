@@ -1,6 +1,6 @@
-import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
+import type { HeaderEntry } from '../../Contracts/Timeline/HeaderEntry';
 
-const RawValueSeparator = "\n";
+const RAW_VALUE_SEPARATOR = '\n';
 
 export const HeaderLookup = {
     find(headers: HeaderEntry[], name: string): string | null {
@@ -14,7 +14,7 @@ export const HeaderLookup = {
         return HeaderLookup
             .fromRecord(record)
             .flatMap(header => header.value
-                .split(RawValueSeparator)
+                .split(RAW_VALUE_SEPARATOR)
                 .map(value => ({
                     name: header.name,
                     value,
@@ -22,7 +22,7 @@ export const HeaderLookup = {
     },
 
     fromRecord(record: Record<string, string> | undefined): HeaderEntry[] {
-        if (record === undefined) {
+        if (record == null) {
             return [];
         }
 

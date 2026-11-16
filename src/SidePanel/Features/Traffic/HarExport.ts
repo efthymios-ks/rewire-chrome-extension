@@ -1,21 +1,22 @@
-import { HarBuilder } from "../../../Common/Har/HarBuilder";
-import { JsonText } from "../../../Common/Json/JsonText";
-import { Result } from "../../../Common/Results/Result";
-import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { IFileClient } from "../../Core/FileClient";
-import type { PanelContext } from "../Shell/PanelContext";
+import { HarBuilder } from '../../../Common/Har/HarBuilder';
+import { JsonText } from '../../../Common/Json/JsonText';
+import { Result } from '../../../Common/Results/Result';
+import { SafeUrl } from '../../../Common/Urls/SafeUrl';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import { copyWithNoticeAsync } from '../../Core/copyWithNoticeAsync';
+import type { FileClient } from '../../Core/FileClient';
+import type { PanelContext } from '../Shell/PanelContext';
 
-const HarMimeType = "application/json";
-const HarExtension = ".har";
-const FallbackHost = "timeline";
-const FileNameUnsafePattern = /[^\w.-]+/g;
-const FileNameSeparator = "-";
-const StampLength = 19;
+const HAR_MIME_TYPE = 'application/json';
+const HAR_EXTENSION = '.har';
+const FALLBACK_HOST = 'timeline';
+const FILE_NAME_UNSAFE_PATTERN = /[^\w.-]+/g;
+const FILE_NAME_SEPARATOR = '-';
+const STAMP_LENGTH = 19;
 
 export interface HarExportDependencies {
     context: PanelContext;
-    fileClient: IFileClient;
+    fileClient: FileClient;
     versionOf: () => string;
     now: () => Date;
 }
@@ -27,44 +28,47 @@ export class HarExport {
         this._dependencies = dependencies;
     }
 
-    async download(includeSecrets: boolean): Promise<void> {
+    async downloadAsync(shouldIncludeSecrets: boolean): Promise<void> {
         const { fileClient, context } = this._dependencies;
-        const har = await this.harText(includeSecrets);
+        const har = await this.harTextAsync(shouldIncludeSecrets);
         if (har.hasErrors) {
             context.notifier.show(har.error);
 
             return;
         }
 
-        fileClient.download(
-            har.value,
-            this.fileName(),
-            HarMimeType
-        );
+        fileClient.download({
+            text: har.value,
+            fileName: this.fileName(),
+            mimeType: HAR_MIME_TYPE,
+        });
     }
 
-    async copy(includeSecrets: boolean): Promise<void> {
+    async copyAsync(shouldIncludeSecrets: boolean): Promise<void> {
         const { context } = this._dependencies;
-        const har = await this.harText(includeSecrets);
+        const har = await this.harTextAsync(shouldIncludeSecrets);
         if (har.hasErrors) {
             context.notifier.show(har.error);
 
             return;
         }
 
-        const copied = await context.clipboardClient.copy(har.value);
-        context.notifier.show(copied.hasErrors ? copied.error : "HAR copied.");
+        await copyWithNoticeAsync({
+            context,
+            text: har.value,
+            successMessage: 'HAR copied.',
+        });
     }
 
-    private async harText(includeSecrets: boolean): Promise<Result<string>> {
+    private async harTextAsync(shouldIncludeSecrets: boolean): Promise<Result<string>> {
         const { context, versionOf } = this._dependencies;
         const tab = context.store.getState().inspectedTab;
-        if (tab === null) {
-            return Result.fail("No tab is inspected.");
+        if (tab == null) {
+            return Result.fail('No tab is inspected.');
         }
 
-        const details = await context.connection.send<PanelCommandType.GetTimelineDetails>({
-            type: PanelCommandType.GetTimelineDetails,
+        const details = await context.connection.sendAsync<typeof PANEL_COMMAND_TYPE.GetTimelineDetails>({
+            type: PANEL_COMMAND_TYPE.GetTimelineDetails,
             tabId: tab.tabId,
         });
         if (details.hasErrors) {
@@ -72,26 +76,28 @@ export class HarExport {
         }
 
         if (details.value.length === 0) {
-            return Result.fail("The timeline is empty.");
+            return Result.fail('The timeline is empty.');
         }
 
         return Result.ok(JsonText.stringify(HarBuilder.build(
-            details.value,
-            {
+            /* details: */ details.value,
+            /* options: */ {
                 creatorVersion: versionOf(),
-                includeSecrets,
-            }
+                shouldIncludeSecrets,
+            },
         )));
     }
 
     private fileName(): string {
         const { context, now } = this._dependencies;
-        const url = context.store.getState().inspectedTab?.url ?? "";
-        const host = SafeUrl.parse(url)?.host || FallbackHost;
+        const url = context.store.getState().inspectedTab?.url ?? '';
+        const parsedHost = SafeUrl.parse(url)?.host ?? '';
+        const host = parsedHost === '' ? FALLBACK_HOST : parsedHost;
         const stamp = now()
             .toISOString()
-            .slice(0, StampLength);
+            .slice(0, STAMP_LENGTH);
+        const baseName = `${host}${FILE_NAME_SEPARATOR}${stamp}`;
 
-        return `${host}${FileNameSeparator}${stamp}`.replace(FileNameUnsafePattern, FileNameSeparator) + HarExtension;
+        return baseName.replace(FILE_NAME_UNSAFE_PATTERN, FILE_NAME_SEPARATOR) + HAR_EXTENSION;
     }
 }

@@ -1,7 +1,7 @@
-const VariablePattern = /\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/g;
+const VARIABLE_PATTERN = /\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/g;
 
 export const TemplateText = {
     render(text: string, lookup: (name: string) => string | null): string {
-        return text.replace(VariablePattern, (match, name: string) => lookup(name) ?? match);
+        return text.replace(VARIABLE_PATTERN, (match, name: string) => lookup(name) ?? match);
     },
 };

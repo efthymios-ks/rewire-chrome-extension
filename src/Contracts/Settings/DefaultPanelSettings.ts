@@ -1,28 +1,16 @@
-import type { PanelSettings } from "./PanelSettings";
-import type { RuleProfile } from "./RuleProfile";
+import { deepFreeze } from '../../Common/Objects/deepFreeze';
+import { DEFAULT_PROFILE } from './DefaultProfile';
+import type { PanelSettings } from './PanelSettings';
+import { SETTINGS_SCHEMA } from './SettingsSchema';
 
-export const SettingsSchema = {
-    CurrentVersion: 5,
-    FirstRulesVersion: 2,
-    FirstRewriteVersion: 4,
-    FirstProfilesVersion: 5,
-} as const;
-
-export const DefaultProfile: RuleProfile = {
-    id: "default",
-    name: "Default",
-    rules: [],
-    variables: [],
-};
-
-export const DefaultPanelSettings: PanelSettings = {
-    schemaVersion: SettingsSchema.CurrentVersion,
+export const DEFAULT_PANEL_SETTINGS: PanelSettings = deepFreeze({
+    schemaVersion: SETTINGS_SCHEMA.CurrentVersion,
     interceptionEnabled: true,
     pinnedEndpoints: [],
-    activeProfileId: DefaultProfile.id,
-    profiles: [DefaultProfile],
+    activeProfileId: DEFAULT_PROFILE.id,
+    profiles: [DEFAULT_PROFILE],
     testerSamples: [
-        "https://api.example.com/api/v1/users/42/profile",
-        "https://api.example.com/api/v1/users/profile?utm_source=mail",
+        'https://api.example.com/api/v1/users/42/profile',
+        'https://api.example.com/api/v1/users/profile?utm_source=mail',
     ],
-};
+});

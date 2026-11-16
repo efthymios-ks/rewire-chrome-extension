@@ -1,33 +1,36 @@
-import { Result } from "../Results/Result";
-import type { RegexFrame } from "./RegexFrame";
-import type { RegexQuantifier } from "./RegexQuantifier";
-import type { RegexStructure } from "./RegexStructure";
+import { Result } from '../Results/Result';
+import type { RegexFrame } from './RegexFrame';
+import type { RegexQuantifier } from './RegexQuantifier';
+import type { RegexStructure } from './RegexStructure';
 
-const NeverMatchingQuantifierPattern = /^\{0(?:,0)?\}\??$/;
+const NEVER_MATCHING_QUANTIFIER_PATTERN = /^\{0(?:,0)?\}\??$/;
 
 interface QuantifierRewrite {
     pattern: RegExp;
     replace(match: RegExpExecArray): string;
 }
 
-const QuantifierRewrites: QuantifierRewrite[] = [
+const QUANTIFIER_REWRITES: QuantifierRewrite[] = [
     {
         pattern: /^\?\??$/,
-        replace: () => "",
+        replace: () => '',
     },
     {
         pattern: /^\*(\??)$/,
-        replace: match => `+${match[1] ?? ""}`,
+        replace: match => `+${match[1] ?? ''}`,
     },
     {
         pattern: /^\{0,(\d*)\}(\??)$/,
-        replace: match => `{1,${match[1] ?? ""}}${match[2] ?? ""}`,
+        replace: match => `{1,${match[1] ?? ''}}${match[2] ?? ''}`,
     },
 ];
 
-function collectOptionalQuantifiers(structure: RegexStructure, groupIndex: number): Result<RegexQuantifier[]> {
+function collectOptionalQuantifiers(
+    structure: RegexStructure,
+    groupIndex: number,
+): Result<RegexQuantifier[]> {
     const group = structure.frames.find(frame => frame.captureIndex === groupIndex);
-    if (group === undefined) {
+    if (group == null) {
         return Result.fail(`The regex has no group $${groupIndex}.`);
     }
 
@@ -37,7 +40,7 @@ function collectOptionalQuantifiers(structure: RegexStructure, groupIndex: numbe
     ]));
     const quantifiers: RegexQuantifier[] = [];
     let frame: RegexFrame | undefined = group;
-    while (frame !== undefined) {
+    while (frame != null) {
         if (frame !== group && frame.hasAlternation) {
             return Result.fail(`$${groupIndex} sits inside an alternation (|), strict mode can't require it.`);
         }
@@ -46,20 +49,20 @@ function collectOptionalQuantifiers(structure: RegexStructure, groupIndex: numbe
             quantifiers.push(frame.quantifier);
         }
 
-        frame = frame.parentId === null ? undefined : framesById.get(frame.parentId);
+        frame = frame.parentId == null ? undefined : framesById.get(frame.parentId);
     }
 
     return Result.ok(quantifiers);
 }
 
 function mandatoryFormOf(quantifier: RegexQuantifier): Result<string> {
-    if (NeverMatchingQuantifierPattern.test(quantifier.text)) {
+    if (NEVER_MATCHING_QUANTIFIER_PATTERN.test(quantifier.text)) {
         return Result.fail(`Quantifier "${quantifier.text}" never matches, strict mode can't require it.`);
     }
 
-    for (const rewrite of QuantifierRewrites) {
+    for (const rewrite of QUANTIFIER_REWRITES) {
         const match = rewrite.pattern.exec(quantifier.text);
-        if (match !== null) {
+        if (match != null) {
             return Result.ok(rewrite.replace(match));
         }
     }
@@ -67,12 +70,14 @@ function mandatoryFormOf(quantifier: RegexQuantifier): Result<string> {
     return Result.fail(`Quantifier "${quantifier.text}" can't be made mandatory.`);
 }
 
+export interface RewriteOptions {
+    pattern: string;
+    structure: RegexStructure;
+    groupIndexes: number[];
+}
+
 export const StrictGroupRewriter = {
-    rewrite(
-        pattern: string,
-        structure: RegexStructure,
-        groupIndexes: number[]
-    ): Result<string> {
+    rewrite({ pattern, structure, groupIndexes }: RewriteOptions): Result<string> {
         const quantifiersByStart = new Map<number, RegexQuantifier>();
         for (const groupIndex of groupIndexes) {
             const collected = collectOptionalQuantifiers(structure, groupIndex);
@@ -83,7 +88,8 @@ export const StrictGroupRewriter = {
             collected.value.forEach(quantifier => quantifiersByStart.set(quantifier.start, quantifier));
         }
 
-        const quantifiersFromEnd = [...quantifiersByStart.values()].sort((left, right) => right.start - left.start);
+        const quantifiersFromEnd = [...quantifiersByStart.values()]
+            .sort((left, right) => right.start - left.start);
         let rewritten = pattern;
         for (const quantifier of quantifiersFromEnd) {
             const replacement = mandatoryFormOf(quantifier);
@@ -91,7 +97,9 @@ export const StrictGroupRewriter = {
                 return replacement;
             }
 
-            rewritten = rewritten.slice(0, quantifier.start) + replacement.value + rewritten.slice(quantifier.end);
+            const before = rewritten.slice(0, quantifier.start);
+            const after = rewritten.slice(quantifier.end);
+            rewritten = before + replacement.value + after;
         }
 
         return Result.ok(rewritten);

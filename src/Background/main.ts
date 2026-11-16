@@ -1,128 +1,134 @@
-import { BackgroundTask } from "../Common/Async/BackgroundTask";
-import { ContentKindClassifier } from "../Common/Content/ContentKindClassifier";
-import { ActiveProfile } from "../Common/Profiles/ActiveProfile";
-import { ConsoleLogger } from "../Common/Logging/ConsoleLogger";
-import { RegexSupportClient } from "../Common/NetworkRules/RegexSupportClient";
-import { RuleHitsClient } from "../Common/Storage/RuleHitsClient";
-import { RuleSyncReportClient } from "../Common/Storage/RuleSyncReportClient";
-import { SettingsStorageClient } from "../Common/Storage/SettingsStorageClient";
-import { InspectionState } from "../Contracts/Inspection/InspectionState";
-import { PanelPortName } from "../Contracts/Messaging/PanelPortName";
-import { WorkerEventType } from "../Contracts/Messaging/WorkerEventType";
-import { ClearTimelineEndpoint } from "./Endpoints/ClearTimeline/ClearTimelineEndpoint";
-import { GetEntryDetailEndpoint } from "./Endpoints/GetEntryDetail/GetEntryDetailEndpoint";
-import { GetTimelineDetailsEndpoint } from "./Endpoints/GetTimelineDetails/GetTimelineDetailsEndpoint";
-import { InspectTabEndpoint } from "./Endpoints/InspectTab/InspectTabEndpoint";
-import { KeepAliveEndpoint } from "./Endpoints/KeepAlive/KeepAliveEndpoint";
-import { LogClientExchangeEndpoint } from "./Endpoints/LogClientExchange/LogClientExchangeEndpoint";
-import { PanelEndpointRouter } from "./Endpoints/PanelEndpointRouter";
-import { RemoveLiveChannelsEndpoint } from "./Endpoints/RemoveLiveChannels/RemoveLiveChannelsEndpoint";
-import { SearchTimelineEndpoint } from "./Endpoints/SearchTimeline/SearchTimelineEndpoint";
-import { SendClientRequestEndpoint } from "./Endpoints/SendClientRequest/SendClientRequestEndpoint";
-import { SendPostMessageEndpoint } from "./Endpoints/SendPostMessage/SendPostMessageEndpoint";
-import { SetLiveListeningEndpoint } from "./Endpoints/SetLiveListening/SetLiveListeningEndpoint";
-import { BrowserRuleSimulator } from "./Features/Capture/BrowserRuleSimulator";
-import { CaptureFilter } from "./Features/Capture/CaptureFilter";
-import { LoadingFailedHandler } from "./Features/Capture/LoadingFailedHandler";
-import { LoadingFinishedHandler } from "./Features/Capture/LoadingFinishedHandler";
-import { PendingDocuments } from "./Features/Capture/PendingDocuments";
-import { RequestExtraInfoHandler } from "./Features/Capture/RequestExtraInfoHandler";
-import { RequestWillBeSentHandler } from "./Features/Capture/RequestWillBeSentHandler";
-import { ResponseBodyReader } from "./Features/Capture/ResponseBodyReader";
-import { ResponseExtraInfoHandler } from "./Features/Capture/ResponseExtraInfoHandler";
-import { ResponseReceivedHandler } from "./Features/Capture/ResponseReceivedHandler";
-import { TimelineAdmission } from "./Features/Capture/TimelineAdmission";
-import { TimelineRecordClassifier } from "./Features/Capture/TimelineRecordClassifier";
-import { TimelineRecordFactory } from "./Features/Capture/TimelineRecordFactory";
-import { TimelineStore } from "./Features/Capture/TimelineStore";
-import { ClientRequestSender } from "./Features/ClientSending/ClientRequestSender";
-import { PanelTargetClient } from "./Features/ClientSending/PanelTargetClient";
-import { CdpEventDispatcher } from "./Features/Debugging/CdpEventDispatcher";
-import { DebuggerClient } from "./Features/Debugging/DebuggerClient";
-import { DebuggerSessions } from "./Features/Debugging/DebuggerSessions";
-import { FrameRegistry } from "./Features/Frames/FrameRegistry";
-import { InspectionService } from "./Features/Inspection/InspectionService";
-import { RequestPausedHandler } from "./Features/Interception/RequestPausedHandler";
-import { EventSourceMessageHandler } from "./Features/Live/EventSourceMessageHandler";
-import { EventSourceRequestHandler } from "./Features/Live/EventSourceRequestHandler";
-import { EventStreamEndedHandler } from "./Features/Live/EventStreamEndedHandler";
-import { EventStreamParsers } from "./Features/Live/EventStreamParsers";
-import { FetchStreamDataHandler } from "./Features/Live/FetchStreamDataHandler";
-import { FetchStreamResponseHandler } from "./Features/Live/FetchStreamResponseHandler";
-import { ListeningGate } from "./Features/Live/ListeningGate";
-import { LiveListeningRegistry } from "./Features/Live/LiveListeningRegistry";
-import { LiveListeningService } from "./Features/Live/LiveListeningService";
-import { LiveStore } from "./Features/Live/LiveStore";
-import { WebSocketClosedHandler } from "./Features/Live/WebSocketClosedHandler";
-import { WebSocketCreatedHandler } from "./Features/Live/WebSocketCreatedHandler";
-import { WebSocketFrameReceivedHandler } from "./Features/Live/WebSocketFrameReceivedHandler";
-import { WebSocketFrameSentHandler } from "./Features/Live/WebSocketFrameSentHandler";
-import { DeclarativeNetRequestClient } from "./Features/NetworkRules/DeclarativeNetRequestClient";
-import { DeclarativeRuleSync } from "./Features/NetworkRules/DeclarativeRuleSync";
-import { DnrFeedbackClient } from "./Features/NetworkRules/DnrFeedbackClient";
-import { TimeWindowAlarmName, TimeWindowScheduler } from "./Features/NetworkRules/TimeWindowScheduler";
-import type { PanelConnection } from "./Features/PanelConnections/PanelConnection";
-import { PanelConnectionHub } from "./Features/PanelConnections/PanelConnectionHub";
-import { PostMessageBindingHandler } from "./Features/PostMessages/PostMessageBindingHandler";
-import { PostMessageProbeInstaller } from "./Features/PostMessages/PostMessageProbeInstaller";
-import { PostMessageSender } from "./Features/PostMessages/PostMessageSender";
-import { PostMessageSessionStep } from "./Features/PostMessages/PostMessageSessionStep";
-import { ActiveRules } from "./Features/Rules/ActiveRules";
-import { RuleHitCounter } from "./Features/Rules/RuleHitCounter";
-import { VariableStore } from "./Features/Rules/VariableStore";
-import { ChildSessionAttachedHandler } from "./Features/Sessions/ChildSessionAttachedHandler";
-import { ChildSessionDetachedHandler } from "./Features/Sessions/ChildSessionDetachedHandler";
-import { FrameAutoAttachSessionStep } from "./Features/Sessions/FrameAutoAttachSessionStep";
-import { InterceptionSessionStep } from "./Features/Sessions/InterceptionSessionStep";
-import { NetworkSessionStep } from "./Features/Sessions/NetworkSessionStep";
-import { SessionPreparer } from "./Features/Sessions/SessionPreparer";
-import { SettingsCache } from "./Features/Settings/SettingsCache";
-import { SidePanelClient } from "./Features/SidePanel/SidePanelClient";
+import { BackgroundTask } from '../Common/Async/BackgroundTask';
+import { DefaultContentKindClassifier } from '../Common/Content/DefaultContentKindClassifier';
+import { ChromeRegexSupportClient } from '../Common/NetworkRules/ChromeRegexSupportClient';
+import { ActiveProfile } from '../Common/Profiles/ActiveProfile';
+import { ConsoleLogger } from '../Common/Logging/ConsoleLogger';
+import { ChromeRuleHitsClient } from '../Common/Storage/ChromeRuleHitsClient';
+import { ChromeRuleSyncReportClient } from '../Common/Storage/ChromeRuleSyncReportClient';
+import { ChromeSettingsStorageClient } from '../Common/Storage/ChromeSettingsStorageClient';
+import { INSPECTION_STATE } from '../Contracts/Inspection/InspectionState';
+import { PANEL_PORT_NAME } from '../Contracts/Messaging/PanelPortName';
+import { WORKER_EVENT_TYPE } from '../Contracts/Messaging/WorkerEventType';
+import { ClearTimelineEndpoint } from './Endpoints/ClearTimeline/ClearTimelineEndpoint';
+import { GetEntryDetailEndpoint } from './Endpoints/GetEntryDetail/GetEntryDetailEndpoint';
+import { GetTimelineDetailsEndpoint } from './Endpoints/GetTimelineDetails/GetTimelineDetailsEndpoint';
+import { InspectTabEndpoint } from './Endpoints/InspectTab/InspectTabEndpoint';
+import { KeepAliveEndpoint } from './Endpoints/KeepAlive/KeepAliveEndpoint';
+import { LogClientExchangeEndpoint } from './Endpoints/LogClientExchange/LogClientExchangeEndpoint';
+import { PanelEndpointRouter } from './Endpoints/PanelEndpointRouter';
+import { RemoveLiveChannelsEndpoint } from './Endpoints/RemoveLiveChannels/RemoveLiveChannelsEndpoint';
+import { SearchTimelineEndpoint } from './Endpoints/SearchTimeline/SearchTimelineEndpoint';
+import { SendClientRequestEndpoint } from './Endpoints/SendClientRequest/SendClientRequestEndpoint';
+import { SendPostMessageEndpoint } from './Endpoints/SendPostMessage/SendPostMessageEndpoint';
+import { SetLiveListeningEndpoint } from './Endpoints/SetLiveListening/SetLiveListeningEndpoint';
+import { DefaultBrowserRuleSimulator } from './Features/Capture/DefaultBrowserRuleSimulator';
+import { DefaultCaptureFilter } from './Features/Capture/DefaultCaptureFilter';
+import { DefaultResponseBodyReader } from './Features/Capture/DefaultResponseBodyReader';
+import { DefaultTimelineAdmission } from './Features/Capture/DefaultTimelineAdmission';
+import { DefaultTimelineRecordClassifier } from './Features/Capture/DefaultTimelineRecordClassifier';
+import { DefaultTimelineRecordFactory } from './Features/Capture/DefaultTimelineRecordFactory';
+import { LoadingFailedHandler } from './Features/Capture/LoadingFailedHandler';
+import { LoadingFinishedHandler } from './Features/Capture/LoadingFinishedHandler';
+import { RequestExtraInfoHandler } from './Features/Capture/RequestExtraInfoHandler';
+import { RequestWillBeSentHandler } from './Features/Capture/RequestWillBeSentHandler';
+import { ResponseExtraInfoHandler } from './Features/Capture/ResponseExtraInfoHandler';
+import { ResponseReceivedHandler } from './Features/Capture/ResponseReceivedHandler';
+import { DefaultTimelineStore } from './Features/Capture/DefaultTimelineStore';
+import { ChromePanelTargetClient } from './Features/ClientSending/ChromePanelTargetClient';
+import { DefaultClientRequestSender } from './Features/ClientSending/DefaultClientRequestSender';
+import { CdpEventDispatcher } from './Features/Debugging/CdpEventDispatcher';
+import { ChromeDebuggerClient } from './Features/Debugging/ChromeDebuggerClient';
+import { DefaultDebuggerSessions } from './Features/Debugging/DefaultDebuggerSessions';
+import { DefaultFrameRegistry } from './Features/Frames/DefaultFrameRegistry';
+import { DefaultInspectionService } from './Features/Inspection/DefaultInspectionService';
+import { RequestPausedHandler } from './Features/Interception/RequestPausedHandler';
+import { DefaultEventStreamParsers } from './Features/Live/DefaultEventStreamParsers';
+import { DefaultLiveListeningRegistry } from './Features/Live/DefaultLiveListeningRegistry';
+import { DefaultLiveListeningService } from './Features/Live/DefaultLiveListeningService';
+import { DefaultLiveStore } from './Features/Live/DefaultLiveStore';
+import { EventSourceMessageHandler } from './Features/Live/EventSourceMessageHandler';
+import { EventSourceRequestHandler } from './Features/Live/EventSourceRequestHandler';
+import { EventStreamEndedHandler } from './Features/Live/EventStreamEndedHandler';
+import { FetchStreamDataHandler } from './Features/Live/FetchStreamDataHandler';
+import { FetchStreamResponseHandler } from './Features/Live/FetchStreamResponseHandler';
+import { ListeningGate } from './Features/Live/ListeningGate';
+import { WebSocketClosedHandler } from './Features/Live/WebSocketClosedHandler';
+import { WebSocketCreatedHandler } from './Features/Live/WebSocketCreatedHandler';
+import { WebSocketFrameReceivedHandler } from './Features/Live/WebSocketFrameReceivedHandler';
+import { WebSocketFrameSentHandler } from './Features/Live/WebSocketFrameSentHandler';
+import { ChromeDeclarativeNetRequestClient } from './Features/NetworkRules/ChromeDeclarativeNetRequestClient';
+import { ChromeDnrFeedbackClient } from './Features/NetworkRules/ChromeDnrFeedbackClient';
+import { ChromeTimeWindowScheduler } from './Features/NetworkRules/ChromeTimeWindowScheduler';
+import { DeclarativeRuleSync } from './Features/NetworkRules/DeclarativeRuleSync';
+import { TIME_WINDOW_ALARM_NAME } from './Features/NetworkRules/TimeWindowAlarmName';
+import { DefaultPanelConnectionHub } from './Features/PanelConnections/DefaultPanelConnectionHub';
+import type { PanelConnection } from './Features/PanelConnections/PanelConnection';
+import { DefaultPostMessageProbeInstaller } from './Features/PostMessages/DefaultPostMessageProbeInstaller';
+import { DefaultPostMessageSender } from './Features/PostMessages/DefaultPostMessageSender';
+import { PostMessageBindingHandler } from './Features/PostMessages/PostMessageBindingHandler';
+import { PostMessageSessionStep } from './Features/PostMessages/PostMessageSessionStep';
+import { DefaultActiveRules } from './Features/Rules/DefaultActiveRules';
+import { DefaultRuleHitCounter } from './Features/Rules/DefaultRuleHitCounter';
+import { DefaultVariableStore } from './Features/Rules/DefaultVariableStore';
+import { ChildSessionAttachedHandler } from './Features/Sessions/ChildSessionAttachedHandler';
+import { ChildSessionDetachedHandler } from './Features/Sessions/ChildSessionDetachedHandler';
+import { DefaultSessionPreparer } from './Features/Sessions/DefaultSessionPreparer';
+import { FrameAutoAttachSessionStep } from './Features/Sessions/FrameAutoAttachSessionStep';
+import { InterceptionSessionStep } from './Features/Sessions/InterceptionSessionStep';
+import { NetworkSessionStep } from './Features/Sessions/NetworkSessionStep';
+import { DefaultSettingsCache } from './Features/Settings/DefaultSettingsCache';
+import { ChromeSidePanelClient } from './Features/SidePanel/ChromeSidePanelClient';
 
 const logger = new ConsoleLogger();
-const settingsCache = new SettingsCache(new SettingsStorageClient(), logger);
-const variableStore = new VariableStore(logger);
-const activeRules = new ActiveRules(settingsCache, variableStore);
-const hitCounter = new RuleHitCounter(
-    new DnrFeedbackClient(),
-    new RuleHitsClient(),
-    logger
+const settingsCache = new DefaultSettingsCache(
+    /* storageClient: */ new ChromeSettingsStorageClient(),
+    /* logger: */ logger,
 );
-const debuggerSessions = new DebuggerSessions();
-const frameRegistry = new FrameRegistry();
-const debuggerClient = new DebuggerClient(debuggerSessions);
+const variableStore = new DefaultVariableStore(logger);
+const activeRules = new DefaultActiveRules(settingsCache, variableStore);
+const hitCounter = new DefaultRuleHitCounter({
+    feedback: new ChromeDnrFeedbackClient(),
+    hitsClient: new ChromeRuleHitsClient(),
+    logger,
+});
+const debuggerSessions = new DefaultDebuggerSessions();
+const frameRegistry = new DefaultFrameRegistry();
+const debuggerClient = new ChromeDebuggerClient(debuggerSessions);
 const interceptionStep = new InterceptionSessionStep(debuggerClient, activeRules);
-const liveListeningRegistry = new LiveListeningRegistry();
-const postMessageInstaller = new PostMessageProbeInstaller(debuggerClient);
-const sessionPreparer = new SessionPreparer(
-    [
+const liveListeningRegistry = new DefaultLiveListeningRegistry();
+const postMessageInstaller = new DefaultPostMessageProbeInstaller(debuggerClient);
+const sessionPreparer = new DefaultSessionPreparer(
+    /* steps: */ [
         new NetworkSessionStep(debuggerClient),
         interceptionStep,
         new FrameAutoAttachSessionStep(debuggerClient),
         new PostMessageSessionStep(postMessageInstaller, liveListeningRegistry),
     ],
-    logger
+    /* logger: */ logger,
 );
-const connectionHub = new PanelConnectionHub(logger);
-const timelineStore = new TimelineStore();
-const liveStore = new LiveStore();
-const eventStreamParsers = new EventStreamParsers();
+const connectionHub = new DefaultPanelConnectionHub(logger);
+const timelineStore = new DefaultTimelineStore();
+const liveStore = new DefaultLiveStore();
+const eventStreamParsers = new DefaultEventStreamParsers();
 const now = (): Date => new Date();
-const contentKindClassifier = new ContentKindClassifier();
-const recordClassifier = new TimelineRecordClassifier(contentKindClassifier);
-const browserRuleSimulator = new BrowserRuleSimulator(activeRules);
-const clientRequestSender = new ClientRequestSender(new PanelTargetClient(), logger);
-const postMessageSender = new PostMessageSender(debuggerClient, () => Date.now());
+const contentKindClassifier = new DefaultContentKindClassifier();
+const recordClassifier = new DefaultTimelineRecordClassifier(contentKindClassifier);
+const browserRuleSimulator = new DefaultBrowserRuleSimulator(activeRules);
+const clientRequestSender = new DefaultClientRequestSender(
+    /* client: */ new ChromePanelTargetClient(),
+    /* logger: */ logger,
+);
+const postMessageSender = new DefaultPostMessageSender(debuggerClient, () => Date.now());
 
-const liveListening = new LiveListeningService({
+const liveListening = new DefaultLiveListeningService({
     registry: liveListeningRegistry,
     installer: postMessageInstaller,
     sessions: debuggerSessions,
-    isAttached: tabId => inspectionService.statusOf(tabId).state === InspectionState.Attached,
+    isAttached: tabId => inspectionService.statusOf(tabId).state === INSPECTION_STATE.Attached,
     logger,
 });
 
-const inspectionService = new InspectionService({
+const inspectionService = new DefaultInspectionService({
     debuggerClient,
     preparer: sessionPreparer,
     interception: interceptionStep,
@@ -137,24 +143,22 @@ const inspectionService = new InspectionService({
 
 const ruleSync = new DeclarativeRuleSync({
     activeRules,
-    netRequestClient: new DeclarativeNetRequestClient(new RegexSupportClient()),
-    reportClient: new RuleSyncReportClient(),
+    netRequestClient: new ChromeDeclarativeNetRequestClient(new ChromeRegexSupportClient()),
+    reportClient: new ChromeRuleSyncReportClient(),
     hitCounter,
-    timeWindowScheduler: new TimeWindowScheduler(logger),
+    timeWindowScheduler: new ChromeTimeWindowScheduler(logger),
     logger,
 });
 
-const captureFilter = new CaptureFilter();
-const pendingDocuments = new PendingDocuments();
-const admission = new TimelineAdmission(timelineStore, browserRuleSimulator);
+const captureFilter = new DefaultCaptureFilter();
+const admission = new DefaultTimelineAdmission(timelineStore, browserRuleSimulator);
 
 const cdpEventDispatcher = new CdpEventDispatcher(debuggerSessions)
     .register(new RequestWillBeSentHandler({
         timelineStore,
-        pendingDocuments,
         admission,
         captureFilter,
-        recordFactory: new TimelineRecordFactory(recordClassifier, frameRegistry),
+        recordFactory: new DefaultTimelineRecordFactory(recordClassifier, frameRegistry),
         recordClassifier,
         browserRuleSimulator,
         debuggerClient,
@@ -163,25 +167,19 @@ const cdpEventDispatcher = new CdpEventDispatcher(debuggerSessions)
     .register(new RequestExtraInfoHandler(timelineStore))
     .register(new ResponseReceivedHandler({
         timelineStore,
-        pendingDocuments,
-        admission,
-        captureFilter,
         recordClassifier,
         browserRuleSimulator,
     }))
     .register(new ResponseExtraInfoHandler(timelineStore))
-    .register(new LoadingFinishedHandler(timelineStore, new ResponseBodyReader(debuggerClient)))
-    .register(new LoadingFailedHandler({
-        timelineStore,
-        pendingDocuments,
-        admission,
-        browserRuleSimulator,
-    }))
+    .register(new LoadingFinishedHandler(
+        /* timelineStore: */ timelineStore,
+        /* bodyReader: */ new DefaultResponseBodyReader(debuggerClient),
+    ))
+    .register(new LoadingFailedHandler(timelineStore))
     .register(new RequestPausedHandler({
         activeRules,
         debuggerClient,
         timelineStore,
-        pendingDocuments,
         hitCounter,
         logger,
     }))
@@ -192,34 +190,34 @@ const cdpEventDispatcher = new CdpEventDispatcher(debuggerSessions)
         logger,
     }))
     .register(new ChildSessionDetachedHandler(debuggerSessions))
-    .register(new ListeningGate(
-        new WebSocketCreatedHandler(liveStore, now),
-        liveListeningRegistry,
-        "webSockets"
-    ))
-    .register(new ListeningGate(
-        new WebSocketFrameSentHandler(liveStore, now),
-        liveListeningRegistry,
-        "webSockets"
-    ))
-    .register(new ListeningGate(
-        new WebSocketFrameReceivedHandler(liveStore, now),
-        liveListeningRegistry,
-        "webSockets"
-    ))
+    .register(new ListeningGate({
+        inner: new WebSocketCreatedHandler(liveStore, now),
+        registry: liveListeningRegistry,
+        kind: 'webSockets',
+    }))
+    .register(new ListeningGate({
+        inner: new WebSocketFrameSentHandler(liveStore, now),
+        registry: liveListeningRegistry,
+        kind: 'webSockets',
+    }))
+    .register(new ListeningGate({
+        inner: new WebSocketFrameReceivedHandler(liveStore, now),
+        registry: liveListeningRegistry,
+        kind: 'webSockets',
+    }))
     .register(new WebSocketClosedHandler(liveStore))
-    .register(new ListeningGate(
-        new EventSourceRequestHandler(liveStore, now),
-        liveListeningRegistry,
-        "eventStreams"
-    ))
-    .register(new ListeningGate(
-        new EventSourceMessageHandler(liveStore, now),
-        liveListeningRegistry,
-        "eventStreams"
-    ))
-    .register(new ListeningGate(
-        new FetchStreamResponseHandler({
+    .register(new ListeningGate({
+        inner: new EventSourceRequestHandler(liveStore, now),
+        registry: liveListeningRegistry,
+        kind: 'eventStreams',
+    }))
+    .register(new ListeningGate({
+        inner: new EventSourceMessageHandler(liveStore, now),
+        registry: liveListeningRegistry,
+        kind: 'eventStreams',
+    }))
+    .register(new ListeningGate({
+        inner: new FetchStreamResponseHandler({
             liveStore,
             parsers: eventStreamParsers,
             timelineStore,
@@ -228,40 +226,28 @@ const cdpEventDispatcher = new CdpEventDispatcher(debuggerSessions)
             logger,
             now,
         }),
-        liveListeningRegistry,
-        "eventStreams"
-    ))
-    .register(new FetchStreamDataHandler(
+        registry: liveListeningRegistry,
+        kind: 'eventStreams',
+    }))
+    .register(new FetchStreamDataHandler({ liveStore, parsers: eventStreamParsers, now }))
+    .register(new EventStreamEndedHandler({
+        event: 'Network.loadingFinished',
         liveStore,
-        eventStreamParsers,
-        now
-    ))
-    .register(new EventStreamEndedHandler(
-        "Network.loadingFinished",
+        parsers: eventStreamParsers,
+    }))
+    .register(new EventStreamEndedHandler({
+        event: 'Network.loadingFailed',
         liveStore,
-        eventStreamParsers
-    ))
-    .register(new EventStreamEndedHandler(
-        "Network.loadingFailed",
-        liveStore,
-        eventStreamParsers
-    ))
-    .register(new ListeningGate(
-        new PostMessageBindingHandler(
-            liveStore,
-            postMessageSender,
-            now
-        ),
-        liveListeningRegistry,
-        "postMessages"
-    ));
+        parsers: eventStreamParsers,
+    }))
+    .register(new ListeningGate({
+        inner: new PostMessageBindingHandler({ liveStore, sender: postMessageSender, now }),
+        registry: liveListeningRegistry,
+        kind: 'postMessages',
+    }));
 
 const endpointRouter = new PanelEndpointRouter()
-    .register(new InspectTabEndpoint(
-        inspectionService,
-        timelineStore,
-        liveStore
-    ))
+    .register(new InspectTabEndpoint({ inspectionService, timelineStore, liveStore }))
     .register(new GetEntryDetailEndpoint(timelineStore))
     .register(new GetTimelineDetailsEndpoint(timelineStore))
     .register(new ClearTimelineEndpoint(timelineStore, connectionHub))
@@ -274,136 +260,136 @@ const endpointRouter = new PanelEndpointRouter()
     .register(new SetLiveListeningEndpoint(liveListening));
 
 activeRules.subscribe(() => {
-    BackgroundTask.run(
+    BackgroundTask.run({
         logger,
-        "Network rule sync",
-        () => ruleSync.sync()
-    );
-    BackgroundTask.run(
+        description: 'Network rule sync',
+        task: () => ruleSync.syncAsync(),
+    });
+    BackgroundTask.run({
         logger,
-        "Interception refresh",
-        () => inspectionService.refreshInterception()
-    );
+        description: 'Interception refresh',
+        task: () => inspectionService.refreshInterceptionAsync(),
+    });
 });
 
 const settingsReady = (async () => {
-    await hitCounter.initialize();
-    await settingsCache.initialize();
-    await variableStore.initialize();
+    await hitCounter.initializeAsync();
+    await settingsCache.initializeAsync();
+    await variableStore.initializeAsync();
     activeRules.refresh();
 })();
 
-async function syncNetworkRules(): Promise<void> {
+async function syncNetworkRulesAsync(): Promise<void> {
     await settingsReady;
-    await ruleSync.sync();
+    await ruleSync.syncAsync();
 }
 
-async function handlePanelMessage(connection: PanelConnection, message: unknown): Promise<void> {
+async function handlePanelMessageAsync(connection: PanelConnection, message: unknown): Promise<void> {
     if (!endpointRouter.isPanelRequest(message)) {
-        logger.warn("Ignored a malformed panel message.", message);
+        logger.warn('Ignored a malformed panel message.', message);
 
         return;
     }
 
     await settingsReady;
-    const result = await endpointRouter.route(
-        message,
-        {
+    const result = await endpointRouter.routeAsync(
+        /* request: */ message,
+        /* context: */ {
             connection,
-        }
+        },
     );
     connectionHub.send(
-        connection,
-        {
-            type: WorkerEventType.CommandCompleted,
+        /* connection: */ connection,
+        /* event: */ {
+            type: WORKER_EVENT_TYPE.CommandCompleted,
             correlationId: message.correlationId,
             result,
-        }
+        },
     );
 }
 
 liveStore.subscribe((tabId, event) => connectionHub.publishToTab(tabId, event));
 
 timelineStore.subscribe(entry => connectionHub.publishToTab(
-    entry.tabId,
-    {
-        type: WorkerEventType.EntryUpserted,
+    /* tabId: */ entry.tabId,
+    /* event: */ {
+        type: WORKER_EVENT_TYPE.EntryUpserted,
         entry,
-    }
+    },
 ));
 
 settingsCache.watch(
-    settings => ({
+    /* selector: */ settings => ({
         interceptionEnabled: settings.interceptionEnabled,
         rules: ActiveProfile.rules(settings),
         variables: ActiveProfile.variables(settings),
     }),
-    () => activeRules.refresh()
+    /* onChange: */ () => activeRules.refresh(),
 );
 
 chrome.alarms.onAlarm.addListener(alarm => {
-    if (alarm.name !== TimeWindowAlarmName) {
+    if (alarm.name !== TIME_WINDOW_ALARM_NAME) {
         return;
     }
 
-    BackgroundTask.run(
+    BackgroundTask.run({
         logger,
-        "Time window refresh",
-        async () => {
+        description: 'Time window refresh',
+        task: async () => {
             await settingsReady;
             activeRules.refresh();
-        }
-    );
+        },
+    });
 });
 
-chrome.runtime.onInstalled.addListener(() => BackgroundTask.run(
+chrome.runtime.onInstalled.addListener(() => BackgroundTask.run({
     logger,
-    "Network rule sync",
-    syncNetworkRules
-));
-chrome.runtime.onStartup.addListener(() => BackgroundTask.run(
+    description: 'Network rule sync',
+    task: syncNetworkRulesAsync,
+}));
+chrome.runtime.onStartup.addListener(() => BackgroundTask.run({
     logger,
-    "Network rule sync",
-    syncNetworkRules
-));
+    description: 'Network rule sync',
+    task: syncNetworkRulesAsync,
+}));
 
 chrome.debugger.onEvent.addListener((
     source,
     method,
-    params
+    params,
 ) => {
-    if (source.targetId !== undefined) {
+    if (source.targetId != null) {
         clientRequestSender.handleEvent(
-            source.targetId,
-            method,
-            params
+            /* targetId: */ source.targetId,
+            /* method: */ method,
+            /* params: */ params,
         );
 
         return;
     }
 
-    BackgroundTask.run(
+    BackgroundTask.run({
         logger,
-        method,
-        async () => {
+        description: method,
+        task: async () => {
             await settingsReady;
-            await cdpEventDispatcher.dispatch(
-                source,
-                method,
-                params
+            await cdpEventDispatcher.dispatchAsync(
+                /* source: */ source,
+                /* method: */ method,
+                /* params: */ params,
             );
-        }
-    );
+        },
+    });
 });
 
 chrome.debugger.onDetach.addListener((source, reason) => {
-    if (source.targetId !== undefined) {
+    if (source.targetId != null) {
         clientRequestSender.handleDetach(source.targetId);
 
         return;
     }
 
-    if (source.tabId === undefined) {
+    if (source.tabId == null) {
         return;
     }
 
@@ -413,38 +399,38 @@ chrome.debugger.onDetach.addListener((source, reason) => {
 chrome.tabs.onRemoved.addListener(tabId => inspectionService.forget(tabId));
 
 chrome.runtime.onConnect.addListener(port => {
-    if (port.name !== PanelPortName) {
+    if (port.name !== PANEL_PORT_NAME) {
         return;
     }
 
     const connection = connectionHub.add(port);
     hitCounter.startPolling();
-    port.onMessage.addListener(message => BackgroundTask.run(
+    port.onMessage.addListener(message => BackgroundTask.run({
         logger,
-        "Panel command",
-        () => handlePanelMessage(connection, message)
-    ));
+        description: 'Panel command',
+        task: () => handlePanelMessageAsync(connection, message),
+    }));
     port.onDisconnect.addListener(() => {
         connectionHub.remove(connection.id);
         if (!connectionHub.hasConnections()) {
             hitCounter.stopPolling();
         }
 
-        BackgroundTask.run(
+        BackgroundTask.run({
             logger,
-            "Panel release",
-            () => inspectionService.release(connection.tabId)
-        );
+            description: 'Panel release',
+            task: () => inspectionService.releaseAsync(connection.tabId),
+        });
     });
 });
 
-BackgroundTask.run(
+BackgroundTask.run({
     logger,
-    "Side panel setup",
-    async () => {
-        const configured = await new SidePanelClient().openOnToolbarClick();
+    description: 'Side panel setup',
+    task: async () => {
+        const configured = await new ChromeSidePanelClient().openOnToolbarClickAsync();
         if (configured.hasErrors) {
             logger.error(configured.error);
         }
-    }
-);
+    },
+});

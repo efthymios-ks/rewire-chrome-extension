@@ -1,8 +1,9 @@
-import type { SearchMatch, SearchQuery } from "../../Contracts/Search/SearchQuery";
+import type { SearchMatch } from '../../Contracts/Search/SearchMatch';
+import type { SearchQuery } from '../../Contracts/Search/SearchQuery';
 
 export interface TrafficSearchState {
     query: SearchQuery;
+    searchedText: string;
     matches: SearchMatch[];
-    activeIndex: number;
     error: string | null;
 }

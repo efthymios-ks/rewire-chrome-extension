@@ -1,16 +1,12 @@
-import { buildElement, type ElementChild } from "./ElementBuilder";
+import { buildElement } from './buildElement';
 
 export const EmptyState = {
-    build(message: string, actions: ElementChild[] = []): HTMLDivElement {
-        return buildElement("div", {
-            className: "empty-state",
+    build(message: string): HTMLDivElement {
+        return buildElement('div', {
+            className: 'empty-state',
             children: [
-                buildElement("p", {
+                buildElement('p', {
                     text: message,
-                }),
-                buildElement("div", {
-                    className: "actions",
-                    children: actions,
                 }),
             ],
         });

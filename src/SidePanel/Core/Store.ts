@@ -2,6 +2,12 @@ type StateListener<TState> = (state: TState) => void;
 
 export type Equality<TValue> = (left: TValue, right: TValue) => boolean;
 
+export interface SelectOptions<TState, TSlice> {
+    selector: (state: TState) => TSlice;
+    listener: (slice: TSlice) => void;
+    isEqual?: Equality<NoInfer<TSlice>>;
+}
+
 export class Store<TState> {
     private _state: TState;
     private readonly _listeners = new Set<StateListener<TState>>();
@@ -24,11 +30,7 @@ export class Store<TState> {
         this._listeners.forEach(listener => listener(next));
     }
 
-    select<TSlice>(
-        selector: (state: TState) => TSlice,
-        listener: (slice: TSlice) => void,
-        isEqual: Equality<TSlice> = Object.is
-    ): () => void {
+    select<TSlice>({ selector, listener, isEqual = Object.is }: SelectOptions<TState, TSlice>): () => void {
         let current = selector(this._state);
         listener(current);
 

@@ -1,4 +1,4 @@
-import type { TemplatePart } from "./TemplatePart";
+import type { TemplatePart } from './TemplatePart';
 
 export interface CompiledRedirect {
     regexFilter: string;

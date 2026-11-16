@@ -1,7 +1,7 @@
-import type { LiveChannel } from "../../Live/LiveChannel";
-import type { WorkerEventType } from "../WorkerEventType";
+import type { LiveChannel } from '../../Live/LiveChannel';
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface ChannelUpsertedEvent {
-    type: WorkerEventType.ChannelUpserted;
+    type: typeof WORKER_EVENT_TYPE.ChannelUpserted;
     channel: LiveChannel;
 }

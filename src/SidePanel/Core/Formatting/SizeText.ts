@@ -1,17 +1,17 @@
-const BytesPerKilobyte = 1024;
-const BytesPerMegabyte = BytesPerKilobyte * BytesPerKilobyte;
-const OneDecimal = 1;
+const BYTES_PER_KILOBYTE = 1024;
+const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE;
+const ONE_DECIMAL = 1;
 
 export const SizeText = {
     of(bytes: number): string {
-        if (bytes < BytesPerKilobyte) {
+        if (bytes < BYTES_PER_KILOBYTE) {
             return `${bytes} B`;
         }
 
-        if (bytes < BytesPerMegabyte) {
-            return `${(bytes / BytesPerKilobyte).toFixed(OneDecimal)} KB`;
+        if (bytes < BYTES_PER_MEGABYTE) {
+            return `${(bytes / BYTES_PER_KILOBYTE).toFixed(ONE_DECIMAL)} KB`;
         }
 
-        return `${(bytes / BytesPerMegabyte).toFixed(OneDecimal)} MB`;
+        return `${(bytes / BYTES_PER_MEGABYTE).toFixed(ONE_DECIMAL)} MB`;
     },
 };

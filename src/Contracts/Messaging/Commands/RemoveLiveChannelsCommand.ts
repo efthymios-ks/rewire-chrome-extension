@@ -1,7 +1,7 @@
-import type { PanelCommandType } from "../PanelCommandType";
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface RemoveLiveChannelsCommand {
-    type: PanelCommandType.RemoveLiveChannels;
+    type: typeof PANEL_COMMAND_TYPE.RemoveLiveChannels;
     tabId: number;
     channelIds: string[];
 }

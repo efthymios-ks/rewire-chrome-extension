@@ -1,4 +1,4 @@
-import { RegexCache } from "../Criteria/RegexCache";
+import { RegexCache } from '../../Regex/RegexCache';
 
 export interface TextReplacement {
     find: string;
@@ -6,11 +6,11 @@ export interface TextReplacement {
     isRegex: boolean;
 }
 
-const GlobalFlag = "g";
+const GLOBAL_FLAG = 'g';
 
 export const TextReplace = {
     apply(text: string, replacement: TextReplacement): string {
-        if (replacement.find === "") {
+        if (replacement.find === '') {
             return text;
         }
 
@@ -23,6 +23,9 @@ export const TextReplace = {
             return text;
         }
 
-        return text.replace(new RegExp(compiled.value.source, GlobalFlag), replacement.replace);
+        return text.replace(
+            /* searchValue: */ new RegExp(compiled.value.source, GLOBAL_FLAG),
+            /* replaceValue: */ replacement.replace,
+        );
     },
 };

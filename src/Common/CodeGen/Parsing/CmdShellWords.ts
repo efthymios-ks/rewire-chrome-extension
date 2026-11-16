@@ -1,46 +1,46 @@
-import { ShellLines } from "./ShellLines";
+import { ShellLines } from './ShellLines';
 
-const Caret = "^";
-const DoubleQuote = "\"";
-const Backslash = "\\";
-const Space = " ";
-const ForeignContinuations = [
-    "\\",
-    "`",
+const CARET = '^';
+const DOUBLE_QUOTE = '"';
+const BACKSLASH = '\\';
+const SPACE = ' ';
+const FOREIGN_CONTINUATIONS = [
+    '\\',
+    '`',
 ];
 
 function expandCarets(text: string): string {
-    let output = "";
+    let output = '';
     let isQuoted = false;
     let index = 0;
     while (index < text.length) {
         const character = text.charAt(index);
-        if (character === DoubleQuote) {
+        if (character === DOUBLE_QUOTE) {
             isQuoted = !isQuoted;
             output += character;
             index++;
             continue;
         }
 
-        if (!isQuoted && character === Caret) {
+        if (!isQuoted && character === CARET) {
             const escaped = text.charAt(index + 1) === ShellLines.LineBreak ? index + 2 : index + 1;
             output += text.charAt(escaped);
             index = escaped + 1;
             continue;
         }
 
-        const isContinuation = ShellLines.isStandaloneContinuation(
+        const isContinuation = ShellLines.isStandaloneContinuation({
             text,
             index,
-            ForeignContinuations
-        );
+            markers: FOREIGN_CONTINUATIONS,
+        });
         if (!isQuoted && isContinuation) {
-            output += Space;
+            output += SPACE;
             index = ShellLines.endOf(text, index) + 1;
             continue;
         }
 
-        output += !isQuoted && character === ShellLines.LineBreak ? Space : character;
+        output += !isQuoted && character === ShellLines.LineBreak ? SPACE : character;
         index++;
     }
 
@@ -49,7 +49,7 @@ function expandCarets(text: string): string {
 
 function countBackslashes(text: string, index: number): number {
     let count = 0;
-    while (text.charAt(index + count) === Backslash) {
+    while (text.charAt(index + count) === BACKSLASH) {
         count++;
     }
 
@@ -63,26 +63,26 @@ function splitArguments(text: string): string[] {
     let index = 0;
     while (index < text.length) {
         const character = text.charAt(index);
-        if (character === Backslash) {
+        if (character === BACKSLASH) {
             const count = countBackslashes(text, index);
-            const isBeforeQuote = text.charAt(index + count) === DoubleQuote;
+            const isBeforeQuote = text.charAt(index + count) === DOUBLE_QUOTE;
             const kept = isBeforeQuote ? Math.floor(count / 2) : count;
             const isLiteralQuote = isBeforeQuote && count % 2 === 1;
-            word = `${word ?? ""}${Backslash.repeat(kept)}${isLiteralQuote ? DoubleQuote : ""}`;
+            word = `${word ?? ''}${BACKSLASH.repeat(kept)}${isLiteralQuote ? DOUBLE_QUOTE : ''}`;
             index += isLiteralQuote ? count + 1 : count;
             continue;
         }
 
-        if (character === DoubleQuote) {
-            const isEscapedQuote: boolean = isQuoted && text.charAt(index + 1) === DoubleQuote;
-            word = `${word ?? ""}${isEscapedQuote ? DoubleQuote : ""}`;
+        if (character === DOUBLE_QUOTE) {
+            const isEscapedQuote: boolean = isQuoted && text.charAt(index + 1) === DOUBLE_QUOTE;
+            word = `${word ?? ''}${isEscapedQuote ? DOUBLE_QUOTE : ''}`;
             isQuoted = isEscapedQuote ? isQuoted : !isQuoted;
             index += isEscapedQuote ? 2 : 1;
             continue;
         }
 
         if (!isQuoted && ShellLines.isWhitespace(character)) {
-            if (word !== null) {
+            if (word != null) {
                 words.push(word);
                 word = null;
             }
@@ -91,11 +91,11 @@ function splitArguments(text: string): string[] {
             continue;
         }
 
-        word = `${word ?? ""}${character}`;
+        word = `${word ?? ''}${character}`;
         index++;
     }
 
-    if (word !== null) {
+    if (word != null) {
         words.push(word);
     }
 

@@ -1,24 +1,27 @@
-import { Result } from "../Results/Result";
-import type { XmlNode } from "./XmlNode";
-import { XmlParser } from "./XmlParser";
+import { OwnEntry } from '../Objects/OwnEntry';
+import { Result } from '../Results/Result';
+import type { XmlNode } from './XmlNode';
+import { XmlParser } from './XmlParser';
 
-type Axis = "child" | "descendant";
+type Axis = 'child' | 'descendant';
 type NodeTest = {
-    kind: "element";
+    kind: 'element';
     name: string;
 } | {
-    kind: "text";
+    kind: 'text';
 } | {
-    kind: "attribute";
+    kind: 'attribute';
     name: string;
 };
 
-interface Predicate {
-    kind: "index" | "attribute";
-    index?: number;
-    attribute?: string;
-    value?: string;
-}
+type Predicate = {
+    kind: 'index';
+    index: number;
+} | {
+    kind: 'attribute';
+    attribute: string;
+    value: string;
+};
 
 interface Step {
     axis: Axis;
@@ -26,35 +29,35 @@ interface Step {
     predicates: Predicate[];
 }
 
-const Wildcard = "*";
-const TextCall = "text()";
-const AttributeMarker = "@";
-const StepSeparator = "/";
-const DescendantSeparator = "//";
-const OpenBracket = "[";
-const CloseBracket = "]";
-const IndexPattern = /^-?\d+$/;
-const AttributePredicatePattern = /^@([^\s=]+)\s*=\s*('([^']*)'|"([^"]*)")$/;
-const DocumentNodeName = "";
+const WILDCARD = '*';
+const TEXT_CALL = 'text()';
+const ATTRIBUTE_MARKER = '@';
+const STEP_SEPARATOR = '/';
+const DESCENDANT_SEPARATOR = '//';
+const OPEN_BRACKET = '[';
+const CLOSE_BRACKET = ']';
+const INDEX_PATTERN = /^-?\d+$/;
+const ATTRIBUTE_PREDICATE_PATTERN = /^@([^\s=]+)\s*=\s*('([^']*)'|"([^"]*)")$/;
+const DOCUMENT_NODE_NAME = '';
 
 function parsePredicate(inner: string): Result<Predicate> {
     const trimmed = inner.trim();
-    if (IndexPattern.test(trimmed)) {
+    if (INDEX_PATTERN.test(trimmed)) {
         return Result.ok({
-            kind: "index",
+            kind: 'index',
             index: Number(trimmed),
         });
     }
 
-    const match = AttributePredicatePattern.exec(trimmed);
-    if (match === null) {
+    const match = ATTRIBUTE_PREDICATE_PATTERN.exec(trimmed);
+    if (match == null) {
         return Result.fail(`Only [index] and [@attr='value'] are supported; got '[${inner}]'.`);
     }
 
     return Result.ok({
-        kind: "attribute",
+        kind: 'attribute',
         attribute: match[1]!,
-        value: match[3] ?? match[4] ?? "",
+        value: match[3] ?? match[4] ?? '',
     });
 }
 
@@ -62,12 +65,12 @@ function parseStep(raw: string, axis: Axis): Result<Step> {
     const predicates: Predicate[] = [];
     let head = raw;
     while (true) {
-        const open = head.indexOf(OpenBracket);
+        const open = head.indexOf(OPEN_BRACKET);
         if (open === -1) {
             break;
         }
 
-        const close = head.indexOf(CloseBracket, open);
+        const close = head.indexOf(CLOSE_BRACKET, open);
         if (close === -1) {
             return Result.fail(`Unclosed '[' in step '${raw}'.`);
         }
@@ -82,40 +85,40 @@ function parseStep(raw: string, axis: Axis): Result<Step> {
     }
 
     const name = head.trim();
-    if (name === TextCall) {
+    if (name === TEXT_CALL) {
         return Result.ok({
             axis,
             test: {
-                kind: "text",
+                kind: 'text',
             },
             predicates,
         });
     }
 
-    if (name.startsWith(AttributeMarker)) {
+    if (name.startsWith(ATTRIBUTE_MARKER)) {
         const attributeName = name.slice(1);
-        if (attributeName === "") {
-            return Result.fail("Attribute step without a name.");
+        if (attributeName === '') {
+            return Result.fail('Attribute step without a name.');
         }
 
         return Result.ok({
             axis,
             test: {
-                kind: "attribute",
+                kind: 'attribute',
                 name: attributeName,
             },
             predicates,
         });
     }
 
-    if (name === "") {
+    if (name === '') {
         return Result.fail(`Empty step in '${raw}'.`);
     }
 
     return Result.ok({
         axis,
         test: {
-            kind: "element",
+            kind: 'element',
             name,
         },
         predicates,
@@ -124,35 +127,35 @@ function parseStep(raw: string, axis: Axis): Result<Step> {
 
 function parsePath(path: string): Result<Step[]> {
     const trimmed = path.trim();
-    if (!trimmed.startsWith(StepSeparator)) {
+    if (!trimmed.startsWith(STEP_SEPARATOR)) {
         return Result.fail("An XPath expression starts with '/' or '//'.");
     }
 
     const steps: Step[] = [];
     let position = 0;
     while (position < trimmed.length) {
-        if (trimmed.charAt(position) !== StepSeparator) {
+        if (trimmed.charAt(position) !== STEP_SEPARATOR) {
             return Result.fail(`Unexpected '${trimmed.charAt(position)}' at position ${position} of '${trimmed}'.`);
         }
 
-        const isDescendant = trimmed.startsWith(DescendantSeparator, position);
-        const axis: Axis = isDescendant ? "descendant" : "child";
-        position += isDescendant ? DescendantSeparator.length : StepSeparator.length;
+        const isDescendant = trimmed.startsWith(DESCENDANT_SEPARATOR, position);
+        const axis: Axis = isDescendant ? 'descendant' : 'child';
+        position += isDescendant ? DESCENDANT_SEPARATOR.length : STEP_SEPARATOR.length;
 
         let end = position;
-        let inBrackets = false;
-        while (end < trimmed.length && (inBrackets || trimmed.charAt(end) !== StepSeparator)) {
-            if (trimmed.charAt(end) === OpenBracket) {
-                inBrackets = true;
-            } else if (trimmed.charAt(end) === CloseBracket) {
-                inBrackets = false;
+        let isInBrackets = false;
+        while (end < trimmed.length && (isInBrackets || trimmed.charAt(end) !== STEP_SEPARATOR)) {
+            if (trimmed.charAt(end) === OPEN_BRACKET) {
+                isInBrackets = true;
+            } else if (trimmed.charAt(end) === CLOSE_BRACKET) {
+                isInBrackets = false;
             }
 
             end++;
         }
 
         const raw = trimmed.slice(position, end);
-        if (raw === "") {
+        if (raw === '') {
             return Result.fail(`Empty step at position ${position} of '${trimmed}'.`);
         }
 
@@ -166,7 +169,7 @@ function parsePath(path: string): Result<Step[]> {
     }
 
     if (steps.length === 0) {
-        return Result.fail("Empty XPath expression.");
+        return Result.fail('Empty XPath expression.');
     }
 
     return Result.ok(steps);
@@ -187,15 +190,15 @@ function descendants(node: XmlNode): XmlNode[] {
 }
 
 function matchesElement(node: XmlNode, name: string): boolean {
-    return name === Wildcard || node.name === name;
+    return name === WILDCARD || node.name === name;
 }
 
 function elementContext(nodes: XmlNode[], step: Step): XmlNode[] {
-    const base = step.axis === "descendant"
+    const base = step.axis === 'descendant'
         ? nodes.flatMap(node => descendants(node))
         : nodes.flatMap(node => childElements(node));
     const test = step.test;
-    const matched = test.kind === "element"
+    const matched = test.kind === 'element'
         ? base.filter(node => matchesElement(node, test.name))
         : base;
 
@@ -203,21 +206,26 @@ function elementContext(nodes: XmlNode[], step: Step): XmlNode[] {
 }
 
 function applyElementPredicates(nodes: XmlNode[], predicates: Predicate[]): XmlNode[] {
-    return predicates.reduce((current, predicate) => {
-        if (predicate.kind === "index") {
-            const index = predicate.index!;
-            const position = index > 0 ? index - 1 : current.length + index;
-            const picked = current[position];
+    return predicates.reduce(
+        /* callbackfn: */ (current, predicate) => {
+            if (predicate.kind === 'index') {
+                const { index } = predicate;
+                const position = index > 0 ? index - 1 : current.length + index;
+                const picked = current[position];
 
-            return picked === undefined ? [] : [picked];
-        }
+                return picked == null ? [] : [picked];
+            }
 
-        return current.filter(node => node.attributes[predicate.attribute!] === predicate.value);
-    }, nodes);
+            const { attribute, value } = predicate;
+
+            return current.filter(node => OwnEntry.of(node.attributes, attribute) === value);
+        },
+        /* initialValue: */ nodes,
+    );
 }
 
 function selfAndDescendants(nodes: XmlNode[], step: Step): XmlNode[] {
-    return step.axis === "descendant"
+    return step.axis === 'descendant'
         ? nodes.flatMap(node => [
             node,
             ...descendants(node),
@@ -228,26 +236,33 @@ function selfAndDescendants(nodes: XmlNode[], step: Step): XmlNode[] {
 function evaluate(root: XmlNode, steps: Step[]): string | null {
     let nodes: XmlNode[] = [
         {
-            name: DocumentNodeName,
+            name: DOCUMENT_NODE_NAME,
             attributes: {},
-            text: "",
+            text: '',
             children: [root],
+            content: [root],
         },
     ];
 
     for (const step of steps) {
         const test = step.test;
-        if (test.kind === "attribute") {
-            const context = applyElementPredicates(selfAndDescendants(nodes, step), step.predicates);
+        if (test.kind === 'attribute') {
+            const context = applyElementPredicates(
+                /* nodes: */ selfAndDescendants(nodes, step),
+                /* predicates: */ step.predicates,
+            );
             const values = context
-                .map(node => node.attributes[test.name])
-                .filter((value): value is string => value !== undefined);
+                .map(node => OwnEntry.of(node.attributes, test.name))
+                .filter((value): value is string => value != null);
 
             return values[0] ?? null;
         }
 
-        if (test.kind === "text") {
-            const context = applyElementPredicates(selfAndDescendants(nodes, step), step.predicates);
+        if (test.kind === 'text') {
+            const context = applyElementPredicates(
+                /* nodes: */ selfAndDescendants(nodes, step),
+                /* predicates: */ step.predicates,
+            );
 
             return context.length === 0 ? null : XmlParser.textOf(context[0]!);
         }

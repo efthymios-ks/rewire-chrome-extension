@@ -1,4 +1,4 @@
-import type { LiveChannelKind } from "./LiveChannelKind";
+import type { LiveChannelKind } from './LiveChannelKind';
 
 export interface LiveChannel {
     id: string;

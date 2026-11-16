@@ -1,7 +1,7 @@
-import type { TimelineEntrySummary } from "../../Timeline/TimelineEntrySummary";
-import type { WorkerEventType } from "../WorkerEventType";
+import type { TimelineEntrySummary } from '../../Timeline/TimelineEntrySummary';
+import type { WORKER_EVENT_TYPE } from '../WorkerEventType';
 
 export interface EntryUpsertedEvent {
-    type: WorkerEventType.EntryUpserted;
+    type: typeof WORKER_EVENT_TYPE.EntryUpserted;
     entry: TimelineEntrySummary;
 }

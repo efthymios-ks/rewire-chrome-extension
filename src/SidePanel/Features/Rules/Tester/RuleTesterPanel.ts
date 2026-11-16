@@ -1,8 +1,9 @@
-import type { TesterInput, TesterReport } from "../../../../Common/Rules/Engine/RuleTester";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { PanelLimits } from "../../../Core/PanelLimits";
-import { TesterForm } from "./TesterForm";
-import { TesterReportView } from "./TesterReportView";
+import type { TesterInput } from '../../../../Common/Rules/Engine/TesterInput';
+import type { TesterReport } from '../../../../Common/Rules/Engine/TesterReport';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { PANEL_LIMITS } from '../../../Core/PanelLimits';
+import { TesterForm } from './TesterForm';
+import { TesterReportView } from './TesterReportView';
 
 export type TesterRunner = (input: TesterInput) => TesterReport;
 
@@ -17,11 +18,11 @@ export class RuleTesterPanel {
     constructor(sampleUrl: string, runner: TesterRunner) {
         this._runner = runner;
         this._form = new TesterForm(sampleUrl, () => this.refresh());
-        this._report = buildElement("div", {
-            className: "tester-output",
+        this._report = buildElement('div', {
+            className: 'tester-output',
         });
-        this.root = buildElement("div", {
-            className: "rule-tester",
+        this.root = buildElement('div', {
+            className: 'rule-tester',
             children: [
                 this._form.root,
                 this._report,
@@ -31,13 +32,13 @@ export class RuleTesterPanel {
     }
 
     refresh(): void {
-        if (this._timer !== null) {
+        if (this._timer != null) {
             clearTimeout(this._timer);
         }
 
         this._timer = setTimeout(
-            () => this.run(),
-            PanelLimits.TesterDebounceInMilliseconds
+            /* callback: */ () => this.run(),
+            /* delay: */ PANEL_LIMITS.TesterDebounceInMilliseconds,
         );
     }
 

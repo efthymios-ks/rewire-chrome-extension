@@ -1,4 +1,4 @@
-import type { SimulationOutcome } from "./SimulationOutcome";
+import type { SimulationOutcome } from './SimulationOutcome';
 
 export interface RedirectSimulation {
     url: string;

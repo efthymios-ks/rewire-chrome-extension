@@ -1,24 +1,25 @@
-import { RequestSnippets } from "../../../Common/CodeGen/RequestSnippets";
-import { HeaderSuggestions } from "../../../Common/Http/HeaderSuggestions";
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { FormControls, type SelectOption } from "../../Core/Dom/FormControls";
-import { SuggestionInput } from "../../Core/Dom/SuggestionInput";
-import { ClientBodyEditor } from "./ClientBodyEditor";
-import type { ClientRequest } from "./ClientRequest";
-import { ClientRequestDraft } from "./ClientRequestDraft";
-import { ClientRowGrid } from "./ClientRowGrid";
+import { RequestSnippets } from '../../../Common/CodeGen/RequestSnippets';
+import { HeaderSuggestions } from '../../../Common/Http/HeaderSuggestions';
+import { HTTP_METHODS } from '../../../Contracts/Http/HttpMethods';
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { FormControls, type SelectOption } from '../../Core/Dom/FormControls';
+import { SuggestionInput } from '../../Core/Dom/SuggestionInput';
+import { ClientBodyEditor } from './ClientBodyEditor';
+import type { ClientRequest } from './ClientRequest';
+import { ClientRequestDraft } from './ClientRequestDraft';
+import { ClientRowGrid } from './ClientRowGrid';
 
-const Methods = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "HEAD",
-    "OPTIONS",
+const METHODS: string[] = [
+    HTTP_METHODS.Get,
+    HTTP_METHODS.Post,
+    HTTP_METHODS.Put,
+    HTTP_METHODS.Patch,
+    HTTP_METHODS.Delete,
+    HTTP_METHODS.Head,
+    HTTP_METHODS.Options,
 ];
-const PlainTextType = "text/plain";
+const PLAIN_TEXT_TYPE = 'text/plain';
 
 export interface ClientFormArguments {
     initial: ClientRequest;
@@ -27,16 +28,16 @@ export interface ClientFormArguments {
 
 function emptyHeader(): HeaderEntry {
     return {
-        name: "",
-        value: "",
+        name: '',
+        value: '',
     };
 }
 
 function methodOptionsFor(method: string): SelectOption[] {
-    const methods = Methods.includes(method)
-        ? Methods
+    const methods = METHODS.includes(method)
+        ? METHODS
         : [
-            ...Methods,
+            ...METHODS,
             method,
         ];
 
@@ -47,11 +48,11 @@ function methodOptionsFor(method: string): SelectOption[] {
 }
 
 function section(title: string, content: HTMLElement): HTMLElement {
-    return buildElement("section", {
-        className: "client-section",
+    return buildElement('section', {
+        className: 'client-section',
         children: [
-            buildElement("h3", {
-                className: "client-section-title",
+            buildElement('h3', {
+                className: 'client-section-title',
                 text: title,
             }),
             content,
@@ -73,22 +74,25 @@ export class ClientForm {
         this._methodSelect = this.methodSelect();
         this._urlInput = FormControls.textInput({
             value: args.initial.url,
-            placeholder: "URL, cURL or Wget",
-            className: "input client-url",
+            placeholder: 'URL, cURL or Wget',
+            className: 'input client-url',
         });
-        this._urlInput.setAttribute("aria-label", "URL");
-        this._urlInput.addEventListener("paste", event => {
-            const snippet = RequestSnippets.parse(event.clipboardData?.getData(PlainTextType) ?? "");
-            if (snippet === null) {
-                return;
-            }
+        this._urlInput.setAttribute('aria-label', 'URL');
+        this._urlInput.addEventListener(
+            /* type: */ 'paste',
+            /* listener: */ event => {
+                const snippet = RequestSnippets.parse(event.clipboardData?.getData(PLAIN_TEXT_TYPE) ?? '');
+                if (snippet == null) {
+                    return;
+                }
 
-            event.preventDefault();
-            this.fill(ClientRequestDraft.fromSnippet(snippet));
-            args.onPasteFilled();
-        });
-        const line = buildElement("div", {
-            className: "client-line",
+                event.preventDefault();
+                this.fill(ClientRequestDraft.fromSnippet(snippet));
+                args.onPasteFilled();
+            },
+        );
+        const line = buildElement('div', {
+            className: 'client-line',
             children: [
                 this._methodSelect,
                 this._urlInput,
@@ -98,27 +102,26 @@ export class ClientForm {
             rows: args.initial.headers.map(header => ({
                 ...header,
             })),
-            addLabel: "Add header",
-            removeLabel: "Remove header",
-            keepsOneRow: true,
+            addLabel: 'Add header',
+            removeLabel: 'Remove header',
             emptyRow: emptyHeader,
             cellsOf: header => ({
                 name: SuggestionInput.build({
                     value: header.name,
-                    placeholder: "Header",
-                    label: "Header name",
+                    placeholder: 'Header',
+                    label: 'Header name',
                     suggestions: HeaderSuggestions.names(),
-                    wrapperClassName: "client-row-name",
+                    wrapperClassName: 'client-row-name',
                     onInput: value => {
                         header.name = value;
                     },
                 }),
                 value: SuggestionInput.build({
                     value: header.value,
-                    placeholder: "Value",
-                    label: "Header value",
+                    placeholder: 'Value',
+                    label: 'Header value',
                     suggestions: () => HeaderSuggestions.valuesFor(header.name),
-                    wrapperClassName: "client-row-value",
+                    wrapperClassName: 'client-row-value',
                     onInput: value => {
                         header.value = value;
                     },
@@ -127,12 +130,12 @@ export class ClientForm {
         });
         this._body = new ClientBodyEditor(args.initial.body);
 
-        this.root = buildElement("div", {
-            className: "client-form",
+        this.root = buildElement('div', {
+            className: 'client-form',
             children: [
                 line,
-                section("Headers", this._headers.root),
-                section("Body", this._body.root),
+                section('Headers', this._headers.root),
+                section('Body', this._body.root),
             ],
         });
     }
@@ -170,12 +173,12 @@ export class ClientForm {
         const select = FormControls.select({
             value: this._method,
             options: methodOptionsFor(this._method),
-            className: "input client-method",
+            className: 'input client-method',
             onChange: value => {
                 this._method = value;
             },
         });
-        select.setAttribute("aria-label", "Method");
+        select.setAttribute('aria-label', 'Method');
 
         return select;
     }

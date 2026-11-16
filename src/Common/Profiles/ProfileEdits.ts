@@ -1,11 +1,11 @@
-import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
-import type { RuleProfile } from "../../Contracts/Settings/RuleProfile";
-import { ActiveProfile } from "./ActiveProfile";
+import type { PanelSettings } from '../../Contracts/Settings/PanelSettings';
+import type { RuleProfile } from '../../Contracts/Settings/RuleProfile';
+import { ActiveProfile } from './ActiveProfile';
 
-const NewProfileName = "Profile";
-const CopySuffix = " copy";
-const FirstNumberedCopy = 2;
-const MinimumProfiles = 1;
+const NEW_PROFILE_NAME = 'Profile';
+const COPY_SUFFIX = ' copy';
+const FIRST_NUMBERED_COPY = 2;
+const MINIMUM_PROFILES = 1;
 
 type ProfileChange = (profile: RuleProfile) => RuleProfile;
 type IdFactory = () => string;
@@ -14,12 +14,27 @@ function isTaken(settings: PanelSettings, name: string): boolean {
     return settings.profiles.some(profile => profile.name === name);
 }
 
+export interface ChangeOptions {
+    settings: PanelSettings;
+    profileId: string;
+    change: ProfileChange;
+}
+
+export interface RenameOptions {
+    settings: PanelSettings;
+    profileId: string;
+    name: string;
+}
+
+export interface DuplicateOptions {
+    settings: PanelSettings;
+    profileId: string;
+    newProfileId: string;
+    newRuleId: IdFactory;
+}
+
 export const ProfileEdits = {
-    change(
-        settings: PanelSettings,
-        profileId: string,
-        change: ProfileChange
-    ): PanelSettings {
+    change({ settings, profileId, change }: ChangeOptions): PanelSettings {
         return {
             ...settings,
             profiles: settings.profiles.map(profile => profile.id === profileId ? change(profile) : profile),
@@ -27,11 +42,7 @@ export const ProfileEdits = {
     },
 
     changeActive(settings: PanelSettings, change: ProfileChange): PanelSettings {
-        return ProfileEdits.change(
-            settings,
-            ActiveProfile.of(settings).id,
-            change
-        );
+        return ProfileEdits.change({ settings, profileId: ActiveProfile.of(settings).id, change });
     },
 
     uniqueName(settings: PanelSettings, baseName: string): string {
@@ -39,7 +50,7 @@ export const ProfileEdits = {
             return baseName;
         }
 
-        let number = FirstNumberedCopy;
+        let number = FIRST_NUMBERED_COPY;
         while (isTaken(settings, `${baseName} ${number}`)) {
             number++;
         }
@@ -55,7 +66,7 @@ export const ProfileEdits = {
                 ...settings.profiles,
                 {
                     id: profileId,
-                    name: ProfileEdits.uniqueName(settings, NewProfileName),
+                    name: ProfileEdits.uniqueName(settings, NEW_PROFILE_NAME),
                     rules: [],
                     variables: [],
                 },
@@ -63,41 +74,32 @@ export const ProfileEdits = {
         };
     },
 
-    rename(
-        settings: PanelSettings,
-        profileId: string,
-        name: string
-    ): PanelSettings {
+    rename({ settings, profileId, name }: RenameOptions): PanelSettings {
         const trimmed = name.trim();
-        if (trimmed === "") {
+        if (trimmed === '') {
             return settings;
         }
 
-        return ProfileEdits.change(
+        return ProfileEdits.change({
             settings,
             profileId,
-            profile => ({
+            change: profile => ({
                 ...profile,
                 name: trimmed,
-            })
-        );
+            }),
+        });
     },
 
-    duplicate(
-        settings: PanelSettings,
-        profileId: string,
-        newProfileId: string,
-        newRuleId: IdFactory
-    ): PanelSettings {
+    duplicate({ settings, profileId, newProfileId, newRuleId }: DuplicateOptions): PanelSettings {
         const index = settings.profiles.findIndex(profile => profile.id === profileId);
         const original = settings.profiles[index];
-        if (original === undefined) {
+        if (original == null) {
             return settings;
         }
 
         const copy: RuleProfile = {
             id: newProfileId,
-            name: ProfileEdits.uniqueName(settings, `${original.name}${CopySuffix}`),
+            name: ProfileEdits.uniqueName(settings, `${original.name}${COPY_SUFFIX}`),
             rules: original.rules.map(rule => ({
                 ...rule,
                 id: newRuleId(),
@@ -118,7 +120,7 @@ export const ProfileEdits = {
     },
 
     canRemove(settings: PanelSettings): boolean {
-        return settings.profiles.length > MinimumProfiles;
+        return settings.profiles.length > MINIMUM_PROFILES;
     },
 
     remove(settings: PanelSettings, profileId: string): PanelSettings {

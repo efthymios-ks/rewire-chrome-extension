@@ -1,32 +1,37 @@
-import { Result } from "../../../Common/Results/Result";
-import type { InspectTabCommand } from "../../../Contracts/Messaging/Commands/InspectTabCommand";
-import type { InspectTabResult } from "../../../Contracts/Messaging/PanelCommandResults";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { ITimelineStore } from "../../Features/Capture/ITimelineStore";
-import type { IInspectionService } from "../../Features/Inspection/IInspectionService";
-import type { ILiveStore } from "../../Features/Live/LiveStore";
-import type { IPanelEndpoint } from "../IPanelEndpoint";
-import type { PanelEndpointContext } from "../PanelEndpointContext";
+import { Result } from '../../../Common/Results/Result';
+import type { InspectTabCommand } from '../../../Contracts/Messaging/Commands/InspectTabCommand';
+import type { InspectTabResult } from '../../../Contracts/Messaging/InspectTabResult';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { TimelineStore } from '../../Features/Capture/TimelineStore';
+import type { InspectionService } from '../../Features/Inspection/InspectionService';
+import type { LiveStore } from '../../Features/Live/LiveStore';
+import type { PanelEndpoint } from '../PanelEndpoint';
+import type { PanelEndpointContext } from '../PanelEndpointContext';
 
-export class InspectTabEndpoint implements IPanelEndpoint<PanelCommandType.InspectTab> {
-    readonly commandType = PanelCommandType.InspectTab;
+export interface InspectTabEndpointDependencies {
+    inspectionService: InspectionService;
+    timelineStore: TimelineStore;
+    liveStore: LiveStore;
+}
 
-    private readonly _inspectionService: IInspectionService;
-    private readonly _timelineStore: ITimelineStore;
-    private readonly _liveStore: ILiveStore;
+export class InspectTabEndpoint implements PanelEndpoint<typeof PANEL_COMMAND_TYPE.InspectTab> {
+    readonly commandType = PANEL_COMMAND_TYPE.InspectTab;
 
-    constructor(
-        inspectionService: IInspectionService,
-        timelineStore: ITimelineStore,
-        liveStore: ILiveStore
-    ) {
+    private readonly _inspectionService: InspectionService;
+    private readonly _timelineStore: TimelineStore;
+    private readonly _liveStore: LiveStore;
+
+    constructor({ inspectionService, timelineStore, liveStore }: InspectTabEndpointDependencies) {
         this._inspectionService = inspectionService;
         this._timelineStore = timelineStore;
         this._liveStore = liveStore;
     }
 
-    async handle(command: InspectTabCommand, context: PanelEndpointContext): Promise<Result<InspectTabResult>> {
-        await this._inspectionService.inspect(context.connection.id, command.tabId);
+    async handleAsync(
+        command: InspectTabCommand,
+        context: PanelEndpointContext,
+    ): Promise<Result<InspectTabResult>> {
+        await this._inspectionService.inspectAsync(context.connection.id, command.tabId);
 
         return Result.ok({
             status: this._inspectionService.statusOf(command.tabId),

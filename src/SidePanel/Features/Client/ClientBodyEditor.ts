@@ -1,67 +1,73 @@
-import { JsonText } from "../../../Common/Json/JsonText";
-import { XmlText } from "../../../Common/Xml/XmlText";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import { type ClientBody, ClientBodyType, type KeyValueRow, type MultipartRow } from "./ClientRequest";
-import { ClientRowGrid } from "./ClientRowGrid";
+import { JsonText } from '../../../Common/Json/JsonText';
+import { XmlText } from '../../../Common/Xml/XmlText';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
+import type { ClientBody } from './ClientBody';
+import { CLIENT_BODY_TYPE, type ClientBodyType } from './ClientBodyType';
+import { ClientRowGrid } from './ClientRowGrid';
+import type { KeyValueRow } from './KeyValueRow';
+import type { MultipartRow } from './MultipartRow';
 
 interface BodyTab {
     type: ClientBodyType;
     label: string;
 }
 
-const BodyTabs: BodyTab[] = [
+const BODY_TABS: BodyTab[] = [
     {
-        type: ClientBodyType.None,
-        label: "None",
+        type: CLIENT_BODY_TYPE.None,
+        label: 'None',
     },
     {
-        type: ClientBodyType.Text,
-        label: "Text",
+        type: CLIENT_BODY_TYPE.Text,
+        label: 'Text',
     },
     {
-        type: ClientBodyType.Json,
-        label: "JSON",
+        type: CLIENT_BODY_TYPE.Json,
+        label: 'JSON',
     },
     {
-        type: ClientBodyType.Xml,
-        label: "XML",
+        type: CLIENT_BODY_TYPE.Xml,
+        label: 'XML',
     },
     {
-        type: ClientBodyType.FormUrlEncoded,
-        label: "Form URL-encoded",
+        type: CLIENT_BODY_TYPE.FormUrlEncoded,
+        label: 'Form URL-encoded',
     },
     {
-        type: ClientBodyType.Multipart,
-        label: "Multipart form",
+        type: CLIENT_BODY_TYPE.Multipart,
+        label: 'Multipart form',
     },
     {
-        type: ClientBodyType.Binary,
-        label: "Binary",
+        type: CLIENT_BODY_TYPE.Binary,
+        label: 'Binary',
     },
     {
-        type: ClientBodyType.GraphQl,
-        label: "GraphQL",
+        type: CLIENT_BODY_TYPE.GraphQl,
+        label: 'GraphQL',
     },
 ];
 
-const Formatters: Partial<Record<ClientBodyType, (text: string) => string>> = {
-    [ClientBodyType.Json]: JsonText.format,
-    [ClientBodyType.Xml]: XmlText.format,
+const FORMATTERS: Partial<Record<ClientBodyType, (text: string) => string>> = {
+    [CLIENT_BODY_TYPE.Json]: JsonText.format,
+    [CLIENT_BODY_TYPE.Xml]: XmlText.format,
 };
 
-const PartKinds = {
-    Text: "text",
-    File: "file",
-} as const;
+const PART_KINDS = Object.freeze({
+    Text: 'text',
+    File: 'file',
+} as const);
 
-const EditorRows = 10;
+const EDITOR_ROWS = 10;
 
-function textInput(
-    value: string,
-    placeholder: string,
-    onInput: (value: string) => void
-): HTMLInputElement {
+interface TextInputOptions {
+    value: string;
+    placeholder: string;
+    onInput: (value: string) => void;
+}
+
+function textInput({ value, placeholder, onInput }: TextInputOptions): HTMLInputElement {
     return FormControls.textInput({
         value,
         placeholder,
@@ -69,31 +75,36 @@ function textInput(
     });
 }
 
-function filePicker(
-    fileName: string,
-    hasFile: boolean,
-    onPick: (file: File | null) => void
-): HTMLElement {
-    const input = buildElement("input", {
-        className: "input client-file",
+interface FilePickerOptions {
+    fileName: string;
+    hasFile: boolean;
+    onPick: (file: File | null) => void;
+}
+
+function filePicker({ fileName, hasFile, onPick }: FilePickerOptions): HTMLElement {
+    const input = buildElement('input', {
+        className: 'input client-file',
         attributes: {
-            type: "file",
-            "aria-label": "File",
+            type: 'file',
+            'aria-label': 'File',
         },
     });
-    const hint = buildElement("span", {
-        className: "muted client-file-hint",
+    const hint = buildElement('span', {
+        className: 'client-file-hint',
         text: `Pick ${fileName}`,
     });
-    hint.hidden = hasFile || fileName === "";
-    input.addEventListener("change", () => {
-        const file = input.files?.[0] ?? null;
-        hint.hidden = file !== null || fileName === "";
-        onPick(file);
-    });
+    hint.hidden = hasFile || fileName === '';
+    input.addEventListener(
+        /* type: */ 'change',
+        /* listener: */ () => {
+            const file = input.files?.[0] ?? null;
+            hint.hidden = file != null || fileName === '';
+            onPick(file);
+        },
+    );
 
-    return buildElement("span", {
-        className: "client-file-picker",
+    return buildElement('span', {
+        className: 'client-file-picker',
         children: [
             input,
             hint,
@@ -103,18 +114,18 @@ function filePicker(
 
 function emptyKeyValue(): KeyValueRow {
     return {
-        name: "",
-        value: "",
+        name: '',
+        value: '',
     };
 }
 
 function emptyPart(): MultipartRow {
     return {
-        name: "",
-        value: "",
+        name: '',
+        value: '',
         isFile: false,
         file: null,
-        fileName: "",
+        fileName: '',
     };
 }
 
@@ -127,22 +138,22 @@ export class ClientBodyEditor {
 
     constructor(body: ClientBody) {
         this._body = body;
-        this._editor = buildElement("div", {
-            className: "client-body-editor",
+        this._editor = buildElement('div', {
+            className: 'client-body-editor',
         });
-        const tabBar = buildElement("nav", {
-            className: "inspector-tabs client-body-tabs",
+        const tabBar = buildElement('nav', {
+            className: 'inspector-tabs client-body-tabs',
             attributes: {
-                role: "tablist",
-                "aria-label": "Body type",
+                role: 'tablist',
+                'aria-label': 'Body type',
             },
-            children: BodyTabs.map(tab => {
-                const button = buildElement("button", {
-                    className: "tab",
+            children: BODY_TABS.map(tab => {
+                const button = buildElement('button', {
+                    className: 'tab',
                     text: tab.label,
                     attributes: {
-                        type: "button",
-                        role: "tab",
+                        type: 'button',
+                        role: 'tab',
                     },
                     listeners: {
                         click: () => {
@@ -157,8 +168,8 @@ export class ClientBodyEditor {
             }),
         });
 
-        this.root = buildElement("div", {
-            className: "client-body",
+        this.root = buildElement('div', {
+            className: 'client-body',
             children: [
                 tabBar,
                 this._editor,
@@ -185,34 +196,37 @@ export class ClientBodyEditor {
     }
 
     private render(): void {
-        this._tabButtons.forEach((button, type) => button.setAttribute("aria-selected", String(type === this._body.type)));
+        this._tabButtons.forEach((button, type) => button.setAttribute(
+            /* qualifiedName: */ 'aria-selected',
+            /* value: */ String(type === this._body.type),
+        ));
         this._editor.replaceChildren(this.editorOf(this._body.type));
     }
 
     private editorOf(type: ClientBodyType): HTMLElement {
         const editors: Record<ClientBodyType, () => HTMLElement> = {
-            [ClientBodyType.None]: () => buildElement("p", {
-                className: "muted",
-                text: "This request has no body.",
+            [CLIENT_BODY_TYPE.None]: () => buildElement('p', {
+                className: 'empty-note',
+                text: 'This request has no body.',
             }),
-            [ClientBodyType.Text]: () => this.textEditor(type),
-            [ClientBodyType.Json]: () => this.textEditor(type),
-            [ClientBodyType.Xml]: () => this.textEditor(type),
-            [ClientBodyType.FormUrlEncoded]: () => this.formEditor(),
-            [ClientBodyType.Multipart]: () => this.multipartEditor(),
-            [ClientBodyType.Binary]: () => filePicker(
-                this._body.fileName,
-                this._body.file !== null,
-                file => {
+            [CLIENT_BODY_TYPE.Text]: () => this.textEditor(type),
+            [CLIENT_BODY_TYPE.Json]: () => this.textEditor(type),
+            [CLIENT_BODY_TYPE.Xml]: () => this.textEditor(type),
+            [CLIENT_BODY_TYPE.FormUrlEncoded]: () => this.formEditor(),
+            [CLIENT_BODY_TYPE.Multipart]: () => this.multipartEditor(),
+            [CLIENT_BODY_TYPE.Binary]: () => filePicker({
+                fileName: this._body.fileName,
+                hasFile: this._body.file != null,
+                onPick: file => {
                     this._body.file = file;
                     this._body.fileName = file?.name ?? this._body.fileName;
-                }
-            ),
-            [ClientBodyType.GraphQl]: () => FormControls.textArea({
+                },
+            }),
+            [CLIENT_BODY_TYPE.GraphQl]: () => FormControls.textArea({
                 value: this._body.graphQlQuery,
-                rows: EditorRows,
-                className: "input code-input",
-                placeholder: "query { users { id } }",
+                rows: EDITOR_ROWS,
+                className: 'input code-input',
+                placeholder: 'query { users { id } }',
                 onInput: value => {
                     this._body.graphQlQuery = value;
                 },
@@ -225,24 +239,24 @@ export class ClientBodyEditor {
     private textEditor(type: ClientBodyType): HTMLElement {
         const area = FormControls.textArea({
             value: this._body.text,
-            rows: EditorRows,
-            className: "input code-input",
+            rows: EDITOR_ROWS,
+            className: 'input code-input',
             onInput: value => {
                 this._body.text = value;
             },
         });
-        const formatter = Formatters[type];
-        if (formatter === undefined) {
+        const formatter = FORMATTERS[type];
+        if (formatter == null) {
             return area;
         }
 
-        return buildElement("div", {
-            className: "code-field",
+        return buildElement('div', {
+            className: 'code-field',
             children: [
                 area,
                 FormControls.button({
-                    text: "Format",
-                    variant: ButtonVariants.Ghost,
+                    text: 'Format',
+                    variant: BUTTON_VARIANTS.Ghost,
                     onClick: () => {
                         area.value = formatter(area.value);
                         this._body.text = area.value;
@@ -255,25 +269,24 @@ export class ClientBodyEditor {
     private formEditor(): HTMLElement {
         return new ClientRowGrid<KeyValueRow>({
             rows: this._body.formRows,
-            addLabel: "Add field",
-            removeLabel: "Remove field",
-            keepsOneRow: true,
+            addLabel: 'Add field',
+            removeLabel: 'Remove field',
             emptyRow: emptyKeyValue,
             cellsOf: row => ({
-                name: textInput(
-                    row.name,
-                    "Name",
-                    value => {
+                name: textInput({
+                    value: row.name,
+                    placeholder: 'Name',
+                    onInput: value => {
                         row.name = value;
-                    }
-                ),
-                value: textInput(
-                    row.value,
-                    "Value",
-                    value => {
+                    },
+                }),
+                value: textInput({
+                    value: row.value,
+                    placeholder: 'Value',
+                    onInput: value => {
                         row.value = value;
-                    }
-                ),
+                    },
+                }),
             }),
         }).root;
     }
@@ -281,55 +294,54 @@ export class ClientBodyEditor {
     private multipartEditor(): HTMLElement {
         return new ClientRowGrid<MultipartRow>({
             rows: this._body.multipartRows,
-            addLabel: "Add field",
-            removeLabel: "Remove field",
-            keepsOneRow: true,
+            addLabel: 'Add field',
+            removeLabel: 'Remove field',
             emptyRow: emptyPart,
             cellsOf: (row, rerender) => ({
-                name: textInput(
-                    row.name,
-                    "Name",
-                    value => {
+                name: textInput({
+                    value: row.name,
+                    placeholder: 'Name',
+                    onInput: value => {
                         row.name = value;
-                    }
-                ),
-                value: buildElement("span", {
-                    className: "client-part-value",
+                    },
+                }),
+                value: buildElement('span', {
+                    className: 'client-part-value',
                     children: [
                         FormControls.select({
-                            value: row.isFile ? PartKinds.File : PartKinds.Text,
-                            className: "input client-part-kind",
+                            value: row.isFile ? PART_KINDS.File : PART_KINDS.Text,
+                            className: 'input client-part-kind',
                             options: [
                                 {
-                                    value: PartKinds.Text,
-                                    label: "Text",
+                                    value: PART_KINDS.Text,
+                                    label: 'Text',
                                 },
                                 {
-                                    value: PartKinds.File,
-                                    label: "File",
+                                    value: PART_KINDS.File,
+                                    label: 'File',
                                 },
                             ],
                             onChange: value => {
-                                row.isFile = value === PartKinds.File;
+                                row.isFile = value === PART_KINDS.File;
                                 rerender();
                             },
                         }),
                         row.isFile
-                            ? filePicker(
-                                row.fileName,
-                                row.file !== null,
-                                file => {
+                            ? filePicker({
+                                fileName: row.fileName,
+                                hasFile: row.file != null,
+                                onPick: file => {
                                     row.file = file;
                                     row.fileName = file?.name ?? row.fileName;
-                                }
-                            )
-                            : textInput(
-                                row.value,
-                                "Value",
-                                value => {
+                                },
+                            })
+                            : textInput({
+                                value: row.value,
+                                placeholder: 'Value',
+                                onInput: value => {
                                     row.value = value;
-                                }
-                            ),
+                                },
+                            }),
                     ],
                 }),
             }),

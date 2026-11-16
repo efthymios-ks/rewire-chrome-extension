@@ -1,13 +1,8 @@
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls, type SelectOption } from "../../../Core/Dom/FormControls";
-import { SuggestionInput } from "../../../Core/Dom/SuggestionInput";
-
-export enum ColumnKind {
-    Text = 1,
-    Number = 2,
-    Select = 3,
-    Suggested = 4,
-}
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls, type SelectOption } from '../../../Core/Dom/FormControls';
+import { SuggestionInput } from '../../../Core/Dom/SuggestionInput';
+import { COLUMN_KIND, type ColumnKind } from './ColumnKind';
 
 export interface RowColumn {
     key: string;
@@ -32,7 +27,7 @@ export interface RowTableArguments {
 function emptyRow(columns: RowColumn[]): TableRow {
     return Object.fromEntries(columns.map(column => [
         column.key,
-        column.kind === ColumnKind.Number ? 0 : column.defaultValue ?? column.options?.[0]?.value ?? "",
+        column.kind === COLUMN_KIND.Number ? 0 : column.defaultValue ?? column.options?.[0]?.value ?? '',
     ]));
 }
 
@@ -43,24 +38,24 @@ interface CellArguments {
     onChange: (value: string | number) => void;
 }
 
-const CellBuilders: Record<ColumnKind, (args: CellArguments) => HTMLElement> = {
-    [ColumnKind.Text]: args => FormControls.textInput({
+const CELL_BUILDERS: Record<ColumnKind, (args: CellArguments) => HTMLElement> = {
+    [COLUMN_KIND.Text]: args => FormControls.textInput({
         value: String(args.value),
         placeholder: args.column.placeholder ?? args.column.label,
         onInput: args.onChange,
     }),
-    [ColumnKind.Number]: args => FormControls.textInput({
+    [COLUMN_KIND.Number]: args => FormControls.textInput({
         value: String(args.value),
-        type: "number",
+        type: 'number',
         placeholder: args.column.placeholder ?? args.column.label,
         onInput: next => args.onChange(Number(next)),
     }),
-    [ColumnKind.Select]: args => FormControls.select({
+    [COLUMN_KIND.Select]: args => FormControls.select({
         value: String(args.value),
         options: args.column.options ?? [],
         onChange: args.onChange,
     }),
-    [ColumnKind.Suggested]: args => SuggestionInput.build({
+    [COLUMN_KIND.Suggested]: args => SuggestionInput.build({
         value: String(args.value),
         placeholder: args.column.placeholder ?? args.column.label,
         suggestions: () => args.column.suggestionsOf?.(args.row) ?? args.column.suggestions ?? [],
@@ -80,24 +75,24 @@ export class RowTable {
         this._rows = args.rows.map(row => ({
             ...row,
         }));
-        this._body = buildElement("tbody");
+        this._body = buildElement('tbody');
 
-        this.root = buildElement("div", {
-            className: "row-table",
+        this.root = buildElement('div', {
+            className: 'row-table',
             children: [
-                buildElement("table", {
-                    className: "grid",
+                buildElement('table', {
+                    className: 'grid',
                     children: [
-                        buildElement("thead", {
+                        buildElement('thead', {
                             children: [
-                                buildElement("tr", {
+                                buildElement('tr', {
                                     children: [
-                                        ...args.columns.map(column => buildElement("th", {
+                                        ...args.columns.map(column => buildElement('th', {
                                             text: column.label,
                                         })),
-                                        buildElement("th", {
+                                        buildElement('th', {
                                             attributes: {
-                                                "aria-label": "Actions",
+                                                'aria-label': 'Actions',
                                             },
                                         }),
                                     ],
@@ -109,7 +104,7 @@ export class RowTable {
                 }),
                 FormControls.button({
                     text: args.addLabel,
-                    variant: ButtonVariants.Ghost,
+                    variant: BUTTON_VARIANTS.Ghost,
                     onClick: () => {
                         this._rows = [
                             ...this._rows,
@@ -124,23 +119,15 @@ export class RowTable {
         this.render();
     }
 
-    setRows(rows: TableRow[]): void {
-        this._rows = rows.map(row => ({
-            ...row,
-        }));
-        this.render();
-        this.publish();
-    }
-
     private render(): void {
-        this._body.replaceChildren(...this._rows.map((row, index) => buildElement("tr", {
+        this._body.replaceChildren(...this._rows.map((row, index) => buildElement('tr', {
             children: [
-                ...this._arguments.columns.map(column => buildElement("td", {
+                ...this._arguments.columns.map(column => buildElement('td', {
                     children: [
-                        CellBuilders[column.kind]({
+                        CELL_BUILDERS[column.kind]({
                             column,
                             row,
-                            value: row[column.key] ?? "",
+                            value: row[column.key] ?? '',
                             onChange: value => {
                                 row[column.key] = value;
                                 this.publish();
@@ -148,11 +135,11 @@ export class RowTable {
                         }),
                     ],
                 })),
-                buildElement("td", {
+                buildElement('td', {
                     children: [
                         FormControls.button({
-                            text: "Remove",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Remove',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => {
                                 this._rows = this._rows.filter((_, rowIndex) => rowIndex !== index);
                                 this.render();

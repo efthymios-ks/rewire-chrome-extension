@@ -1,15 +1,10 @@
-import { ErrorText } from "../Errors/ErrorText";
-import { Result } from "../Results/Result";
+import { Result } from '../Results/Result';
 
-const JsonIndentation = 2;
+const JSON_INDENTATION = 2;
 
 export const JsonText = {
     tryParse(text: string): Result<unknown> {
-        try {
-            return Result.ok(JSON.parse(text) as unknown);
-        } catch (error) {
-            return Result.fail(ErrorText.of(error));
-        }
+        return Result.attempt(() => JSON.parse(text) as unknown);
     },
 
     format(text: string): string {
@@ -23,9 +18,9 @@ export const JsonText = {
 
     stringify(value: unknown): string {
         return JSON.stringify(
-            value,
-            null,
-            JsonIndentation
+            /* value: */ value,
+            /* replacer: */ null,
+            /* space: */ JSON_INDENTATION,
         );
     },
 };

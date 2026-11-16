@@ -1,27 +1,29 @@
-import { type PanelTheme, PanelThemes, type ResolvedTheme } from "./PanelTheme";
+import { type PanelTheme, PANEL_THEMES, type ResolvedTheme } from './PanelTheme';
 
-const DarkSchemeQuery = "(prefers-color-scheme: dark)";
+const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
 export const ThemeResolver = {
     prefersDark(): boolean {
-        return window.matchMedia(DarkSchemeQuery).matches;
+        return window.matchMedia(DARK_SCHEME_QUERY).matches;
     },
 
     watchSystem(onChange: () => void): void {
         window
-            .matchMedia(DarkSchemeQuery)
-            .addEventListener("change", onChange);
+            .matchMedia(DARK_SCHEME_QUERY)
+            .addEventListener('change', onChange);
     },
 
     effective(theme: PanelTheme, prefersDark: boolean): ResolvedTheme {
-        if (theme !== PanelThemes.System) {
+        if (theme !== PANEL_THEMES.System) {
             return theme;
         }
 
-        return prefersDark ? PanelThemes.Dark : PanelThemes.Light;
+        return prefersDark ? PANEL_THEMES.Dark : PANEL_THEMES.Light;
     },
 
     toggled(theme: PanelTheme, prefersDark: boolean): PanelTheme {
-        return ThemeResolver.effective(theme, prefersDark) === PanelThemes.Dark ? PanelThemes.Light : PanelThemes.Dark;
+        return ThemeResolver.effective(theme, prefersDark) === PANEL_THEMES.Dark
+            ? PANEL_THEMES.Light
+            : PANEL_THEMES.Dark;
     },
 };

@@ -1,16 +1,16 @@
-import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { DurationText } from "../../Core/Formatting/DurationText";
-import { StatusAppearance } from "../../Core/Formatting/StatusAppearance";
-import { Equalities } from "../../Core/Equalities";
-import type { PanelContext } from "../Shell/PanelContext";
-import { EntrySelection } from "./EntrySelection";
-import { TimelineEntries } from "./TimelineEntries";
+import { EndpointKey } from '../../../Common/Urls/EndpointKey';
+import { SafeUrl } from '../../../Common/Urls/SafeUrl';
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { DurationText } from '../../Core/Formatting/DurationText';
+import { StatusAppearance } from '../../Core/Formatting/StatusAppearance';
+import { Equalities } from '../../Core/Equalities';
+import type { PanelContext } from '../Shell/PanelContext';
+import { EntrySelection } from './EntrySelection';
+import { TimelineEntries } from './TimelineEntries';
 
-const KeySeparator = " ";
-const UnpinGlyph = "×";
-const NoCallsText = "no calls yet";
+const UNPIN_GLYPH = '×';
+const NO_CALLS_TEXT = 'no calls yet';
 
 interface PinnedEndpoint {
     key: string;
@@ -19,15 +19,19 @@ interface PinnedEndpoint {
 }
 
 function parseKey(key: string): PinnedEndpoint {
-    const separatorIndex = key.indexOf(KeySeparator);
-    const method = key.slice(0, separatorIndex);
-    const url = key.slice(separatorIndex + 1);
+    const { method, url } = EndpointKey.parse(key);
 
     return {
         key,
         method,
         path: SafeUrl.parse(url)?.pathname ?? url,
     };
+}
+
+export interface ChipForOptions {
+    endpoint: PinnedEndpoint;
+    latest: TimelineEntrySummary | null;
+    selectedEntryId: string | null;
 }
 
 export class PinnedShelf {
@@ -37,88 +41,88 @@ export class PinnedShelf {
 
     constructor(context: PanelContext) {
         this._context = context;
-        this.root = buildElement("section", {
-            className: "pinned-shelf",
+        this.root = buildElement('section', {
+            className: 'pinned-shelf',
             attributes: {
-                "aria-label": "Pinned endpoints",
+                'aria-label': 'Pinned endpoints',
             },
         });
 
-        context.store.select(
-            state => [
+        context.store.select({
+            selector: state => [
                 state.settings.pinnedEndpoints,
                 state.entries,
                 state.selectedEntryId,
             ],
-            () => this.render(),
-            Equalities.shallowArray
-        );
+            listener: () => this.render(),
+            isEqual: Equalities.shallowArray,
+        });
     }
 
     private render(): void {
         const state = this._context.store.getState();
         const pinned = state.settings.pinnedEndpoints.map(parseKey);
         this.root.hidden = pinned.length === 0 || !this._context.trafficFeatures.canPin;
-        this.root.replaceChildren(...pinned.map(endpoint => this.chipFor(
+        this.root.replaceChildren(...pinned.map(endpoint => this.chipFor({
             endpoint,
-            TimelineEntries.latestFor(state.entries, endpoint.key),
-            state.selectedEntryId
-        )));
+            latest: TimelineEntries.latestFor(state.entries, endpoint.key),
+            selectedEntryId: state.selectedEntryId,
+        })));
     }
 
-    private chipFor(
-        endpoint: PinnedEndpoint,
-        latest: TimelineEntrySummary | null,
-        selectedEntryId: string | null
-    ): HTMLElement {
-        const statusText = latest === null ? NoCallsText : StatusAppearance.textOf(latest);
-        const statusClass = latest === null ? "" : StatusAppearance.classOf(latest);
-        const durationText = latest === null ? "" : DurationText.of(latest.durationInMilliseconds);
+    private chipFor({ endpoint, latest, selectedEntryId }: ChipForOptions): HTMLElement {
+        const statusText = latest == null ? NO_CALLS_TEXT : StatusAppearance.textOf(latest);
+        const statusClass = latest == null ? '' : StatusAppearance.classOf(latest);
+        const durationText = latest == null ? '' : DurationText.of(latest.durationInMilliseconds);
 
-        return buildElement("div", {
-            className: latest !== null && latest.id === selectedEntryId ? "pinned-chip selected" : "pinned-chip",
+        return buildElement('div', {
+            className: 'pinned-chip',
             title: endpoint.key,
+            attributes: latest != null && latest.id === selectedEntryId
+                ? { 'data-selected': '' }
+                : {},
             children: [
-                buildElement("button", {
-                    className: "pinned-open",
+                buildElement('button', {
+                    className: 'pinned-open',
                     attributes: {
-                        type: "button",
+                        type: 'button',
                     },
                     listeners: {
                         click: () => {
-                            if (latest !== null) {
+                            if (latest != null) {
                                 EntrySelection.select(this._context.store, latest.id);
                             }
                         },
                     },
                     children: [
-                        buildElement("span", {
-                            className: "method",
+                        buildElement('span', {
+                            className: 'method',
                             text: endpoint.method,
                         }),
-                        buildElement("span", {
-                            className: "path",
+                        buildElement('span', {
+                            className: 'path',
                             text: endpoint.path,
                         }),
-                        buildElement("span", {
+                        buildElement('span', {
                             className: `status ${statusClass}`,
                             text: statusText,
                         }),
-                        buildElement("span", {
-                            className: "duration",
+                        buildElement('span', {
+                            className: 'duration',
                             text: durationText,
                         }),
                     ],
                 }),
-                buildElement("button", {
-                    className: "pinned-remove",
-                    text: UnpinGlyph,
-                    title: "Unpin",
+                buildElement('button', {
+                    className: 'pinned-remove',
+                    text: UNPIN_GLYPH,
+                    title: 'Unpin',
                     attributes: {
-                        type: "button",
+                        type: 'button',
+                        'aria-label': `Unpin ${endpoint.key}`,
                     },
                     listeners: {
-                        click: () => void this._context.settingsService.togglePin(endpoint.key),
+                        click: () => void this._context.settingsService.togglePinAsync(endpoint.key),
                     },
                 }),
             ],

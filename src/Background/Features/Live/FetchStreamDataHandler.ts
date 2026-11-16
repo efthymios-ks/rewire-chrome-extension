@@ -1,43 +1,41 @@
-import type { Protocol } from "devtools-protocol";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { IEventStreamParsers } from "./EventStreamParsers";
-import { EventStreamMessages } from "./EventStreamMessages";
-import type { ILiveStore } from "./LiveStore";
+import type { Protocol } from 'devtools-protocol';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { EventStreamParsers } from './EventStreamParsers';
+import { EventStreamMessages } from './EventStreamMessages';
+import type { LiveStore } from './LiveStore';
 
-export class FetchStreamDataHandler implements ICdpEventHandler<"Network.dataReceived"> {
-    readonly event = "Network.dataReceived";
+export interface FetchStreamDataHandlerDependencies {
+    liveStore: LiveStore;
+    parsers: EventStreamParsers;
+    now: () => Date;
+}
 
-    private readonly _liveStore: ILiveStore;
-    private readonly _parsers: IEventStreamParsers;
+export class FetchStreamDataHandler implements CdpEventHandler<'Network.dataReceived'> {
+    readonly event = 'Network.dataReceived';
+
+    private readonly _liveStore: LiveStore;
+    private readonly _parsers: EventStreamParsers;
     private readonly _now: () => Date;
 
-    constructor(
-        liveStore: ILiveStore,
-        parsers: IEventStreamParsers,
-        now: () => Date
-    ) {
+    constructor({ liveStore, parsers, now }: FetchStreamDataHandlerDependencies) {
         this._liveStore = liveStore;
         this._parsers = parsers;
         this._now = now;
     }
 
-    async handle(tabId: number, params: Protocol.Network.DataReceivedEvent): Promise<void> {
-        if (params.data === undefined) {
+    async handleAsync(tabId: number, params: Protocol.Network.DataReceivedEvent): Promise<void> {
+        if (params.data == null) {
             return;
         }
 
-        const events = this._parsers.feed(
-            tabId,
-            params.requestId,
-            params.data
-        ) ?? [];
+        const events = this._parsers.feed({ tabId, requestId: params.requestId, base64: params.data }) ?? [];
         events.forEach(event => this._liveStore.addMessage(
-            tabId,
-            EventStreamMessages.toDraft(
-                params.requestId,
+            /* tabId: */ tabId,
+            /* draft: */ EventStreamMessages.toDraft({
+                requestId: params.requestId,
                 event,
-                this._now()
-            )
+                at: this._now(),
+            }),
         ));
     }
 }

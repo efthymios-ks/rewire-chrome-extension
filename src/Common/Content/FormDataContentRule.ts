@@ -1,19 +1,19 @@
-import { MediaTypeNames } from "../../Contracts/Http/MediaTypeNames";
-import { ContentKind } from "../../Contracts/Timeline/ContentKind";
-import type { ContentSignals } from "./ContentSignals";
-import type { IContentKindRule } from "./IContentKindRule";
+import { MEDIA_TYPE_NAMES } from '../../Contracts/Http/MediaTypeNames';
+import { CONTENT_KIND } from '../../Contracts/Timeline/ContentKind';
+import type { ContentSignals } from './ContentSignals';
+import type { ContentKindRule } from './ContentKindRule';
 
-const FormMediaTypes: string[] = [
-    MediaTypeNames.MultipartFormData,
-    MediaTypeNames.ApplicationFormUrlEncoded,
+const FORM_MEDIA_TYPES: string[] = [
+    MEDIA_TYPE_NAMES.MultipartFormData,
+    MEDIA_TYPE_NAMES.ApplicationFormUrlEncoded,
 ];
 
-export class FormDataContentRule implements IContentKindRule {
-    readonly kind = ContentKind.FormData;
+export class FormDataContentRule implements ContentKindRule {
+    readonly kind = CONTENT_KIND.FormData;
 
     matches(signals: ContentSignals): boolean {
         const contentType = signals.requestContentType.toLowerCase();
 
-        return FormMediaTypes.some(mediaType => contentType.includes(mediaType));
+        return FORM_MEDIA_TYPES.some(mediaType => contentType.includes(mediaType));
     }
 }

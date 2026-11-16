@@ -1,4 +1,4 @@
-import type { RuleSyncFailure } from "./RuleSyncFailure";
+import type { RuleSyncFailure } from './RuleSyncFailure';
 
 export interface RuleSyncReport {
     syncedAt: string;

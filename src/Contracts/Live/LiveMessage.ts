@@ -1,4 +1,4 @@
-import type { LiveMessageDirection } from "./LiveMessageDirection";
+import type { LiveMessageDirection } from './LiveMessageDirection';
 
 export interface LiveMessage {
     id: string;

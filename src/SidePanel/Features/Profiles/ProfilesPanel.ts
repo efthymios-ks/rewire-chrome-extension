@@ -1,16 +1,23 @@
-import { ProfileEdits } from "../../../Common/Profiles/ProfileEdits";
-import type { RuleProfile } from "../../../Contracts/Settings/RuleProfile";
-import { ConfirmDialog } from "../../Core/Dom/ConfirmDialog";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
-import type { ISlidePanel } from "../../Core/Dom/ISlidePanel";
-import { Equalities } from "../../Core/Equalities";
-import { CountText } from "../../Core/Formatting/CountText";
-import type { PanelContext } from "../Shell/PanelContext";
+import { ProfileEdits } from '../../../Common/Profiles/ProfileEdits';
+import type { RuleProfile } from '../../../Contracts/Settings/RuleProfile';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { ConfirmDialog } from '../../Core/Dom/ConfirmDialog';
+import { FormControls } from '../../Core/Dom/FormControls';
+import type { SlidePanel } from '../../Core/Dom/SlidePanel';
+import { Equalities } from '../../Core/Equalities';
+import { CountText } from '../../Core/Formatting/CountText';
+import type { PanelContext } from '../Shell/PanelContext';
 
-const ActiveGroupName = "active-profile";
+const ACTIVE_GROUP_NAME = 'active-profile';
 
-export class ProfilesPanel implements ISlidePanel {
+export interface RowOptions {
+    profile: RuleProfile;
+    isActive: boolean;
+    canRemove: boolean;
+}
+
+export class ProfilesPanel implements SlidePanel {
     readonly root: HTMLElement;
 
     private readonly _context: PanelContext;
@@ -19,34 +26,34 @@ export class ProfilesPanel implements ISlidePanel {
 
     constructor(context: PanelContext) {
         this._context = context;
-        this._list = buildElement("ul", {
-            className: "profile-list",
+        this._list = buildElement('ul', {
+            className: 'profile-list',
         });
 
-        this.root = buildElement("div", {
-            className: "profiles-panel",
+        this.root = buildElement('div', {
+            className: 'profiles-panel',
             children: [
-                buildElement("p", {
-                    className: "muted",
-                    text: "Each profile holds its own rules and variables. Only the active one runs.",
+                buildElement('p', {
+                    className: 'help-text',
+                    text: 'Each profile holds its own rules and variables. Only the active one runs.',
                 }),
                 FormControls.button({
-                    text: "New profile",
-                    variant: ButtonVariants.Primary,
-                    onClick: () => void context.settingsService.createProfile(),
+                    text: 'New profile',
+                    variant: BUTTON_VARIANTS.Primary,
+                    onClick: () => void context.settingsService.createProfileAsync(),
                 }),
                 this._list,
             ],
         });
 
-        this._unsubscribe = context.store.select(
-            state => [
+        this._unsubscribe = context.store.select({
+            selector: state => [
                 state.settings.profiles,
                 state.settings.activeProfileId,
             ],
-            () => this.render(),
-            Equalities.shallowArray
-        );
+            listener: () => this.render(),
+            isEqual: Equalities.shallowArray,
+        });
     }
 
     dispose(): void {
@@ -56,63 +63,66 @@ export class ProfilesPanel implements ISlidePanel {
     private render(): void {
         const settings = this._context.store.getState().settings;
         const canRemove = ProfileEdits.canRemove(settings);
-        this._list.replaceChildren(...settings.profiles.map(profile => this.row(
+        this._list.replaceChildren(...settings.profiles.map(profile => this.row({
             profile,
-            profile.id === settings.activeProfileId,
-            canRemove
-        )));
+            isActive: profile.id === settings.activeProfileId,
+            canRemove,
+        })));
     }
 
-    private row(
-        profile: RuleProfile,
-        isActive: boolean,
-        canRemove: boolean
-    ): HTMLElement {
+    private row({ profile, isActive, canRemove }: RowOptions): HTMLElement {
         const { settingsService } = this._context;
-        const activeInput = buildElement("input", {
+        const activeInput = buildElement('input', {
             attributes: {
-                type: "radio",
-                name: ActiveGroupName,
-                "aria-label": `Use ${profile.name}`,
-                title: "Make this the active profile",
+                type: 'radio',
+                name: ACTIVE_GROUP_NAME,
+                'aria-label': `Use ${profile.name}`,
+                title: 'Make this the active profile',
             },
             listeners: {
-                change: () => void settingsService.switchProfile(profile.id),
+                change: () => void settingsService.switchProfileAsync(profile.id),
             },
         });
         activeInput.checked = isActive;
 
         const nameInput = FormControls.textInput({
             value: profile.name,
-            className: "input profile-name",
-            onChange: name => void settingsService.renameProfile(profile.id, name),
+            className: 'input profile-name',
+            onChange: name => void settingsService.renameProfileAsync(profile.id, name),
         });
-        nameInput.setAttribute("aria-label", "Profile name");
+        nameInput.setAttribute('aria-label', 'Profile name');
 
         const removeButton = FormControls.button({
-            text: "Remove",
-            variant: ButtonVariants.Ghost,
-            title: canRemove ? "Remove this profile" : "Keep at least one profile",
-            onClick: () => void this.remove(profile),
+            text: 'Remove',
+            variant: BUTTON_VARIANTS.Ghost,
+            title: canRemove ? 'Remove this profile' : 'Keep at least one profile',
+            onClick: () => void this.removeAsync(profile),
         });
         removeButton.disabled = !canRemove;
 
-        return buildElement("li", {
-            className: isActive ? "profile-row active" : "profile-row",
+        return buildElement('li', {
+            className: 'profile-row',
+            attributes: isActive ? { 'data-active': '' } : {},
             children: [
                 activeInput,
                 nameInput,
-                buildElement("span", {
-                    className: "profile-count muted",
-                    text: `${CountText.of(profile.rules.length, "rule")}, ${CountText.of(profile.variables.length, "variable")}`,
+                buildElement('span', {
+                    className: 'profile-count',
+                    text: `${CountText.of({
+                        count: profile.rules.length,
+                        singular: 'rule',
+                    })}, ${CountText.of({
+                        count: profile.variables.length,
+                        singular: 'variable',
+                    })}`,
                 }),
-                buildElement("div", {
-                    className: "row-actions",
+                buildElement('div', {
+                    className: 'row-actions',
                     children: [
                         FormControls.button({
-                            text: "Duplicate",
-                            variant: ButtonVariants.Ghost,
-                            onClick: () => void settingsService.duplicateProfile(profile.id),
+                            text: 'Duplicate',
+                            variant: BUTTON_VARIANTS.Ghost,
+                            onClick: () => void settingsService.duplicateProfileAsync(profile.id),
                         }),
                         removeButton,
                     ],
@@ -121,16 +131,22 @@ export class ProfilesPanel implements ISlidePanel {
         });
     }
 
-    private async remove(profile: RuleProfile): Promise<void> {
-        const confirmed = await ConfirmDialog.ask({
-            title: "Remove profile",
-            message: `Remove "${profile.name}" with its ${CountText.of(profile.rules.length, "rule")} and ${CountText.of(profile.variables.length, "variable")}?`,
-            confirmText: "Remove",
+    private async removeAsync(profile: RuleProfile): Promise<void> {
+        const confirmed = await ConfirmDialog.askAsync({
+            title: 'Remove profile',
+            message: `Remove "${profile.name}" with its ${CountText.of({
+                count: profile.rules.length,
+                singular: 'rule',
+            })} and ${CountText.of({
+                count: profile.variables.length,
+                singular: 'variable',
+            })}?`,
+            confirmText: 'Remove',
         });
         if (!confirmed) {
             return;
         }
 
-        await this._context.settingsService.removeProfile(profile.id);
+        await this._context.settingsService.removeProfileAsync(profile.id);
     }
 }

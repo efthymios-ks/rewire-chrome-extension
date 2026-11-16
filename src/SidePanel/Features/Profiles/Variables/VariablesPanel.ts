@@ -1,31 +1,32 @@
-import { ActiveProfile } from "../../../../Common/Profiles/ActiveProfile";
-import { VariableNames } from "../../../../Common/Rules/Templates/VariableNames";
-import type { ProfileVariable } from "../../../../Contracts/Settings/ProfileVariable";
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
-import type { ISlidePanel } from "../../../Core/Dom/ISlidePanel";
-import { CountText } from "../../../Core/Formatting/CountText";
-import type { PanelContext } from "../../Shell/PanelContext";
+import { ActiveProfile } from '../../../../Common/Profiles/ActiveProfile';
+import { VariableNames } from '../../../../Common/Rules/Templates/VariableNames';
+import type { ProfileVariable } from '../../../../Contracts/Settings/ProfileVariable';
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../../Core/Dom/FormControls';
+import type { SlidePanel } from '../../../Core/Dom/SlidePanel';
+import { CountText } from '../../../Core/Formatting/CountText';
+import type { PanelContext } from '../../Shell/PanelContext';
 
-const MissingNameText = "Every variable with a value needs a name.";
+const MISSING_NAME_TEXT = 'Every variable with a value needs a name.';
 
 function isBlank(variable: ProfileVariable): boolean {
-    return variable.name.trim() === "" && variable.value === "";
+    return variable.name.trim() === '' && variable.value === '';
 }
 
 function errorsOf(variables: ProfileVariable[]): string[] {
     const names = variables.map(variable => variable.name.trim());
-    const invalid = names.filter(name => name !== "" && !VariableNames.isValid(name));
-    const repeated = names.filter((name, index) => names.indexOf(name) !== index);
+    const invalid = names.filter(name => name !== '' && !VariableNames.isValid(name));
+    const repeated = names.filter((name, index) => name !== '' && names.indexOf(name) !== index);
 
     return [
-        ...(names.includes("") ? [MissingNameText] : []),
-        ...invalid.map(name => `"${name}": ${VariableNames.Rule}`),
+        ...(names.includes('') ? [MISSING_NAME_TEXT] : []),
+        ...invalid.map(name => `"${name}": ${VariableNames.RuleMessage}`),
         ...[...new Set(repeated)].map(name => `"${name}" is listed more than once.`),
     ];
 }
 
-export class VariablesPanel implements ISlidePanel {
+export class VariablesPanel implements SlidePanel {
     readonly root: HTMLElement;
 
     private readonly _context: PanelContext;
@@ -38,56 +39,56 @@ export class VariablesPanel implements ISlidePanel {
 
     constructor(context: PanelContext) {
         this._context = context;
-        this._intro = buildElement("p", {
-            className: "muted",
+        this._intro = buildElement('p', {
+            className: 'help-text',
         });
-        this._rows = buildElement("div", {
-            className: "variable-rows",
+        this._rows = buildElement('div', {
+            className: 'variable-rows',
         });
-        this._errors = buildElement("ul", {
-            className: "form-error",
+        this._errors = buildElement('ul', {
+            className: 'form-error',
         });
-        this._captured = buildElement("div", {
-            className: "captured-variables",
+        this._captured = buildElement('div', {
+            className: 'captured-variables',
         });
 
-        this.root = buildElement("div", {
-            className: "variables-panel",
+        this.root = buildElement('div', {
+            className: 'variables-panel',
             children: [
                 this._intro,
                 this._rows,
-                buildElement("div", {
-                    className: "actions",
+                buildElement('div', {
+                    className: 'actions',
                     children: [
                         FormControls.button({
-                            text: "Add variable",
+                            text: 'Add variable',
                             onClick: () => this.add(),
                         }),
                         FormControls.button({
-                            text: "Save variables",
-                            variant: ButtonVariants.Primary,
-                            onClick: () => void this.save(),
+                            text: 'Save variables',
+                            variant: BUTTON_VARIANTS.Primary,
+                            onClick: () => void this.saveAsync(),
                         }),
                     ],
                 }),
                 this._errors,
-                buildElement("h3", {
-                    className: "editor-section-title",
-                    text: "Captured this session",
+                buildElement('h3', {
+                    className: 'editor-section-title',
+                    text: 'Captured this session',
                 }),
                 this._captured,
             ],
         });
 
         this._unsubscribes = [
-            context.store.select(
-                state => state.settings.activeProfileId,
-                () => this.load()
-            ),
-            context.store.select(
-                state => state.capturedVariables,
-                variables => this.renderCaptured(variables)
-            ),
+            context.store.select({
+                selector: state => state.settings.activeProfileId,
+                listener: () => this.load(),
+            }),
+            context.store.select({
+                selector: state => state.capturedVariables,
+                listener: variables => this.renderCaptured(variables),
+            }),
         ];
     }
 
@@ -109,19 +110,19 @@ export class VariablesPanel implements ISlidePanel {
         this._draft = [
             ...this._draft,
             {
-                name: "",
-                value: "",
+                name: '',
+                value: '',
             },
         ];
         this.renderRows();
-        this._rows.querySelector<HTMLInputElement>(".variable-row:last-child .variable-name")?.focus();
+        this._rows.querySelector<HTMLInputElement>('.variable-row:last-child .variable-name')?.focus();
     }
 
     private renderRows(): void {
         if (this._draft.length === 0) {
-            this._rows.replaceChildren(buildElement("p", {
-                className: "muted",
-                text: "No variables yet.",
+            this._rows.replaceChildren(buildElement('p', {
+                className: 'empty-note',
+                text: 'No variables yet.',
             }));
 
             return;
@@ -133,42 +134,46 @@ export class VariablesPanel implements ISlidePanel {
     private row(variable: ProfileVariable, index: number): HTMLElement {
         const nameInput = FormControls.textInput({
             value: variable.name,
-            placeholder: "Name",
-            className: "input variable-name",
+            placeholder: 'Name',
+            className: 'input variable-name',
             onInput: name => this.change(index, {
-                ...this._draft[index]!,
                 name,
             }),
         });
-        nameInput.setAttribute("aria-label", "Variable name");
+        nameInput.setAttribute('aria-label', 'Variable name');
         const valueInput = FormControls.textInput({
             value: variable.value,
-            placeholder: "Value",
-            className: "input variable-value",
+            placeholder: 'Value',
+            className: 'input variable-value',
             onInput: value => this.change(index, {
-                ...this._draft[index]!,
                 value,
             }),
         });
-        valueInput.setAttribute("aria-label", "Variable value");
+        valueInput.setAttribute('aria-label', 'Variable value');
 
-        return buildElement("div", {
-            className: "variable-row",
+        return buildElement('div', {
+            className: 'variable-row',
             children: [
                 nameInput,
                 valueInput,
                 FormControls.button({
-                    text: "×",
-                    variant: ButtonVariants.Ghost,
-                    title: "Remove this variable",
+                    text: '×',
+                    variant: BUTTON_VARIANTS.Ghost,
+                    title: 'Remove this variable',
+                    ariaLabel: 'Remove this variable',
                     onClick: () => this.remove(index),
                 }),
             ],
         });
     }
 
-    private change(index: number, variable: ProfileVariable): void {
-        this._draft = this._draft.map((current, currentIndex) => currentIndex === index ? variable : current);
+    private change(index: number, changes: Partial<ProfileVariable>): void {
+        this._draft = this._draft.map((current, currentIndex) => currentIndex === index
+            ? {
+                ...current,
+                ...changes,
+            }
+            : current);
     }
 
     private remove(index: number): void {
@@ -176,7 +181,7 @@ export class VariablesPanel implements ISlidePanel {
         this.renderRows();
     }
 
-    private async save(): Promise<void> {
+    private async saveAsync(): Promise<void> {
         const variables = this._draft
             .filter(variable => !isBlank(variable))
             .map(variable => ({
@@ -184,41 +189,44 @@ export class VariablesPanel implements ISlidePanel {
                 value: variable.value,
             }));
         const errors = errorsOf(variables);
-        this._errors.replaceChildren(...errors.map(error => buildElement("li", {
+        this._errors.replaceChildren(...errors.map(error => buildElement('li', {
             text: error,
         })));
         if (errors.length > 0) {
             return;
         }
 
-        const saved = await this._context.settingsService.saveVariables(variables);
+        const saved = await this._context.settingsService.saveVariablesAsync(variables);
         if (saved.hasErrors) {
             return;
         }
 
-        this._context.notifier.show(`Saved ${CountText.of(variables.length, "variable")}.`);
+        this._context.notifier.show(`Saved ${CountText.of({
+            count: variables.length,
+            singular: 'variable',
+        })}.`);
         this.load();
     }
 
     private renderCaptured(variables: ProfileVariable[]): void {
         if (variables.length === 0) {
-            this._captured.replaceChildren(buildElement("p", {
-                className: "muted",
-                text: "None yet. Set variable rules fill this list while they run; it empties when the browser restarts.",
+            this._captured.replaceChildren(buildElement('p', {
+                className: 'empty-note',
+                text: 'None yet. Set variable rules fill this list while they run; it empties when the browser restarts.',
             }));
 
             return;
         }
 
-        this._captured.replaceChildren(buildElement("dl", {
-            className: "definitions",
+        this._captured.replaceChildren(buildElement('dl', {
+            className: 'definitions',
             children: variables.flatMap(variable => [
-                buildElement("dt", {
-                    className: "code-text",
+                buildElement('dt', {
+                    className: 'captured-name',
                     text: variable.name,
                 }),
-                buildElement("dd", {
-                    className: "code-text",
+                buildElement('dd', {
+                    className: 'captured-value',
                     text: variable.value,
                 }),
             ]),

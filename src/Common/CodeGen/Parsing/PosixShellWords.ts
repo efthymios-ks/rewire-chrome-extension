@@ -1,51 +1,51 @@
-import { ShellLines } from "./ShellLines";
+import { ShellLines } from './ShellLines';
 
-const SingleQuote = "'";
-const DoubleQuote = "\"";
-const Backslash = "\\";
-const Dollar = "$";
-const CommentMarker = "#";
-const ForeignContinuations = [
-    "^",
-    "`",
+const SINGLE_QUOTE = "'";
+const DOUBLE_QUOTE = '"';
+const BACKSLASH = '\\';
+const DOLLAR = '$';
+const COMMENT_MARKER = '#';
+const FOREIGN_CONTINUATIONS = [
+    '^',
+    '`',
 ];
-const DoubleQuoteEscapable = [
-    "$",
-    "`",
-    "\"",
-    "\\",
+const DOUBLE_QUOTE_ESCAPABLE = [
+    '$',
+    '`',
+    '"',
+    '\\',
 ];
-const AnsiEscapes: Record<string, string> = {
-    "n": "\n",
-    "r": "\r",
-    "t": "\t",
-    "\\": "\\",
+const ANSI_ESCAPES: Record<string, string> = Object.freeze({
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+    '\\': '\\',
     "'": "'",
-    "\"": "\"",
-    "?": "?",
-    "a": "\x07",
-    "b": "\b",
-    "e": "\x1B",
-    "E": "\x1B",
-    "f": "\f",
-    "v": "\v",
-};
-const AnsiNumberEscapes: Record<string, { pattern: RegExp; radix: number }> = {
-    "x": {
+    '"': '"',
+    '?': '?',
+    'a': '\x07',
+    'b': '\b',
+    'e': '\x1B',
+    'E': '\x1B',
+    'f': '\f',
+    'v': '\v',
+});
+const ANSI_NUMBER_ESCAPES: Record<string, { pattern: RegExp; radix: number }> = {
+    'x': {
         pattern: /^[0-9a-fA-F]{1,2}/,
         radix: 16,
     },
-    "u": {
+    'u': {
         pattern: /^[0-9a-fA-F]{1,4}/,
         radix: 16,
     },
-    "U": {
+    'U': {
         pattern: /^[0-9a-fA-F]{1,8}/,
         radix: 16,
     },
 };
-const OctalPattern = /^[0-7]{1,3}/;
-const OctalRadix = 8;
+const OCTAL_PATTERN = /^[0-7]{1,3}/;
+const OCTAL_RADIX = 8;
 
 interface QuotedText {
     value: string;
@@ -53,11 +53,11 @@ interface QuotedText {
 }
 
 function readDoubleQuoted(text: string, start: number): QuotedText | null {
-    let value = "";
+    let value = '';
     let index = start;
     while (index < text.length) {
         const character = text.charAt(index);
-        if (character === DoubleQuote) {
+        if (character === DOUBLE_QUOTE) {
             return {
                 value,
                 end: index + 1,
@@ -65,12 +65,12 @@ function readDoubleQuoted(text: string, start: number): QuotedText | null {
         }
 
         const next = text.charAt(index + 1);
-        if (character === Backslash && next === ShellLines.LineBreak) {
+        if (character === BACKSLASH && next === ShellLines.LineBreak) {
             index += 2;
             continue;
         }
 
-        if (character === Backslash && DoubleQuoteEscapable.includes(next)) {
+        if (character === BACKSLASH && DOUBLE_QUOTE_ESCAPABLE.includes(next)) {
             value += next;
             index += 2;
             continue;
@@ -85,25 +85,27 @@ function readDoubleQuoted(text: string, start: number): QuotedText | null {
 
 function readAnsiEscape(text: string, index: number): QuotedText {
     const marker = text.charAt(index);
-    const simple = AnsiEscapes[marker];
-    if (simple !== undefined) {
+    const simple = ANSI_ESCAPES[marker];
+    if (simple != null) {
         return {
             value: simple,
             end: index + 1,
         };
     }
 
-    const numeric = AnsiNumberEscapes[marker];
-    const digits = numeric === undefined ? OctalPattern.exec(text.slice(index)) : numeric.pattern.exec(text.slice(index + 1));
-    if (digits === null) {
+    const numeric = ANSI_NUMBER_ESCAPES[marker];
+    const digits = numeric == null
+        ? OCTAL_PATTERN.exec(text.slice(index))
+        : numeric.pattern.exec(text.slice(index + 1));
+    if (digits == null) {
         return {
-            value: `${Backslash}${marker}`,
+            value: `${BACKSLASH}${marker}`,
             end: index + 1,
         };
     }
 
-    const radix = numeric?.radix ?? OctalRadix;
-    const offset = numeric === undefined ? 0 : 1;
+    const radix = numeric?.radix ?? OCTAL_RADIX;
+    const offset = numeric == null ? 0 : 1;
 
     return {
         value: String.fromCodePoint(parseInt(digits[0], radix)),
@@ -112,18 +114,18 @@ function readAnsiEscape(text: string, index: number): QuotedText {
 }
 
 function readAnsiQuoted(text: string, start: number): QuotedText | null {
-    let value = "";
+    let value = '';
     let index = start;
     while (index < text.length) {
         const character = text.charAt(index);
-        if (character === SingleQuote) {
+        if (character === SINGLE_QUOTE) {
             return {
                 value,
                 end: index + 1,
             };
         }
 
-        if (character === Backslash) {
+        if (character === BACKSLASH) {
             const escape = readAnsiEscape(text, index + 1);
             value += escape.value;
             index = escape.end;
@@ -139,11 +141,11 @@ function readAnsiQuoted(text: string, start: number): QuotedText | null {
 
 function quotedTextAt(text: string, index: number): QuotedText | null | undefined {
     const character = text.charAt(index);
-    if (character === DoubleQuote) {
+    if (character === DOUBLE_QUOTE) {
         return readDoubleQuoted(text, index + 1);
     }
 
-    if (character === Dollar && text.charAt(index + 1) === SingleQuote) {
+    if (character === DOLLAR && text.charAt(index + 1) === SINGLE_QUOTE) {
         return readAnsiQuoted(text, index + 2);
     }
 
@@ -159,7 +161,7 @@ export const PosixShellWords = {
         while (index < source.length) {
             const character = source.charAt(index);
             if (ShellLines.isWhitespace(character)) {
-                if (word !== null) {
+                if (word != null) {
                     words.push(word);
                     word = null;
                 }
@@ -168,38 +170,38 @@ export const PosixShellWords = {
                 continue;
             }
 
-            if (word === null && character === CommentMarker) {
+            if (word == null && character === COMMENT_MARKER) {
                 index = ShellLines.endOf(source, index);
                 continue;
             }
 
-            const isContinuation = ShellLines.isStandaloneContinuation(
-                source,
+            const isContinuation = ShellLines.isStandaloneContinuation({
+                text: source,
                 index,
-                ForeignContinuations
-            );
-            if (word === null && isContinuation) {
+                markers: FOREIGN_CONTINUATIONS,
+            });
+            if (word == null && isContinuation) {
                 index = ShellLines.endOf(source, index);
                 continue;
             }
 
-            if (character === Backslash) {
+            if (character === BACKSLASH) {
                 const next = source.charAt(index + 1);
                 if (next !== ShellLines.LineBreak) {
-                    word = `${word ?? ""}${next}`;
+                    word = `${word ?? ''}${next}`;
                 }
 
                 index += 2;
                 continue;
             }
 
-            if (character === SingleQuote) {
-                const close = source.indexOf(SingleQuote, index + 1);
+            if (character === SINGLE_QUOTE) {
+                const close = source.indexOf(SINGLE_QUOTE, index + 1);
                 if (close === -1) {
                     return null;
                 }
 
-                word = `${word ?? ""}${source.slice(index + 1, close)}`;
+                word = `${word ?? ''}${source.slice(index + 1, close)}`;
                 index = close + 1;
                 continue;
             }
@@ -210,16 +212,16 @@ export const PosixShellWords = {
             }
 
             if (read !== undefined) {
-                word = `${word ?? ""}${read.value}`;
+                word = `${word ?? ''}${read.value}`;
                 index = read.end;
                 continue;
             }
 
-            word = `${word ?? ""}${character}`;
+            word = `${word ?? ''}${character}`;
             index++;
         }
 
-        if (word !== null) {
+        if (word != null) {
             words.push(word);
         }
 

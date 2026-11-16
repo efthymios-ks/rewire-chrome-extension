@@ -1,41 +1,26 @@
-import type { ILogger } from "../../../Common/Logging/ILogger";
-import type { IRuleSyncReportClient } from "../../../Common/Storage/IRuleSyncReportClient";
-import type { RuleSyncReport } from "../../../Contracts/RuleSync/RuleSyncReport";
-import type { PanelState } from "../../Core/PanelState";
-import type { Store } from "../../Core/Store";
+import type { Logger } from '../../../Common/Logging/Logger';
+import type { RuleSyncReportClient } from '../../../Common/Storage/RuleSyncReportClient';
+import type { RuleSyncReport } from '../../../Contracts/RuleSync/RuleSyncReport';
+import type { PanelState } from '../../Core/PanelState';
+import type { Store } from '../../Core/Store';
+import { StoreSync } from '../../Core/StoreSync';
 
-export class RuleSyncReportSync {
-    private readonly _store: Store<PanelState>;
-    private readonly _reportClient: IRuleSyncReportClient;
-    private readonly _logger: ILogger;
+export interface RuleSyncReportSyncDependencies {
+    store: Store<PanelState>;
+    reportClient: RuleSyncReportClient;
+    logger: Logger;
+}
 
-    constructor(
-        store: Store<PanelState>,
-        reportClient: IRuleSyncReportClient,
-        logger: ILogger
-    ) {
-        this._store = store;
-        this._reportClient = reportClient;
-        this._logger = logger;
-    }
-
-    async start(): Promise<void> {
-        this._reportClient.subscribe(report => this.apply(report));
-
-        const loaded = await this._reportClient.load();
-        if (loaded.hasErrors) {
-            this._logger.error(loaded.error);
-
-            return;
-        }
-
-        this.apply(loaded.value);
-    }
-
-    private apply(report: RuleSyncReport | null): void {
-        this._store.update(state => ({
-            ...state,
-            ruleSyncReport: report,
-        }));
+export class RuleSyncReportSync extends StoreSync<RuleSyncReport | null> {
+    constructor({ store, reportClient, logger }: RuleSyncReportSyncDependencies) {
+        super({
+            store,
+            source: reportClient,
+            logFailure: message => logger.error(message),
+            applyTo: (state, report) => ({
+                ...state,
+                ruleSyncReport: report,
+            }),
+        });
     }
 }

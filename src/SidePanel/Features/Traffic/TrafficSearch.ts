@@ -1,27 +1,33 @@
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { SearchQuery } from "../../../Contracts/Search/SearchQuery";
-import { PanelLimits } from "../../Core/PanelLimits";
-import type { PanelState } from "../../Core/PanelState";
-import type { Store } from "../../Core/Store";
-import type { IWorkerConnection } from "../../Core/WorkerConnection";
-import { EntrySelection } from "./EntrySelection";
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { SearchQuery } from '../../../Contracts/Search/SearchQuery';
+import { PANEL_LIMITS } from '../../Core/PanelLimits';
+import type { PanelState } from '../../Core/PanelState';
+import type { Store } from '../../Core/Store';
+import type { WorkerConnection } from '../../Core/WorkerConnection';
+
+export interface ApplyOptions {
+    version: number;
+    searchedText: string;
+    matches: PanelState['search']['matches'];
+    error: string | null;
+}
 
 export class TrafficSearch {
     private readonly _store: Store<PanelState>;
-    private readonly _connection: IWorkerConnection;
+    private readonly _connection: WorkerConnection;
     private _timer: ReturnType<typeof setTimeout> | null = null;
     private _version = 0;
 
-    constructor(store: Store<PanelState>, connection: IWorkerConnection) {
+    constructor(store: Store<PanelState>, connection: WorkerConnection) {
         this._store = store;
         this._connection = connection;
     }
 
     start(): void {
-        this._store.select(
-            state => state.entries.length,
-            () => this.schedule()
-        );
+        this._store.select({
+            selector: state => state.entries,
+            listener: () => this.refresh(),
+        });
     }
 
     setQuery(query: SearchQuery): void {
@@ -32,82 +38,79 @@ export class TrafficSearch {
                 query,
             },
         }));
-        this.schedule();
+        this.restart();
     }
 
-    step(offset: number): void {
-        const search = this._store.getState().search;
-        if (search.matches.length === 0) {
+    // Typing restarts the wait, so only the last query is searched.
+    private restart(): void {
+        if (this._timer != null) {
+            clearTimeout(this._timer);
+            this._timer = null;
+        }
+
+        this.wait();
+    }
+
+    // Traffic joins a pending wait instead of restarting it, so a steady stream is still searched.
+    private refresh(): void {
+        if (this._timer != null || this._store.getState().search.query.text === '') {
             return;
         }
 
-        const activeIndex = (search.activeIndex + offset + search.matches.length) % search.matches.length;
-        this._store.update(state => ({
-            ...state,
-            search: {
-                ...state.search,
-                activeIndex,
-            },
-        }));
-        const match = search.matches[activeIndex];
-        if (match !== undefined) {
-            EntrySelection.select(this._store, match.entryId);
-        }
+        this.wait();
     }
 
-    private schedule(): void {
-        if (this._timer !== null) {
-            clearTimeout(this._timer);
-        }
-
+    private wait(): void {
         this._timer = setTimeout(
-            () => void this.run(),
-            PanelLimits.SearchDebounceInMilliseconds
+            /* callback: */ () => {
+                this._timer = null;
+                void this.runAsync();
+            },
+            /* delay: */ PANEL_LIMITS.SearchDebounceInMilliseconds,
         );
     }
 
-    private async run(): Promise<void> {
+    private async runAsync(): Promise<void> {
         const state = this._store.getState();
         const query = state.search.query;
         const tabId = state.inspectedTab?.tabId;
         const version = ++this._version;
-        if (query.text === "" || tabId === undefined) {
-            this.apply(
+        if (query.text === '' || tabId == null) {
+            this.apply({
                 version,
-                [],
-                null
-            );
+                searchedText: query.text,
+                matches: [],
+                error: null,
+            });
 
             return;
         }
 
-        const result = await this._connection.send<PanelCommandType.SearchTimeline>({
-            type: PanelCommandType.SearchTimeline,
+        const result = await this._connection.sendAsync<typeof PANEL_COMMAND_TYPE.SearchTimeline>({
+            type: PANEL_COMMAND_TYPE.SearchTimeline,
             tabId,
             query,
         });
         if (result.hasErrors) {
-            this.apply(
+            this.apply({
                 version,
-                [],
-                result.error
-            );
+                searchedText: query.text,
+                matches: [],
+                error: result.error,
+            });
 
             return;
         }
 
-        this.apply(
+        this.apply({
             version,
-            result.value.toReversed(),
-            null
-        );
+            searchedText: query.text,
+            matches: result.value.toReversed(),
+            error: null,
+        });
     }
 
-    private apply(
-        version: number,
-        matches: PanelState["search"]["matches"],
-        error: string | null
-    ): void {
+    private apply({ version, searchedText, matches, error }: ApplyOptions): void {
         if (version !== this._version) {
             return;
         }
@@ -116,9 +119,9 @@ export class TrafficSearch {
             ...state,
             search: {
                 ...state.search,
+                searchedText,
                 matches,
                 error,
-                activeIndex: Math.min(state.search.activeIndex, matches.length - 1),
             },
         }));
     }

@@ -1,4 +1,4 @@
-const ByteChunkSize = 0x8000;
+const BYTE_CHUNK_SIZE = 0x8000;
 
 export const Base64Text = {
     fromUtf8(text: string): string {
@@ -6,9 +6,9 @@ export const Base64Text = {
     },
 
     fromBytes(bytes: Uint8Array): string {
-        let binary = "";
-        for (let offset = 0; offset < bytes.length; offset += ByteChunkSize) {
-            binary += String.fromCharCode(...bytes.subarray(offset, offset + ByteChunkSize));
+        let binary = '';
+        for (let offset = 0; offset < bytes.length; offset += BYTE_CHUNK_SIZE) {
+            binary += String.fromCharCode(...bytes.subarray(offset, offset + BYTE_CHUNK_SIZE));
         }
 
         return btoa(binary);

@@ -1,53 +1,46 @@
-import { JsonText } from "../../../Common/Json/JsonText";
-import type { ClientExchangeResponse } from "../../../Contracts/Messaging/Commands/LogClientExchangeCommand";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { DurationText } from "../../Core/Formatting/DurationText";
-import { StatusAppearance } from "../../Core/Formatting/StatusAppearance";
+import { JsonText } from '../../../Common/Json/JsonText';
+import type { ClientExchangeResponse } from '../../../Contracts/Messaging/Commands/ClientExchangeResponse';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { DurationText } from '../../Core/Formatting/DurationText';
+import { StatusAppearance } from '../../Core/Formatting/StatusAppearance';
 
-const Tabs = {
-    Body: "body",
-    Headers: "headers",
-} as const;
+const TABS = Object.freeze({
+    Body: 'body',
+    Headers: 'headers',
+} as const);
 
-type TabKey = typeof Tabs[keyof typeof Tabs];
-
-function formattedBody(response: ClientExchangeResponse): string {
-    if (response.body === "") {
-        return "";
-    }
-
-    return JsonText.format(response.body);
-}
+type TabKey = typeof TABS[keyof typeof TABS];
 
 function bodyPane(response: ClientExchangeResponse): HTMLElement {
-    if (response.body === "") {
-        return buildElement("p", {
-            className: "muted",
-            text: "Empty body.",
+    if (response.body === '') {
+        return buildElement('p', {
+            className: 'empty-note',
+            text: 'Empty body.',
         });
     }
 
-    return buildElement("pre", {
-        className: "code-block wrap",
-        text: formattedBody(response),
+    return buildElement('pre', {
+        className: 'code-block',
+        attributes: { 'data-wrap': '' },
+        text: JsonText.format(response.body),
     });
 }
 
 function headersPane(response: ClientExchangeResponse): HTMLElement {
     if (response.headers.length === 0) {
-        return buildElement("p", {
-            className: "muted",
-            text: "No response headers.",
+        return buildElement('p', {
+            className: 'empty-note',
+            text: 'No response headers.',
         });
     }
 
-    return buildElement("dl", {
-        className: "definitions",
+    return buildElement('dl', {
+        className: 'definitions',
         children: response.headers.flatMap(header => [
-            buildElement("dt", {
+            buildElement('dt', {
                 text: header.name,
             }),
-            buildElement("dd", {
+            buildElement('dd', {
                 text: header.value,
             }),
         ]),
@@ -60,31 +53,31 @@ export class ClientResponseView {
     private readonly _header: HTMLElement;
     private readonly _body: HTMLElement;
     private readonly _tabButtons = new Map<TabKey, HTMLButtonElement>();
-    private _activeTab: TabKey = Tabs.Body;
+    private _activeTab: TabKey = TABS.Body;
     private _response: ClientExchangeResponse | null = null;
     private _error: string | null = null;
     private _isBusy = false;
 
     constructor() {
-        this._header = buildElement("div", {
-            className: "client-response-header",
+        this._header = buildElement('div', {
+            className: 'client-response-header',
         });
-        this._body = buildElement("div", {
-            className: "client-response-body",
+        this._body = buildElement('div', {
+            className: 'client-response-body',
         });
-        const tabBar = buildElement("nav", {
-            className: "inspector-tabs",
+        const tabBar = buildElement('nav', {
+            className: 'inspector-tabs',
             attributes: {
-                role: "tablist",
+                role: 'tablist',
             },
         });
-        (Object.entries(Tabs) as Array<[string, TabKey]>).forEach(([label, key]) => {
-            const button = buildElement("button", {
-                className: "tab",
+        (Object.entries(TABS) as Array<[string, TabKey]>).forEach(([label, key]) => {
+            const button = buildElement('button', {
+                className: 'tab',
                 text: label,
                 attributes: {
-                    type: "button",
-                    role: "tab",
+                    type: 'button',
+                    role: 'tab',
                 },
                 listeners: {
                     click: () => {
@@ -97,10 +90,10 @@ export class ClientResponseView {
             tabBar.append(button);
         });
 
-        this.root = buildElement("section", {
-            className: "client-response",
+        this.root = buildElement('section', {
+            className: 'client-response',
             attributes: {
-                "aria-label": "Response",
+                'aria-label': 'Response',
             },
             children: [
                 this._header,
@@ -140,27 +133,27 @@ export class ClientResponseView {
 
     private renderHeader(): void {
         if (this._isBusy) {
-            this._header.replaceChildren(buildElement("span", {
-                className: "muted",
-                text: "Sending...",
+            this._header.replaceChildren(buildElement('span', {
+                className: 'client-response-note',
+                text: 'Sending...',
             }));
 
             return;
         }
 
-        if (this._error !== null) {
-            this._header.replaceChildren(buildElement("span", {
-                className: "form-error",
+        if (this._error != null) {
+            this._header.replaceChildren(buildElement('span', {
+                className: 'form-error',
                 text: this._error,
             }));
 
             return;
         }
 
-        if (this._response === null) {
-            this._header.replaceChildren(buildElement("span", {
-                className: "muted",
-                text: "Send a request to see the response.",
+        if (this._response == null) {
+            this._header.replaceChildren(buildElement('span', {
+                className: 'client-response-note',
+                text: 'Send a request to see the response.',
             }));
 
             return;
@@ -168,33 +161,36 @@ export class ClientResponseView {
 
         const response = this._response;
         this._header.replaceChildren(
-            buildElement("span", {
+            /* nodes: */ buildElement('span', {
                 className: `status ${StatusAppearance.classOfCode(response.status)}`,
                 text: StatusAppearance.lineOf(response.status, response.statusText),
             }),
-            buildElement("span", {
-                className: "muted",
+            /* nodes: */ buildElement('span', {
+                className: 'client-response-duration',
                 text: DurationText.of(response.durationInMilliseconds),
-            })
+            }),
         );
     }
 
     private renderTabs(): void {
-        const enabled = this._response !== null;
+        const isEnabled = this._response != null;
         this._tabButtons.forEach((button, key) => {
-            button.disabled = !enabled;
-            button.setAttribute("aria-selected", String(enabled && this._activeTab === key));
+            button.disabled = !isEnabled;
+            button.setAttribute(
+                /* qualifiedName: */ 'aria-selected',
+                /* value: */ String(isEnabled && this._activeTab === key),
+            );
         });
     }
 
     private renderBody(): void {
-        if (this._response === null) {
+        if (this._response == null) {
             this._body.replaceChildren();
 
             return;
         }
 
-        const pane = this._activeTab === Tabs.Headers
+        const pane = this._activeTab === TABS.Headers
             ? headersPane(this._response)
             : bodyPane(this._response);
         this._body.replaceChildren(pane);

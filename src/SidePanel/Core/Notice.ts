@@ -1,7 +1,4 @@
-export interface NoticeAction {
-    label: string;
-    run: () => void;
-}
+import type { NoticeAction } from './NoticeAction';
 
 export interface Notice {
     message: string;

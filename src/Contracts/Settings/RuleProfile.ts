@@ -1,5 +1,5 @@
-import type { Rule } from "../Rules/Rule";
-import type { ProfileVariable } from "./ProfileVariable";
+import type { Rule } from '../Rules/Rule';
+import type { ProfileVariable } from './ProfileVariable';
 
 export interface RuleProfile {
     id: string;

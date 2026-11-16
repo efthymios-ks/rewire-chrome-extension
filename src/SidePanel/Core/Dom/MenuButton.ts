@@ -1,6 +1,7 @@
-import type { ContextMenu, ContextMenuItem } from "./ContextMenu";
-import { buildElement } from "./ElementBuilder";
-import { ButtonVariants } from "./FormControls";
+import { buildElement } from './buildElement';
+import { BUTTON_VARIANTS } from './ButtonVariants';
+import type { ContextMenu } from './ContextMenu';
+import type { ContextMenuItem } from './ContextMenuItem';
 
 export interface MenuButtonArguments {
     text: string;
@@ -11,24 +12,27 @@ export interface MenuButtonArguments {
 
 export const MenuButton = {
     build(args: MenuButtonArguments): HTMLButtonElement {
-        const button = buildElement("button", {
-            className: ButtonVariants.Ghost,
+        const button = buildElement('button', {
+            className: BUTTON_VARIANTS.Ghost,
             text: args.text,
             title: args.title,
             attributes: {
-                type: "button",
-                "aria-haspopup": "menu",
+                type: 'button',
+                'aria-haspopup': 'menu',
             },
         });
-        button.addEventListener("click", event => {
-            event.stopPropagation();
-            const bounds = button.getBoundingClientRect();
-            args.menu.open(
-                args.items(),
-                bounds.left,
-                bounds.bottom
-            );
-        });
+        button.addEventListener(
+            /* type: */ 'click',
+            /* listener: */ event => {
+                event.stopPropagation();
+                const bounds = button.getBoundingClientRect();
+                args.menu.open({
+                    items: args.items(),
+                    clientX: bounds.left,
+                    clientY: bounds.bottom,
+                });
+            },
+        );
 
         return button;
     },

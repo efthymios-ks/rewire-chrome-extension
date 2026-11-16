@@ -1,7 +1,7 @@
-import type { AppliedRule } from "../Rules/AppliedRule";
-import type { ContentKind } from "./ContentKind";
-import type { EntryFrame } from "./EntryFrame";
-import type { TimelineEntryState } from "./TimelineEntryState";
+import type { AppliedRule } from '../Rules/AppliedRule';
+import type { ContentKind } from './ContentKind';
+import type { EntryFrame } from './EntryFrame';
+import type { TimelineEntryState } from './TimelineEntryState';
 
 export interface TimelineEntrySummary {
     id: string;

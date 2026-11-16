@@ -1,20 +1,20 @@
-import type { HeaderEntry } from "../../Contracts/Timeline/HeaderEntry";
+import type { HeaderEntry } from '../../Contracts/Timeline/HeaderEntry';
 
-const LineBreakPattern = /\r?\n/;
-const NameSeparator = ":";
+const LINE_BREAK_PATTERN = /\r?\n/;
+const NAME_SEPARATOR = ':';
 
 function headerOf(line: string): HeaderEntry[] {
-    const searchFrom = line.startsWith(NameSeparator) ? NameSeparator.length : 0;
-    const index = line.indexOf(NameSeparator, searchFrom);
-    const name = index === -1 ? "" : line.slice(0, index).trim();
-    if (name.length === 0 || name === NameSeparator) {
+    const searchFrom = line.startsWith(NAME_SEPARATOR) ? NAME_SEPARATOR.length : 0;
+    const index = line.indexOf(NAME_SEPARATOR, searchFrom);
+    const name = index === -1 ? '' : line.slice(0, index).trim();
+    if (name.length === 0 || name === NAME_SEPARATOR) {
         return [];
     }
 
     return [
         {
             name,
-            value: line.slice(index + NameSeparator.length).trim(),
+            value: line.slice(index + NAME_SEPARATOR.length).trim(),
         },
     ];
 }
@@ -22,7 +22,7 @@ function headerOf(line: string): HeaderEntry[] {
 export const HeaderText = {
     parse(text: string): HeaderEntry[] {
         return text
-            .split(LineBreakPattern)
+            .split(LINE_BREAK_PATTERN)
             .map(line => line.trim())
             .flatMap(headerOf);
     },

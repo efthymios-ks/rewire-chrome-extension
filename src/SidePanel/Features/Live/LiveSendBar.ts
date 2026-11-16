@@ -1,7 +1,8 @@
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
 
-const EnterKey = "Enter";
+const ENTER_KEY = 'Enter';
 
 export interface LiveSendBarArguments {
     className: string;
@@ -16,24 +17,27 @@ export class LiveSendBar {
 
     constructor(args: LiveSendBarArguments) {
         this.input = FormControls.textInput({
-            value: "",
+            value: '',
             placeholder: args.placeholder,
-            className: "input live-send-input",
+            className: 'input live-send-input',
         });
-        this.input.addEventListener("keydown", event => {
-            if (event.key === EnterKey) {
-                event.preventDefault();
-                args.onSend(this.input.value);
-            }
-        });
-        this.root = buildElement("div", {
+        this.input.addEventListener(
+            /* type: */ 'keydown',
+            /* listener: */ event => {
+                if (event.key === ENTER_KEY && !event.isComposing) {
+                    event.preventDefault();
+                    args.onSend(this.input.value);
+                }
+            },
+        );
+        this.root = buildElement('div', {
             className: `live-send ${args.className}`,
             children: [
                 args.leading,
                 this.input,
                 FormControls.button({
-                    text: "Send",
-                    variant: ButtonVariants.Primary,
+                    text: 'Send',
+                    variant: BUTTON_VARIANTS.Primary,
                     onClick: () => args.onSend(this.input.value),
                 }),
             ],

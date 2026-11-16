@@ -1,0 +1,16 @@
+export const CRITERION_FIELD_IDS = Object.freeze({
+    Url: 'url',
+    Host: 'host',
+    Method: 'method',
+    Path: 'path',
+    Extension: 'extension',
+    Query: 'query',
+    RequestHeader: 'requestHeader',
+    RequestCookie: 'requestCookie',
+    ResourceType: 'resourceType',
+    ResponseStatus: 'responseStatus',
+    ResponseHeader: 'responseHeader',
+    ContentType: 'contentType',
+    Sample: 'sample',
+    TimeWindow: 'timeWindow',
+} as const);

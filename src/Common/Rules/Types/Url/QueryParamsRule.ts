@@ -1,30 +1,26 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { Result } from "../../../Results/Result";
-import { RegexText } from "../../../Urls/RegexText";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { DnrCondition } from "../../Criteria/DnrFragment";
-import type { RequestDraft } from "../../Drafts/Drafts";
-import { UrlRewrite } from "../../Http/UrlRewrite";
-import { ActionReader } from "../ActionReader";
-import type { DnrRuleDraft } from "../DnrRuleDraft";
-import { FieldKind, type FieldSpec } from "../FieldSpec";
-import { OperationHint, OperationKinds } from "../OperationKinds";
-import { RuleChecks } from "../RuleChecks";
-import { RuleTypeBase } from "../RuleTypeBase";
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { OwnEntry } from '../../../Objects/OwnEntry';
+import { Result } from '../../../Results/Result';
+import { QueryPattern } from '../../../Urls/QueryPattern';
+import type { RequestDraft } from '../../Drafts/RequestDraft';
+import { UrlRewrite } from '../../Http/UrlRewrite';
+import { ActionReader } from '../ActionReader';
+import type { DnrRuleDraft } from '../DnrRuleDraft';
+import { FIELD_KIND } from '../FieldKind';
+import type { FieldSpec } from '../FieldSpec';
+import { OPERATION_HINT } from '../OperationHint';
+import { OPERATION_KINDS } from '../OperationKinds';
+import { RuleChecks } from '../RuleChecks';
+import { type BrowserRulesOptions, type OnRequestOptions, RuleTypeBase } from '../RuleTypeBase';
+import { QUERY_PARAMS_MESSAGES } from './QueryParamsMessages';
 
-const WildcardKeyPattern = /[*?]/;
+const WILDCARD_KEY_PATTERN = /[*?]/;
 
-export const QueryParamsMessages = {
-    WildcardKeys: "Wildcard keys such as utm_* work on the inspected tab only.",
-    KeepsExisting: "Add and Add if missing look at the params that are there, which works on the inspected tab only.",
-    OwnUrlPattern: "Removing params brings its own URL pattern, so with another URL condition it works on the inspected tab only.",
-} as const;
-
-const InspectedTabKinds = [
-    OperationKinds.Add,
-    OperationKinds.AddIfMissing,
+const INSPECTED_TAB_KINDS = [
+    OPERATION_KINDS.Add,
+    OPERATION_KINDS.AddIfMissing,
 ];
 
 interface QueryOperation {
@@ -40,45 +36,34 @@ interface QueryParamsAction {
 type QueryTransform = chrome.declarativeNetRequest.QueryTransform;
 type QueryKeyValue = chrome.declarativeNetRequest.QueryKeyValue;
 
-type QueryApplier = (
-    url: string,
-    operation: QueryOperation,
-    value: string
-) => string;
+interface QueryApplierOptions {
+    url: string;
+    operation: QueryOperation;
+    value: string;
+}
 
-const QueryAppliers: Record<string, QueryApplier> = {
-    [OperationKinds.Add]: (
+type QueryApplier = (options: QueryApplierOptions) => string;
+
+const QUERY_APPLIERS: Record<string, QueryApplier> = {
+    [OPERATION_KINDS.Add]: ({ url, operation, value }) => UrlRewrite.appendQueryParam({
+        url,
+        key: operation.name,
+        value,
+    }),
+    [OPERATION_KINDS.AddIfMissing]: ({
         url,
         operation,
-        value
-    ) => UrlRewrite.appendQueryParam(
-        url,
-        operation.name,
-        value
-    ),
-    [OperationKinds.AddIfMissing]: (
-        url,
-        operation,
-        value
-    ) => UrlRewrite.hasQueryParam(url, operation.name)
+        value,
+    }) => UrlRewrite.hasQueryParam(url, operation.name)
         ? url
-        : UrlRewrite.appendQueryParam(
-            url,
-            operation.name,
-            value
-        ),
-    [OperationKinds.AddOrUpdate]: (
-        url,
-        operation,
-        value
-    ) => UrlRewrite.addOrReplaceQueryParams(url, [
+        : UrlRewrite.appendQueryParam({ url, key: operation.name, value }),
+    [OPERATION_KINDS.AddOrUpdate]: ({ url, operation, value }) => UrlRewrite.addOrReplaceQueryParams(url, [
         {
             key: operation.name,
             value,
-            replaceOnly: false,
         },
     ]),
-    [OperationKinds.Remove]: (url, operation) => UrlRewrite.removeQueryParams(url, [operation.name]),
+    [OPERATION_KINDS.Remove]: ({ url, operation }) => UrlRewrite.removeQueryParams(url, [operation.name]),
 };
 
 function ofKind(operations: QueryOperation[], kind: string): QueryOperation[] {
@@ -87,8 +72,8 @@ function ofKind(operations: QueryOperation[], kind: string): QueryOperation[] {
 
 function keyFilterOf(operations: QueryOperation[]): string {
     const keys = operations
-        .map(operation => RegexText.escape(encodeURIComponent(operation.name)))
-        .join("|");
+        .map(operation => QueryPattern.nameSource(operation.name))
+        .join('|');
 
     return `[?&](?:${keys})(?:=|&|#|$)`;
 }
@@ -107,18 +92,18 @@ function queryTransformOf(removals: QueryOperation[], updates: QueryKeyValue[]):
 }
 
 export class QueryParamsRule extends RuleTypeBase<QueryParamsAction> {
-    readonly id = RuleTypeIds.QueryParams;
-    readonly category = RuleCategory.UrlAndRedirects;
-    readonly label = "Query params";
-    readonly description = "Add, update or remove query string params.";
+    readonly id = RULE_TYPE_IDS.QueryParams;
+    readonly category = RULE_CATEGORY.UrlAndRedirects;
+    readonly label = 'Query params';
+    readonly description = 'Add, update or remove query string params.';
     override readonly handlesRequest = true;
     readonly fields: FieldSpec[] = [
         {
-            kind: FieldKind.Operations,
-            key: "operations",
-            label: "Params",
-            nameLabel: "Param",
-            hint: `${OperationHint} Remove takes wildcard keys such as utm_*. Values can use {{variables}}.`,
+            kind: FIELD_KIND.Operations,
+            key: 'operations',
+            label: 'Params',
+            nameLabel: 'Param',
+            hint: `${OPERATION_HINT} Remove takes wildcard keys such as utm_*. Values can use {{variables}}.`,
         },
     ];
 
@@ -126,9 +111,9 @@ export class QueryParamsRule extends RuleTypeBase<QueryParamsAction> {
         return {
             operations: [
                 {
-                    op: OperationKinds.AddOrUpdate,
-                    name: "",
-                    value: "",
+                    op: OPERATION_KINDS.AddOrUpdate,
+                    name: '',
+                    value: '',
                 },
             ],
         };
@@ -136,52 +121,49 @@ export class QueryParamsRule extends RuleTypeBase<QueryParamsAction> {
 
     protected read(action: RuleAction): QueryParamsAction {
         return {
-            operations: ActionReader.records(
-                action,
-                "operations",
-                item => ({
-                    op: ActionReader.field(
-                        item,
-                        "op",
-                        OperationKinds.AddOrUpdate
-                    ),
-                    name: ActionReader.field(item, "name").trim(),
-                    value: ActionReader.field(item, "value"),
-                })
-            ),
+            operations: ActionReader.records({
+                raw: action,
+                key: 'operations',
+                map: item => ({
+                    op: ActionReader.text({ raw: item, key: 'op', fallback: OPERATION_KINDS.AddOrUpdate }),
+                    name: ActionReader.text({ raw: item, key: 'name' }).trim(),
+                    value: ActionReader.text({ raw: item, key: 'value' }),
+                }),
+            }),
         };
     }
 
     protected describe(action: QueryParamsAction): string {
         return action.operations
             .map(operation => `${operation.op} ${operation.name}`)
-            .join(", ");
+            .join(', ');
     }
 
     protected override check(action: QueryParamsAction): string[] {
         if (action.operations.length === 0) {
-            return ["Add at least one param."];
+            return ['Add at least one param.'];
         }
 
-        return action.operations.flatMap(operation => RuleChecks.required(operation.name, "Param"));
+        return action.operations.flatMap(operation => RuleChecks.required(operation.name, 'Param'));
     }
 
-    protected override onRequest(
-        draft: RequestDraft,
-        action: QueryParamsAction,
-        context: RuleContext
-    ): RequestDraft {
+    protected override onRequest({
+        draft,
+        action,
+        context,
+    }: OnRequestOptions<QueryParamsAction>): RequestDraft {
         const url = action.operations.reduce(
-            (current, operation) => {
-                const applier = QueryAppliers[operation.op] ?? QueryAppliers[OperationKinds.AddOrUpdate]!;
+            /* callbackfn: */ (current, operation) => {
+                const applier = OwnEntry.of(QUERY_APPLIERS, operation.op)
+                    ?? QUERY_APPLIERS[OPERATION_KINDS.AddOrUpdate]!;
 
-                return applier(
-                    current,
+                return applier({
+                    url: current,
                     operation,
-                    context.render(operation.value)
-                );
+                    value: context.render(operation.value),
+                });
             },
-            draft.url
+            /* initialValue: */ draft.url,
         );
 
         return {
@@ -190,34 +172,34 @@ export class QueryParamsRule extends RuleTypeBase<QueryParamsAction> {
         };
     }
 
-    protected override browserRules(
-        action: QueryParamsAction,
-        condition: DnrCondition,
-        context: RuleContext
-    ): Result<DnrRuleDraft[]> {
-        if (action.operations.some(operation => InspectedTabKinds.some(kind => kind === operation.op))) {
-            return Result.fail(QueryParamsMessages.KeepsExisting);
+    protected override browserRules({
+        action,
+        condition,
+        context,
+    }: BrowserRulesOptions<QueryParamsAction>): Result<DnrRuleDraft[]> {
+        if (action.operations.some(operation => INSPECTED_TAB_KINDS.some(kind => kind === operation.op))) {
+            return Result.fail(QUERY_PARAMS_MESSAGES.KeepsExisting);
         }
 
-        const removals = ofKind(action.operations, OperationKinds.Remove);
-        if (removals.some(operation => WildcardKeyPattern.test(operation.name))) {
-            return Result.fail(QueryParamsMessages.WildcardKeys);
+        const removals = ofKind(action.operations, OPERATION_KINDS.Remove);
+        if (removals.some(operation => WILDCARD_KEY_PATTERN.test(operation.name))) {
+            return Result.fail(QUERY_PARAMS_MESSAGES.WildcardKeys);
         }
 
-        const updates = ofKind(action.operations, OperationKinds.AddOrUpdate).map(operation => ({
+        const updates = ofKind(action.operations, OPERATION_KINDS.AddOrUpdate).map(operation => ({
             key: operation.name,
             value: context.render(operation.value),
             replaceOnly: false,
         }));
         const needsKeyFilter = updates.length === 0;
-        if (needsKeyFilter && condition.regexFilter !== undefined) {
-            return Result.fail(QueryParamsMessages.OwnUrlPattern);
+        if (needsKeyFilter && condition.regexFilter != null) {
+            return Result.fail(QUERY_PARAMS_MESSAGES.OwnUrlPattern);
         }
 
         return Result.ok([
             {
                 action: {
-                    type: "redirect",
+                    type: 'redirect',
                     redirect: {
                         transform: {
                             queryTransform: queryTransformOf(removals, updates),

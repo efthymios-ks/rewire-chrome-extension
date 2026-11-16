@@ -1,18 +1,35 @@
-import type { CookieDraft } from "./CookieDraft";
+import type { CookieDraft } from './CookieDraft';
+import { CookieKeys } from './CookieKeys';
 
-const MillisecondsPerSecond = 1000;
-const SecondsPerMinute = 60;
-const LocalDateTimeLength = 16;
-const RootPath = "/";
-const LeadingDotPattern = /^\./;
+const MILLISECONDS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+const LOCAL_DATE_TIME_LENGTH = 16;
+const ROOT_PATH = '/';
+const LEADING_DOT_PATTERN = /^\./;
 
 function toLocalDateTime(epochSeconds: number): string {
-    const date = new Date(epochSeconds * MillisecondsPerSecond);
-    const offsetInMilliseconds = date.getTimezoneOffset() * SecondsPerMinute * MillisecondsPerSecond;
+    const date = new Date(epochSeconds * MILLISECONDS_PER_SECOND);
+    const offsetInMilliseconds = date.getTimezoneOffset() * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
 
     return new Date(date.getTime() - offsetInMilliseconds)
         .toISOString()
-        .slice(0, LocalDateTimeLength);
+        .slice(0, LOCAL_DATE_TIME_LENGTH);
+}
+
+function hostOf(domain: string): string {
+    return domain
+        .replace(LEADING_DOT_PATTERN, '')
+        .toLowerCase();
+}
+
+function pathOf(path: string): string {
+    return path === '' ? ROOT_PATH : path;
+}
+
+export interface UrlOfOptions {
+    domain: string;
+    path: string;
+    isSecure: boolean;
 }
 
 export const CookieDrafts = {
@@ -26,39 +43,44 @@ export const CookieDrafts = {
             secure: cookie.secure,
             httpOnly: cookie.httpOnly,
             sameSite: cookie.sameSite,
-            expiresAt: cookie.expirationDate === undefined ? "" : toLocalDateTime(cookie.expirationDate),
+            expiresAt: cookie.expirationDate == null ? '' : toLocalDateTime(cookie.expirationDate),
+            partitionKey: cookie.partitionKey,
         };
+    },
+
+    isSameCookie(draft: CookieDraft, cookie: chrome.cookies.Cookie): boolean {
+        return draft.name === cookie.name
+            && draft.hostOnly === cookie.hostOnly
+            && hostOf(draft.domain) === hostOf(cookie.domain)
+            && pathOf(draft.path) === pathOf(cookie.path)
+            && CookieKeys.partitionOf(draft.partitionKey) === CookieKeys.partitionOf(cookie.partitionKey);
     },
 
     blank(host: string, isSecure: boolean): CookieDraft {
         return {
-            name: "",
-            value: "",
+            name: '',
+            value: '',
             domain: host,
-            path: RootPath,
+            path: ROOT_PATH,
             hostOnly: true,
             secure: isSecure,
             httpOnly: false,
-            sameSite: "lax",
-            expiresAt: "",
+            sameSite: 'lax',
+            expiresAt: '',
         };
     },
 
-    urlOf(
-        domain: string,
-        path: string,
-        secure: boolean
-    ): string {
-        const scheme = secure ? "https" : "http";
+    urlOf({ domain, path, isSecure }: UrlOfOptions): string {
+        const scheme = isSecure ? 'https' : 'http';
 
-        return `${scheme}://${domain.replace(LeadingDotPattern, "")}${path || RootPath}`;
+        return `${scheme}://${domain.replace(LEADING_DOT_PATTERN, '')}${pathOf(path)}`;
     },
 
     expirationOf(draft: CookieDraft): number | undefined {
-        if (draft.expiresAt.trim() === "") {
+        if (draft.expiresAt.trim() === '') {
             return undefined;
         }
 
-        return Math.floor(new Date(draft.expiresAt).getTime() / MillisecondsPerSecond);
+        return Math.floor(new Date(draft.expiresAt).getTime() / MILLISECONDS_PER_SECOND);
     },
 };

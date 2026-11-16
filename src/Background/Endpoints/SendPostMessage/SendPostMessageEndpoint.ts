@@ -1,23 +1,19 @@
-import type { Result } from "../../../Common/Results/Result";
-import type { SendPostMessageCommand } from "../../../Contracts/Messaging/Commands/SendPostMessageCommand";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { IPostMessageSender } from "../../Features/PostMessages/PostMessageSender";
-import type { IPanelEndpoint } from "../IPanelEndpoint";
+import type { Result } from '../../../Common/Results/Result';
+import type { SendPostMessageCommand } from '../../../Contracts/Messaging/Commands/SendPostMessageCommand';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { PostMessageSender } from '../../Features/PostMessages/PostMessageSender';
+import type { PanelEndpoint } from '../PanelEndpoint';
 
-export class SendPostMessageEndpoint implements IPanelEndpoint<PanelCommandType.SendPostMessage> {
-    readonly commandType = PanelCommandType.SendPostMessage;
+export class SendPostMessageEndpoint implements PanelEndpoint<typeof PANEL_COMMAND_TYPE.SendPostMessage> {
+    readonly commandType = PANEL_COMMAND_TYPE.SendPostMessage;
 
-    private readonly _sender: IPostMessageSender;
+    private readonly _sender: PostMessageSender;
 
-    constructor(sender: IPostMessageSender) {
+    constructor(sender: PostMessageSender) {
         this._sender = sender;
     }
 
-    async handle(command: SendPostMessageCommand): Promise<Result<void>> {
-        return this._sender.send(
-            command.tabId,
-            command.target,
-            command.data
-        );
+    async handleAsync(command: SendPostMessageCommand): Promise<Result<void>> {
+        return this._sender.sendAsync({ tabId: command.tabId, target: command.target, data: command.data });
     }
 }

@@ -1,98 +1,98 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { StatusCodeLimits } from "../../../../Contracts/Http/StatusCodePresets";
-import { Result } from "../../../Results/Result";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { DnrCondition } from "../../Criteria/DnrFragment";
-import type { RequestDraft, ResponseDraft } from "../../Drafts/Drafts";
-import { HeaderList } from "../../Http/HeaderList";
-import { ActionReader } from "../ActionReader";
-import type { DnrRuleDraft } from "../DnrRuleDraft";
-import { FieldKind, type FieldSpec } from "../FieldSpec";
-import { type ResponseArguments, RuleTypeBase } from "../RuleTypeBase";
-import { CorsDefaults, CorsHeaders, type CorsPolicy } from "./CorsHeaders";
+import { STATUS_CODE_LIMITS } from '../../../../Contracts/Http/StatusCodeLimits';
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { Result } from '../../../Results/Result';
+import type { RequestDraft } from '../../Drafts/RequestDraft';
+import type { ResponseDraft } from '../../Drafts/ResponseDraft';
+import { HeaderList } from '../../Http/HeaderList';
+import { ActionReader } from '../ActionReader';
+import type { DnrRuleDraft } from '../DnrRuleDraft';
+import { FIELD_KIND } from '../FieldKind';
+import type { FieldSpec } from '../FieldSpec';
+import {
+    type BrowserRulesOptions,
+    type OnRequestOptions,
+    type OnResponseOptions,
+    RuleTypeBase,
+} from '../RuleTypeBase';
+import { CORS_DEFAULTS } from './CorsDefaults';
+import { CorsHeaders, type CorsPolicy } from './CorsHeaders';
 
 interface CorsAction extends CorsPolicy {
     answerPreflight: boolean;
 }
 
 export class CorsRule extends RuleTypeBase<CorsAction> {
-    readonly id = RuleTypeIds.Cors;
-    readonly category = RuleCategory.Headers;
-    readonly label = "CORS";
-    readonly description = "Rewrite Access-Control-* response headers; answer preflights on the inspected tab.";
+    readonly id = RULE_TYPE_IDS.Cors;
+    readonly category = RULE_CATEGORY.Headers;
+    readonly label = 'CORS';
+    readonly description = 'Rewrite Access-Control-* response headers; answer preflights on the inspected tab.';
     override readonly handlesRequest = true;
     override readonly handlesResponse = true;
     override readonly runsOnBothEngines = true;
     readonly fields: FieldSpec[] = [
         {
-            kind: FieldKind.Text,
-            key: "allowedOrigin",
-            label: "Allowed origin",
-            placeholder: "http://localhost:3000",
-            hint: "Empty allows any origin. A specific origin also allows credentials.",
+            kind: FIELD_KIND.Text,
+            key: 'allowedOrigin',
+            label: 'Allowed origin',
+            placeholder: 'http://localhost:3000',
+            hint: 'Empty allows any origin. A specific origin also allows credentials.',
         },
         {
-            kind: FieldKind.Text,
-            key: "allowedMethods",
-            label: "Allowed methods",
-            placeholder: "GET, POST",
-            hint: `Empty sends ${CorsDefaults.AllowedMethods}.`,
+            kind: FIELD_KIND.Text,
+            key: 'allowedMethods',
+            label: 'Allowed methods',
+            placeholder: 'GET, POST',
+            hint: `Empty sends ${CORS_DEFAULTS.AllowedMethods}.`,
         },
         {
-            kind: FieldKind.Text,
-            key: "allowedHeaders",
-            label: "Allowed headers",
-            placeholder: "Content-Type",
-            hint: `Empty sends ${CorsDefaults.AllowedHeaders}.`,
+            kind: FIELD_KIND.Text,
+            key: 'allowedHeaders',
+            label: 'Allowed headers',
+            placeholder: 'Content-Type',
+            hint: `Empty sends ${CORS_DEFAULTS.AllowedHeaders}.`,
         },
         {
-            kind: FieldKind.Checkbox,
-            key: "answerPreflight",
-            label: "Answer OPTIONS preflights with 204 on the inspected tab",
+            kind: FIELD_KIND.Checkbox,
+            key: 'answerPreflight',
+            label: 'Answer OPTIONS preflights with 204 on the inspected tab',
         },
     ];
 
     protected defaults(): CorsAction {
         return {
-            allowedOrigin: "",
-            allowedMethods: CorsDefaults.AllowedMethods,
-            allowedHeaders: CorsDefaults.AllowedHeaders,
+            allowedOrigin: '',
+            allowedMethods: CORS_DEFAULTS.AllowedMethods,
+            allowedHeaders: CORS_DEFAULTS.AllowedHeaders,
             answerPreflight: true,
         };
     }
 
     protected read(action: RuleAction): CorsAction {
         return {
-            allowedOrigin: ActionReader.text(action, "allowedOrigin"),
-            allowedMethods: ActionReader.text(
-                action,
-                "allowedMethods",
-                CorsDefaults.AllowedMethods
-            ),
-            allowedHeaders: ActionReader.text(
-                action,
-                "allowedHeaders",
-                CorsDefaults.AllowedHeaders
-            ),
-            answerPreflight: ActionReader.bool(
-                action,
-                "answerPreflight",
-                true
-            ),
+            allowedOrigin: ActionReader.text({ raw: action, key: 'allowedOrigin' }),
+            allowedMethods: ActionReader.text({
+                raw: action,
+                key: 'allowedMethods',
+                fallback: CORS_DEFAULTS.AllowedMethods,
+            }),
+            allowedHeaders: ActionReader.text({
+                raw: action,
+                key: 'allowedHeaders',
+                fallback: CORS_DEFAULTS.AllowedHeaders,
+            }),
+            answerPreflight: ActionReader.bool({ raw: action, key: 'answerPreflight', fallback: true }),
         };
     }
 
     protected describe(action: CorsAction): string {
-        return `Allow ${action.allowedOrigin || CorsDefaults.AnyOrigin}${action.answerPreflight ? ", answer preflights" : ""}`;
+        const origin = action.allowedOrigin === '' ? CORS_DEFAULTS.AnyOrigin : action.allowedOrigin;
+
+        return `Allow ${origin}${action.answerPreflight ? ', answer preflights' : ''}`;
     }
 
-    protected override onRequest(
-        draft: RequestDraft,
-        action: CorsAction,
-        _context: RuleContext
-    ): RequestDraft {
+    protected override onRequest({ draft, action }: OnRequestOptions<CorsAction>): RequestDraft {
         if (!action.answerPreflight || !CorsHeaders.isPreflight(draft)) {
             return draft;
         }
@@ -100,23 +100,23 @@ export class CorsRule extends RuleTypeBase<CorsAction> {
         return {
             ...draft,
             response: {
-                status: StatusCodeLimits.NoContent,
+                status: STATUS_CODE_LIMITS.NoContent,
                 headers: CorsHeaders.forPreflight(draft, action),
-                body: "",
+                body: '',
             },
         };
     }
 
-    protected override onResponse(args: ResponseArguments<CorsAction>): ResponseDraft {
+    protected override onResponse(args: OnResponseOptions<CorsAction>): ResponseDraft {
         const headers = CorsHeaders
             .forResponse(args.action)
             .reduce(
-                (current, header) => HeaderList.set(
-                    current,
-                    header.name,
-                    header.value
-                ),
-                args.draft.headers
+                /* callbackfn: */ (current, header) => HeaderList.set({
+                    headers: current,
+                    name: header.name,
+                    value: header.value,
+                }),
+                /* initialValue: */ args.draft.headers,
             );
 
         return {
@@ -125,20 +125,19 @@ export class CorsRule extends RuleTypeBase<CorsAction> {
         };
     }
 
-    protected override browserRules(
-        action: CorsAction,
-        condition: DnrCondition,
-        _context: RuleContext
-    ): Result<DnrRuleDraft[]> {
+    protected override browserRules({
+        action,
+        condition,
+    }: BrowserRulesOptions<CorsAction>): Result<DnrRuleDraft[]> {
         return Result.ok([
             {
                 action: {
-                    type: "modifyHeaders",
+                    type: 'modifyHeaders',
                     responseHeaders: CorsHeaders
                         .forResponse(action)
                         .map(header => ({
                             header: header.name,
-                            operation: "set",
+                            operation: 'set',
                             value: header.value,
                         })),
                 },

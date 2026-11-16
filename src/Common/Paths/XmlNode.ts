@@ -3,4 +3,5 @@ export interface XmlNode {
     attributes: Record<string, string>;
     text: string;
     children: XmlNode[];
+    content: (string | XmlNode)[];
 }

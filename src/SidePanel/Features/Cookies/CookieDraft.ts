@@ -6,6 +6,7 @@ export interface CookieDraft {
     hostOnly: boolean;
     secure: boolean;
     httpOnly: boolean;
-    sameSite: chrome.cookies.Cookie["sameSite"];
+    sameSite: chrome.cookies.Cookie['sameSite'];
     expiresAt: string;
+    partitionKey?: chrome.cookies.CookiePartitionKey | undefined;
 }

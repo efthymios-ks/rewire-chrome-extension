@@ -1,4 +1,4 @@
-import { Result } from "../Results/Result";
+import { Result } from '../Results/Result';
 
 interface Segment {
     name: string | null;
@@ -6,17 +6,45 @@ interface Segment {
     isDotted: boolean;
 }
 
-const RootMarker = "$";
-const DotMarker = ".";
-const OpenBracket = "[";
-const CloseBracket = "]";
-const SingleQuote = "'";
-const DoubleQuote = "\"";
-const LengthProperty = "length";
-const IndexPattern = /^-?\d+$/;
+const ROOT_MARKER = '$';
+const DOT_MARKER = '.';
+const OPEN_BRACKET = '[';
+const CLOSE_BRACKET = ']';
+const SINGLE_QUOTE = "'";
+const DOUBLE_QUOTE = '"';
+const LENGTH_PROPERTY = 'length';
+const INDEX_PATTERN = /^-?\d+$/;
+
+function isQuotedName(inner: string): boolean {
+    const quote = inner.charAt(0);
+
+    return inner.length >= 2
+        && (quote === SINGLE_QUOTE || quote === DOUBLE_QUOTE)
+        && inner.charAt(inner.length - 1) === quote;
+}
+
+function bracketSegmentOf(inner: string, path: string): Result<Segment> {
+    if (isQuotedName(inner)) {
+        return Result.ok({
+            name: inner.slice(1, -1),
+            index: null,
+            isDotted: false,
+        });
+    }
+
+    if (INDEX_PATTERN.test(inner)) {
+        return Result.ok({
+            name: null,
+            index: Number(inner),
+            isDotted: false,
+        });
+    }
+
+    return Result.fail(`'[${inner}]' in '${path}' is neither an index nor a quoted name.`);
+}
 
 function parse(path: string): Result<Segment[]> {
-    if (path.length === 0 || path.charAt(0) !== RootMarker) {
+    if (path.length === 0 || path.charAt(0) !== ROOT_MARKER) {
         return Result.fail("A JSON path starts with '$'.");
     }
 
@@ -24,9 +52,13 @@ function parse(path: string): Result<Segment[]> {
     let position = 1;
     while (position < path.length) {
         const character = path.charAt(position);
-        if (character === DotMarker) {
+        if (character === DOT_MARKER) {
             const start = ++position;
-            while (position < path.length && path.charAt(position) !== DotMarker && path.charAt(position) !== OpenBracket) {
+            while (
+                position < path.length
+                && path.charAt(position) !== DOT_MARKER
+                && path.charAt(position) !== OPEN_BRACKET
+            ) {
                 position++;
             }
 
@@ -42,32 +74,24 @@ function parse(path: string): Result<Segment[]> {
             continue;
         }
 
-        if (character !== OpenBracket) {
+        if (character !== OPEN_BRACKET) {
             return Result.fail(`Unexpected '${character}' at position ${position} of '${path}'.`);
         }
 
-        const close = path.indexOf(CloseBracket, position);
+        const close = path.indexOf(CLOSE_BRACKET, position);
         if (close < 0) {
             return Result.fail(`Unclosed '[' at position ${position} of '${path}'.`);
         }
 
-        const inner = path.slice(position + 1, close).trim();
-        if (inner.length >= 2 && (inner.charAt(0) === SingleQuote || inner.charAt(0) === DoubleQuote) && inner.charAt(inner.length - 1) === inner.charAt(0)) {
-            segments.push({
-                name: inner.slice(1, -1),
-                index: null,
-                isDotted: false,
-            });
-        } else if (IndexPattern.test(inner)) {
-            segments.push({
-                name: null,
-                index: Number(inner),
-                isDotted: false,
-            });
-        } else {
-            return Result.fail(`'[${inner}]' in '${path}' is neither an index nor a quoted name.`);
+        const segment = bracketSegmentOf(
+            /* inner: */ path.slice(position + 1, close).trim(),
+            /* path: */ path,
+        );
+        if (segment.hasErrors) {
+            return segment;
         }
 
+        segments.push(segment.value);
         position = close + 1;
     }
 
@@ -75,7 +99,7 @@ function parse(path: string): Result<Segment[]> {
 }
 
 function step(current: unknown, segment: Segment): unknown {
-    if (segment.index !== null) {
+    if (segment.index != null) {
         if (!Array.isArray(current)) {
             return undefined;
         }
@@ -88,17 +112,26 @@ function step(current: unknown, segment: Segment): unknown {
         return current[position];
     }
 
-    const name = segment.name!;
-    if (typeof current === "object" && current !== null && !Array.isArray(current) && Object.hasOwn(current, name)) {
+    const { name } = segment;
+    if (name == null) {
+        return undefined;
+    }
+
+    if (
+        typeof current === 'object'
+        && current != null
+        && !Array.isArray(current)
+        && Object.hasOwn(current, name)
+    ) {
         return (current as Record<string, unknown>)[name];
     }
 
-    if (segment.isDotted && name === LengthProperty) {
+    if (segment.isDotted && name === LENGTH_PROPERTY) {
         if (Array.isArray(current)) {
             return current.length;
         }
 
-        if (typeof current === "string") {
+        if (typeof current === 'string') {
             return current.length;
         }
     }

@@ -1,5 +1,6 @@
-import { TemplateText } from "../Templates/TemplateText";
-import type { RuleContext } from "./RuleContext";
+import type { Criterion } from '../../../Contracts/Rules/Criterion';
+import { TemplateText } from '../Templates/TemplateText';
+import type { RuleContext } from './RuleContext';
 
 export abstract class RuleContextBase implements RuleContext {
     now(): Date {
@@ -8,6 +9,10 @@ export abstract class RuleContextBase implements RuleContext {
 
     random(): number {
         return Math.random();
+    }
+
+    sampleRoll(_criterion: Criterion): number {
+        return this.random();
     }
 
     render(text: string): string {

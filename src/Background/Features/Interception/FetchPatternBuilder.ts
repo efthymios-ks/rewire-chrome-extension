@@ -1,8 +1,8 @@
-import type { Protocol } from "devtools-protocol";
-import { ResourceScope } from "../../../Common/Rules/Criteria/ResourceScope";
-import type { PipelineEntry } from "../../../Common/Rules/Engine/RulePipeline";
+import type { Protocol } from 'devtools-protocol';
+import { ResourceScope } from '../../../Common/Rules/Criteria/ResourceScope';
+import type { PipelineEntry } from '../../../Common/Rules/Engine/PipelineEntry';
 
-const AnyUrl = "*";
+const ANY_URL = '*';
 
 type FetchStage = Protocol.Fetch.RequestStage;
 
@@ -10,7 +10,7 @@ function scopeOf(entries: PipelineEntry[]): string[] | null {
     const types = new Set<string>();
     for (const entry of entries) {
         const entryTypes = ResourceScope.debuggerTypesOf(entry.plan.rule.criteria);
-        if (entryTypes === null) {
+        if (entryTypes == null) {
             return null;
         }
 
@@ -26,17 +26,17 @@ function patternsOf(entries: PipelineEntry[], requestStage: FetchStage): Protoco
     }
 
     const types = scopeOf(entries);
-    if (types === null) {
+    if (types == null) {
         return [
             {
-                urlPattern: AnyUrl,
+                urlPattern: ANY_URL,
                 requestStage,
             },
         ];
     }
 
     return types.map(type => ({
-        urlPattern: AnyUrl,
+        urlPattern: ANY_URL,
         resourceType: type as Protocol.Network.ResourceType,
         requestStage,
     }));
@@ -45,8 +45,11 @@ function patternsOf(entries: PipelineEntry[], requestStage: FetchStage): Protoco
 export const FetchPatternBuilder = {
     build(entries: PipelineEntry[]): Protocol.Fetch.RequestPattern[] {
         return [
-            ...patternsOf(entries, "Request"),
-            ...patternsOf(entries.filter(entry => entry.runsResponse), "Response"),
+            ...patternsOf(entries, 'Request'),
+            ...patternsOf(
+                /* entries: */ entries.filter(entry => entry.runsResponse),
+                /* requestStage: */ 'Response',
+            ),
         ];
     },
 };

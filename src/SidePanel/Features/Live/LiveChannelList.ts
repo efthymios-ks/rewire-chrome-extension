@@ -1,7 +1,8 @@
-import { SafeUrl } from "../../../Common/Urls/SafeUrl";
-import type { LiveChannel } from "../../../Contracts/Live/LiveChannel";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../Core/Dom/FormControls";
+import { SafeUrl } from '../../../Common/Urls/SafeUrl';
+import type { LiveChannel } from '../../../Contracts/Live/LiveChannel';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../Core/Dom/FormControls';
 
 export interface LiveChannelRow {
     channel: LiveChannel;
@@ -20,7 +21,7 @@ export interface LiveChannelListArguments {
 function addressOf(url: string): string {
     const parsed = SafeUrl.parse(url);
 
-    return parsed === null ? url : `${parsed.host}${parsed.pathname}${parsed.search}`;
+    return parsed == null ? url : `${parsed.host}${parsed.pathname}${parsed.search}`;
 }
 
 export class LiveChannelList {
@@ -30,15 +31,15 @@ export class LiveChannelList {
 
     constructor(args: LiveChannelListArguments) {
         this._arguments = args;
-        this.root = buildElement("ul", {
-            className: "live-channels",
+        this.root = buildElement('ul', {
+            className: 'live-channels',
         });
     }
 
     update(rows: LiveChannelRow[], selectedId: string | null): void {
         if (rows.length === 0) {
-            this.root.replaceChildren(buildElement("li", {
-                className: "muted live-empty",
+            this.root.replaceChildren(buildElement('li', {
+                className: 'live-empty',
                 text: this._arguments.emptyText,
             }));
 
@@ -53,18 +54,20 @@ export class LiveChannelList {
     private actionOf(channel: LiveChannel): HTMLButtonElement | null {
         if (!channel.isOpen) {
             return FormControls.button({
-                text: "×",
-                variant: ButtonVariants.Ghost,
+                text: '×',
+                variant: BUTTON_VARIANTS.Ghost,
                 title: this._arguments.removeTitle,
+                ariaLabel: this._arguments.removeTitle,
                 onClick: () => this._arguments.onRemove(channel.id),
             });
         }
 
         return channel.isMine
             ? FormControls.button({
-                text: "×",
-                variant: ButtonVariants.Ghost,
+                text: '×',
+                variant: BUTTON_VARIANTS.Ghost,
                 title: this._arguments.closeTitle,
+                ariaLabel: this._arguments.closeTitle,
                 onClick: () => this._arguments.onClose(channel.id),
             })
             : null;
@@ -73,31 +76,35 @@ export class LiveChannelList {
     private rowOf(row: LiveChannelRow, isSelected: boolean): HTMLElement {
         const { channel } = row;
 
-        return buildElement("li", {
-            className: isSelected ? "live-channel selected" : "live-channel",
+        return buildElement('li', {
+            className: 'live-channel',
+            attributes: isSelected ? { 'data-selected': '' } : {},
             children: [
-                buildElement("button", {
-                    className: "live-channel-pick",
+                buildElement('button', {
+                    className: 'live-channel-pick',
                     attributes: {
-                        type: "button",
-                        "aria-pressed": String(isSelected),
+                        type: 'button',
+                        'aria-pressed': String(isSelected),
                     },
                     children: [
-                        buildElement("span", {
-                            className: channel.isOpen ? "live-dot open" : "live-dot",
-                            title: channel.isOpen ? "Open" : "Closed",
+                        buildElement('span', {
+                            className: 'live-dot',
+                            title: channel.isOpen ? 'Open' : 'Closed',
+                            attributes: {
+                                'data-state': channel.isOpen ? 'open' : 'closed',
+                            },
                         }),
-                        buildElement("span", {
-                            className: "tag",
-                            text: channel.isMine ? "Mine" : "Page",
+                        buildElement('span', {
+                            className: 'tag',
+                            text: channel.isMine ? 'Mine' : 'Page',
                         }),
-                        buildElement("span", {
-                            className: "live-channel-address",
+                        buildElement('span', {
+                            className: 'live-channel-address',
                             text: addressOf(channel.url),
                             title: channel.url,
                         }),
-                        buildElement("span", {
-                            className: "muted live-channel-count",
+                        buildElement('span', {
+                            className: 'live-channel-count',
                             text: String(row.count),
                         }),
                     ],

@@ -1,50 +1,57 @@
-import { SafeUrl } from "../Urls/SafeUrl";
-import { DefaultSnippetParts, type RequestSnapshot, type SnippetOptions } from "./RequestSnapshot";
-import { RequestSnippetBase } from "./RequestSnippetBase";
-import { ShellQuoting } from "./ShellQuoting";
-import { type MultipartPart, type SnippetBody, SnippetBodyKind } from "./SnippetBody";
-import { SnippetHeaderNames, SnippetHeaders } from "./SnippetHeaders";
-import { type SnippetRequest, SnippetRequests } from "./SnippetRequest";
+import { HEADER_NAMES } from '../../Contracts/Http/HeaderNames';
+import { OwnEntry } from '../Objects/OwnEntry';
+import { SafeUrl } from '../Urls/SafeUrl';
+import { DEFAULT_SNIPPET_PARTS } from './DefaultSnippetParts';
+import type { MultipartPart } from './MultipartPart';
+import type { RequestSnapshot } from './RequestSnapshot';
+import { RequestSnippetBase } from './RequestSnippetBase';
+import { ShellQuoting } from './ShellQuoting';
+import type { SnippetBody } from './SnippetBody';
+import { SNIPPET_BODY_KIND } from './SnippetBodyKind';
+import { SnippetHeaders } from './SnippetHeaders';
+import type { SnippetOptions } from './SnippetOptions';
+import type { SnippetRequest } from './SnippetRequest';
+import { SnippetRequests } from './SnippetRequests';
 
-const Indentation = "    ";
-const CookiePath = "/";
-const LineBreakSplitPattern = /(\r\n|\n|\r)/;
-const ParametersName = "parameters";
-const BlockStart = "& {";
-const BlockEnd = "}";
-const ResponsePrinting = [
-    "if ($PSVersionTable.PSVersion.Major -ge 7) {",
-    `    $${ParametersName}.SkipHttpErrorCheck = $true`,
-    "}",
-    `$response = Invoke-WebRequest @${ParametersName}`,
-    "\"Status: $($response.StatusCode) $($response.StatusDescription)\"",
+const INDENTATION = '    ';
+const COOKIE_PATH = '/';
+const LINE_BREAK_SPLIT_PATTERN = /(\r\n|\n|\r)/;
+const PARAMETERS_NAME = 'parameters';
+const BLOCK_START = '& {';
+const BLOCK_END = '}';
+const RESPONSE_PRINTING = [
+    'if ($PSVersionTable.PSVersion.Major -ge 7) {',
+    `    $${PARAMETERS_NAME}.SkipHttpErrorCheck = $true`,
+    '}',
+    `$response = Invoke-WebRequest @${PARAMETERS_NAME}`,
+    '"Status: $($response.StatusCode) $($response.StatusDescription)"',
     "$response.Headers.GetEnumerator() | ForEach-Object { \"$($_.Key): $($_.Value -join ', ')\" }",
-    "\"\"",
-    "$response.Content",
+    '""',
+    '$response.Content',
 ];
 
-const StandardMethods: Record<string, string> = {
-    GET: "Get",
-    HEAD: "Head",
-    POST: "Post",
-    PUT: "Put",
-    DELETE: "Delete",
-    TRACE: "Trace",
-    OPTIONS: "Options",
-    MERGE: "Merge",
-    PATCH: "Patch",
-};
+const STANDARD_METHODS: Record<string, string> = Object.freeze({
+    GET: 'Get',
+    HEAD: 'Head',
+    POST: 'Post',
+    PUT: 'Put',
+    DELETE: 'Delete',
+    TRACE: 'Trace',
+    OPTIONS: 'Options',
+    MERGE: 'Merge',
+    PATCH: 'Patch',
+});
 
-const LineBreakLiterals: Record<string, string> = {
-    "\r\n": "\"`r`n\"",
-    "\n": "\"`n\"",
-    "\r": "\"`r\"",
-};
+const LINE_BREAK_LITERALS: Record<string, string> = Object.freeze({
+    '\r\n': '"`r`n"',
+    '\n': '"`n"',
+    '\r': '"`r"',
+});
 
-const ParameterHeaders = [
-    SnippetHeaderNames.ContentType,
-    SnippetHeaderNames.UserAgent,
-    SnippetHeaderNames.AcceptEncoding,
+const PARAMETER_HEADERS = [
+    HEADER_NAMES.ContentType,
+    HEADER_NAMES.UserAgent,
+    HEADER_NAMES.AcceptEncoding,
 ];
 
 type Parameter = [string, string | null];
@@ -52,28 +59,28 @@ type Parameter = [string, string | null];
 const quote = ShellQuoting.powerShell;
 
 function methodParameter(method: string): Parameter {
-    const standard = StandardMethods[method];
+    const standard = STANDARD_METHODS[method];
 
-    return standard === undefined
+    return standard == null
         ? [
-            "CustomMethod",
+            'CustomMethod',
             quote(method),
         ]
         : [
-            "Method",
+            'Method',
             quote(standard),
         ];
 }
 
 function textExpression(text: string): string {
     const pieces = text
-        .split(LineBreakSplitPattern)
-        .filter(piece => piece !== "");
+        .split(LINE_BREAK_SPLIT_PATTERN)
+        .filter(piece => piece !== '');
     if (pieces.length <= 1) {
         return quote(text);
     }
 
-    return `(${pieces.map(piece => LineBreakLiterals[piece] ?? quote(piece)).join(" + ")})`;
+    return `(${pieces.map(piece => OwnEntry.of(LINE_BREAK_LITERALS, piece) ?? quote(piece)).join(' + ')})`;
 }
 
 function sessionBlock(request: SnippetRequest): string[] {
@@ -81,29 +88,29 @@ function sessionBlock(request: SnippetRequest): string[] {
         return [];
     }
 
-    const host = SafeUrl.parse(request.url)?.hostname ?? "";
+    const host = SafeUrl.parse(request.url)?.hostname ?? '';
 
     return [
-        "$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession",
+        '$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession',
         ...request.cookies.map(cookie => `$session.Cookies.Add((New-Object System.Net.Cookie(${[
             quote(cookie.name),
             quote(cookie.value),
-            quote(CookiePath),
+            quote(COOKIE_PATH),
             quote(host),
-        ].join(", ")})))`),
+        ].join(', ')})))`),
     ];
 }
 
 function hashtableOf(entries: Array<[string, string]>): string {
     return [
-        "@{",
-        ...entries.map(([name, value]) => `${Indentation}${Indentation}${quote(name)} = ${value}`),
-        `${Indentation}}`,
-    ].join("\n");
+        '@{',
+        ...entries.map(([name, value]) => `${INDENTATION}${INDENTATION}${quote(name)} = ${value}`),
+        `${INDENTATION}}`,
+    ].join('\n');
 }
 
 function headersExpression(request: SnippetRequest): string | null {
-    const headers = SnippetHeaders.merged(SnippetHeaders.without(request.headers, ParameterHeaders));
+    const headers = SnippetHeaders.merged(SnippetHeaders.without(request.headers, PARAMETER_HEADERS));
 
     return headers.length === 0
         ? null
@@ -114,107 +121,112 @@ function headersExpression(request: SnippetRequest): string | null {
 }
 
 function formValueOf(part: MultipartPart): string {
-    return part.fileName === null ? quote(part.value) : `Get-Item -LiteralPath ${quote(part.fileName)}`;
+    return part.fileName == null ? quote(part.value) : `Get-Item -LiteralPath ${quote(part.fileName)}`;
 }
 
 function bodyParameter(body: SnippetBody): Parameter {
     switch (body.kind) {
-        case SnippetBodyKind.Text:
+        case SNIPPET_BODY_KIND.Text:
             return [
-                "Body",
+                'Body',
                 `[System.Text.Encoding]::UTF8.GetBytes(${textExpression(body.text)})`,
             ];
-        case SnippetBodyKind.File:
+        case SNIPPET_BODY_KIND.File:
             return [
-                "InFile",
+                'InFile',
                 quote(body.fileName),
             ];
-        case SnippetBodyKind.Multipart:
+        case SNIPPET_BODY_KIND.Multipart:
             return [
-                "Form",
+                'Form',
                 hashtableOf(body.parts.map(part => [
                     part.name,
                     formValueOf(part),
                 ])),
             ];
-        case SnippetBodyKind.None:
+        case SNIPPET_BODY_KIND.None:
             return [
-                "Body",
+                'Body',
                 null,
             ];
     }
 }
 
 export class PowerShellSnippet extends RequestSnippetBase {
-    static readonly id = "powershell";
-    static readonly label = "PowerShell";
+    static readonly id = 'powershell';
+    static readonly label = 'PowerShell';
 
     static tryParse(_text: string): PowerShellSnippet | null {
         return null;
     }
 
-    static from(snapshot: RequestSnapshot, options: SnippetOptions = DefaultSnippetParts): PowerShellSnippet {
+    static from(
+        snapshot: RequestSnapshot,
+        options: SnippetOptions = DEFAULT_SNIPPET_PARTS,
+    ): PowerShellSnippet {
         return new PowerShellSnippet(SnippetRequests.of(snapshot, options));
     }
 
     override toString(): string {
         const request = this.request;
-        const isMultipart = request.body.kind === SnippetBodyKind.Multipart;
-        const contentType = isMultipart ? undefined : SnippetHeaders.find(request.headers, SnippetHeaderNames.ContentType);
-        const userAgent = SnippetHeaders.find(request.headers, SnippetHeaderNames.UserAgent);
+        const isMultipart = request.body.kind === SNIPPET_BODY_KIND.Multipart;
+        const contentType = isMultipart
+            ? undefined
+            : SnippetHeaders.find(request.headers, HEADER_NAMES.ContentType);
+        const userAgent = SnippetHeaders.find(request.headers, HEADER_NAMES.UserAgent);
         const session = sessionBlock(request);
         const body: Parameter = SnippetRequests.isBodyless(request.method)
             ? [
-                "Body",
+                'Body',
                 null,
             ]
             : bodyParameter(request.body);
         const parameters: Parameter[] = [
             [
-                "Uri",
+                'Uri',
                 quote(request.url),
             ],
             methodParameter(request.method),
             [
-                "WebSession",
-                session.length === 0 ? null : "$session",
+                'WebSession',
+                session.length === 0 ? null : '$session',
             ],
             [
-                "Headers",
+                'Headers',
                 headersExpression(request),
             ],
             [
-                "UserAgent",
-                userAgent === undefined ? null : quote(userAgent.value),
+                'UserAgent',
+                userAgent == null ? null : quote(userAgent.value),
             ],
             [
-                "ContentType",
-                contentType === undefined ? null : quote(contentType.value),
+                'ContentType',
+                contentType == null ? null : quote(contentType.value),
             ],
             body,
             [
-                "UseBasicParsing",
-                "$true",
+                'UseBasicParsing',
+                '$true',
             ],
         ];
 
         const statements = [
             ...session,
-            `$${ParametersName} = @{`,
+            `$${PARAMETERS_NAME} = @{`,
             ...parameters
-                .filter((parameter): parameter is [string, string] => parameter[1] !== null)
-                .map(([name, value]) => `${Indentation}${name} = ${value}`),
-            "}",
-            ...ResponsePrinting,
+                .filter((parameter): parameter is [string, string] => parameter[1] != null)
+                .map(([name, value]) => `${INDENTATION}${name} = ${value}`),
+            '}',
+            ...RESPONSE_PRINTING,
         ];
 
         return [
-            BlockStart,
+            BLOCK_START,
             ...statements
-                .join("\n")
-                .split("\n")
-                .map(line => `${Indentation}${line}`),
-            BlockEnd,
-        ].join("\n");
+                .join('\n')
+                .split('\n')
+                .map(line => `${INDENTATION}${line}`),
+            BLOCK_END,
+        ].join('\n');
     }
 }

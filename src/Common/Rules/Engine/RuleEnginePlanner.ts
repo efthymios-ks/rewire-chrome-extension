@@ -1,54 +1,44 @@
-import type { Rule } from "../../../Contracts/Rules/Rule";
-import { RuleEngine } from "../../../Contracts/Rules/RuleEngine";
-import { Result } from "../../Results/Result";
-import type { RuleContext } from "../Context/RuleContext";
-import { CriteriaDnrCompiler } from "../Criteria/CriteriaDnrCompiler";
-import { CriteriaEvaluator } from "../Criteria/CriteriaEvaluator";
-import { CriterionStage } from "../Criteria/CriterionStage";
-import type { DnrCondition } from "../Criteria/DnrFragment";
-import { DefaultResourceTypes } from "../Criteria/ResourceTypes";
-import type { DnrRuleDraft } from "../Types/DnrRuleDraft";
-import type { IRuleType } from "../Types/IRuleType";
-import { RuleTypeRegistry } from "../Types/RuleTypeRegistry";
-import type { RulePlan } from "./RulePlan";
-
-export const PlannerReasons = {
-    UnknownType: "This rule type is not known; it may come from a later version.",
-    ResponseCriteriaTooLate: "This rule acts before the response, so response conditions can never match it.",
-    TypeNeedsDebugger: "This rule type works on the inspected tab only.",
-    RunsInBrowser: "Works on every tab.",
-    RunsOnBoth: "Works on every tab; CORS preflights are answered on the inspected tab only.",
-} as const;
+import type { Rule } from '../../../Contracts/Rules/Rule';
+import { RULE_ENGINE } from '../../../Contracts/Rules/RuleEngine';
+import { Result } from '../../Results/Result';
+import type { RuleContext } from '../Context/RuleContext';
+import { CriteriaDnrCompiler } from '../Criteria/CriteriaDnrCompiler';
+import { CriteriaEvaluator } from '../Criteria/CriteriaEvaluator';
+import { CRITERION_STAGE } from '../Criteria/CriterionStage';
+import { DEFAULT_RESOURCE_TYPES } from '../Criteria/DefaultResourceTypes';
+import type { DnrCondition } from '../Criteria/DnrCondition';
+import type { DnrRuleDraft } from '../Types/DnrRuleDraft';
+import type { RuleType } from '../Types/RuleType';
+import { RuleTypeRegistry } from '../Types/RuleTypeRegistry';
+import { PLANNER_REASONS } from './PlannerReasons';
+import type { RulePlan } from './RulePlan';
 
 function withDefaultResourceTypes(condition: DnrCondition): DnrCondition {
-    if (condition.resourceTypes !== undefined || condition.excludedResourceTypes !== undefined) {
+    if (condition.resourceTypes != null || condition.excludedResourceTypes != null) {
         return condition;
     }
 
     return {
         ...condition,
-        resourceTypes: [...DefaultResourceTypes.Browser],
+        resourceTypes: [...DEFAULT_RESOURCE_TYPES.Browser],
     };
 }
 
-function browserRulesOf(
-    rule: Rule,
-    type: IRuleType,
-    context: RuleContext
-): Result<DnrRuleDraft[] | null> {
+interface BrowserRulesOfOptions {
+    rule: Rule;
+    type: RuleType;
+    context: RuleContext;
+}
+
+function browserRulesOf({ rule, type, context }: BrowserRulesOfOptions): Result<DnrRuleDraft[] | null> {
     const conditions = CriteriaDnrCompiler.compile(rule.criteria, context);
     if (conditions.hasErrors) {
         return conditions;
     }
 
     if (conditions.value.length === 0) {
-        const probe = type.toDnr(
-            rule.action,
-            {},
-            context,
-            rule.criteria
-        );
-        if (probe === null || probe.hasErrors) {
+        const probe = type.toDnr({ action: rule.action, condition: {}, context, criteria: rule.criteria });
+        if (probe == null || probe.hasErrors) {
             return probe ?? Result.ok(null);
         }
 
@@ -57,13 +47,13 @@ function browserRulesOf(
 
     const drafts: DnrRuleDraft[] = [];
     for (const condition of conditions.value) {
-        const compiled = type.toDnr(
-            rule.action,
-            withDefaultResourceTypes(condition),
+        const compiled = type.toDnr({
+            action: rule.action,
+            condition: withDefaultResourceTypes(condition),
             context,
-            rule.criteria
-        );
-        if (compiled === null) {
+            criteria: rule.criteria,
+        });
+        if (compiled == null) {
             return Result.ok(null);
         }
 
@@ -77,17 +67,19 @@ function browserRulesOf(
     return Result.ok(drafts);
 }
 
-function planOf(
-    rule: Rule,
-    type: IRuleType | null,
-    fields: Partial<RulePlan>
-): RulePlan {
+interface PlanOfOptions {
+    rule: Rule;
+    type: RuleType | null;
+    fields: Partial<RulePlan>;
+}
+
+function planOf({ rule, type, fields }: PlanOfOptions): RulePlan {
     return {
         rule,
         type,
-        engine: RuleEngine.Invalid,
+        engine: RULE_ENGINE.Invalid,
         errors: [],
-        reason: "",
+        reason: '',
         browserRules: [],
         isStaticallyActive: true,
         delayMs: type?.delayOf(rule.action) ?? 0,
@@ -98,71 +90,68 @@ function planOf(
 export const RuleEnginePlanner = {
     plan(rule: Rule, context: RuleContext): RulePlan {
         const type = RuleTypeRegistry.get(rule.type) ?? null;
-        if (type === null) {
-            return planOf(
+        if (type == null) {
+            return planOf({
                 rule,
-                null,
-                {
-                    errors: [PlannerReasons.UnknownType],
-                    reason: PlannerReasons.UnknownType,
-                }
-            );
+                type: null,
+                fields: {
+                    errors: [PLANNER_REASONS.UnknownType],
+                    reason: PLANNER_REASONS.UnknownType,
+                },
+            });
         }
 
         const errors = [
             ...CriteriaEvaluator.validate(rule.criteria),
             ...type.validate(rule.action, rule.criteria),
         ];
-        const tooLate = CriteriaEvaluator.hasStage(rule.criteria, CriterionStage.Response) && !type.handlesResponse;
-        if (errors.length > 0 || tooLate) {
-            return planOf(
+        const hasResponseCriteria = CriteriaEvaluator.hasStage(rule.criteria, CRITERION_STAGE.Response);
+        const isTooLate = hasResponseCriteria && !type.handlesResponse;
+        if (errors.length > 0 || isTooLate) {
+            return planOf({
                 rule,
                 type,
-                {
-                    errors: tooLate
+                fields: {
+                    errors: isTooLate
                         ? [
                             ...errors,
-                            PlannerReasons.ResponseCriteriaTooLate,
+                            PLANNER_REASONS.ResponseCriteriaTooLate,
                         ]
                         : errors,
-                    reason: errors[0] ?? PlannerReasons.ResponseCriteriaTooLate,
-                }
-            );
+                    reason: errors[0] ?? PLANNER_REASONS.ResponseCriteriaTooLate,
+                },
+            });
         }
 
         const isStaticallyActive = CriteriaDnrCompiler.staticallyAllows(rule.criteria, context);
-        const debuggerPlan = (reason: string): RulePlan => planOf(
+        const debuggerPlan = (reason: string): RulePlan => planOf({
             rule,
             type,
-            {
-                engine: RuleEngine.Debugger,
+            fields: {
+                engine: RULE_ENGINE.Debugger,
                 reason,
                 isStaticallyActive,
-            }
-        );
-        const browserRules = browserRulesOf(
-            rule,
-            type,
-            context
-        );
+            },
+        });
+        const browserRules = browserRulesOf({ rule, type, context });
         if (browserRules.hasErrors) {
             return debuggerPlan(browserRules.error);
         }
 
-        if (browserRules.value === null) {
-            return debuggerPlan(PlannerReasons.TypeNeedsDebugger);
+        if (browserRules.value == null) {
+            return debuggerPlan(PLANNER_REASONS.TypeNeedsDebugger);
         }
 
-        return planOf(
+        return planOf({
             rule,
             type,
-            {
-                engine: type.runsOnBothEngines ? RuleEngine.Both : RuleEngine.Browser,
-                reason: type.runsOnBothEngines ? PlannerReasons.RunsOnBoth : PlannerReasons.RunsInBrowser,
+            fields: {
+                engine: type.runsOnBothEngines ? RULE_ENGINE.Both : RULE_ENGINE.Browser,
+                reason: type.runsOnBothEngines ? PLANNER_REASONS.RunsOnBoth : PLANNER_REASONS.RunsInBrowser,
                 browserRules: browserRules.value,
                 isStaticallyActive,
-            }
-        );
+            },
+        });
     },
 
     planAll(rules: Rule[], context: RuleContext): RulePlan[] {

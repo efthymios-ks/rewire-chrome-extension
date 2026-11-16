@@ -1,12 +1,12 @@
-import type { TemplatePartKind } from "./TemplatePartKind";
+import type { TEMPLATE_PART_KIND } from './TemplatePartKind';
 
 export interface LiteralTemplatePart {
-    kind: TemplatePartKind.Literal;
+    kind: typeof TEMPLATE_PART_KIND.Literal;
     text: string;
 }
 
 export interface GroupReferenceTemplatePart {
-    kind: TemplatePartKind.GroupReference;
+    kind: typeof TEMPLATE_PART_KIND.GroupReference;
     groupIndex: number;
 }
 

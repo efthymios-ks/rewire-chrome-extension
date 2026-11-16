@@ -1,12 +1,13 @@
-import { CdpRequestId } from "./CdpRequestId";
-import type { CdpEventName, CdpEventParams } from "./CdpTypes";
-import type { IDebuggerSessions } from "./DebuggerSessions";
-import type { ICdpEventHandler } from "./ICdpEventHandler";
+import { CdpRequestId } from './CdpRequestId';
+import type { CdpEventName } from './CdpTypes/CdpEventName';
+import type { CdpEventParams } from './CdpTypes/CdpEventParams';
+import type { DebuggerSessions } from './DebuggerSessions';
+import type { CdpEventHandler } from './CdpEventHandler';
 
 type UntypedHandler = (
     tabId: number,
     params: unknown,
-    sessionId: string | null
+    sessionId: string | null,
 ) => Promise<void>;
 
 export interface CdpEventSource {
@@ -16,58 +17,54 @@ export interface CdpEventSource {
 
 export class CdpEventDispatcher {
     private readonly _handlers = new Map<string, UntypedHandler[]>();
-    private readonly _sessions: IDebuggerSessions;
+    private readonly _sessions: DebuggerSessions;
 
-    constructor(sessions: IDebuggerSessions) {
+    constructor(sessions: DebuggerSessions) {
         this._sessions = sessions;
     }
 
-    register<TEventName extends CdpEventName>(handler: ICdpEventHandler<TEventName>): this {
-        const untyped: UntypedHandler = (
+    register<TEventName extends CdpEventName>(handler: CdpEventHandler<TEventName>): this {
+        const untypedAsync: UntypedHandler = (
             tabId,
             params,
-            sessionId
-        ) => handler.handle(
-            tabId,
-            params as CdpEventParams<TEventName>,
-            sessionId
+            sessionId,
+        ) => handler.handleAsync(
+            /* tabId: */ tabId,
+            /* params: */ params as CdpEventParams<TEventName>,
+            /* sessionId: */ sessionId,
         );
         this._handlers.set(
-            handler.event,
-            [
+            /* key: */ handler.event,
+            /* value: */ [
                 ...this._handlers.get(handler.event) ?? [],
-                untyped,
-            ]
+                untypedAsync,
+            ],
         );
 
         return this;
     }
 
-    async dispatch(
+    async dispatchAsync(
         source: CdpEventSource,
         method: string,
-        params: unknown
+        params: unknown,
     ): Promise<void> {
         const { tabId } = source;
-        if (tabId === undefined) {
+        if (tabId == null) {
             return;
         }
 
         const sessionId = source.sessionId ?? null;
         const requestId = CdpRequestId.of(params);
-        if (sessionId !== null && requestId !== null) {
-            this._sessions.remember(
-                tabId,
-                requestId,
-                sessionId
-            );
+        if (sessionId != null && requestId != null) {
+            this._sessions.remember({ tabId, requestId, sessionId });
         }
 
         for (const handler of this._handlers.get(method) ?? []) {
             await handler(
-                tabId,
-                params,
-                sessionId
+                /* tabId: */ tabId,
+                /* params: */ params,
+                /* sessionId: */ sessionId,
             );
         }
     }

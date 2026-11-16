@@ -1,158 +1,161 @@
-import { type Criterion, CriteriaMatches, type RuleCriteria } from "../../Contracts/Rules/Criterion";
-import type { Rule } from "../../Contracts/Rules/Rule";
-import { DefaultPanelSettings, DefaultProfile, SettingsSchema } from "../../Contracts/Settings/DefaultPanelSettings";
-import type { PanelSettings } from "../../Contracts/Settings/PanelSettings";
-import type { ProfileVariable } from "../../Contracts/Settings/ProfileVariable";
-import type { RuleProfile } from "../../Contracts/Settings/RuleProfile";
-import type { LegacySettings } from "./Legacy/LegacySettings";
-import { LegacySettingsMigration } from "./Legacy/LegacySettingsMigration";
-import { SchemaVersion2Migration } from "./Migrations/SchemaVersion2Migration";
-import { SchemaVersion3Migration } from "./Migrations/SchemaVersion3Migration";
+import { CRITERIA_MATCHES } from '../../Contracts/Rules/CriteriaMatches';
+import type { Criterion } from '../../Contracts/Rules/Criterion';
+import type { Rule } from '../../Contracts/Rules/Rule';
+import type { RuleCriteria } from '../../Contracts/Rules/RuleCriteria';
+import { DEFAULT_PANEL_SETTINGS } from '../../Contracts/Settings/DefaultPanelSettings';
+import { DEFAULT_PROFILE } from '../../Contracts/Settings/DefaultProfile';
+import type { PanelSettings } from '../../Contracts/Settings/PanelSettings';
+import type { ProfileVariable } from '../../Contracts/Settings/ProfileVariable';
+import type { RuleProfile } from '../../Contracts/Settings/RuleProfile';
+import { SETTINGS_SCHEMA } from '../../Contracts/Settings/SettingsSchema';
+import { RawRecords } from '../Objects/RawRecords';
+import type { LegacySettings } from './Legacy/LegacySettings';
+import { LegacySettingsMigration } from './Legacy/LegacySettingsMigration';
+import { SchemaVersion2Migration } from './Migrations/SchemaVersion2Migration';
+import { SchemaVersion3Migration } from './Migrations/SchemaVersion3Migration';
 
 type RawRecord = Record<string, unknown>;
 
-const RetiredActionKeys = [
-    "baselineBody",
+const RETIRED_ACTION_KEYS = [
+    'baselineBody',
 ];
 
-const UnnamedProfile = "Profile";
+const UNNAMED_PROFILE = 'Profile';
 
-function isRecord(value: unknown): value is RawRecord {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+interface TextOptions {
+    record: RawRecord;
+    key: string;
+    fallback?: string;
 }
 
-function text(
-    record: RawRecord,
-    key: string,
-    fallback: string = ""
-): string {
+function text({ record, key, fallback = '' }: TextOptions): string {
     const value = record[key];
 
-    return typeof value === "string" ? value : fallback;
+    return typeof value === 'string' ? value : fallback;
 }
 
-function flag(
-    record: RawRecord,
-    key: string,
-    fallback: boolean
-): boolean {
+interface FlagOptions {
+    record: RawRecord;
+    key: string;
+    fallback: boolean;
+}
+
+function flag({ record, key, fallback }: FlagOptions): boolean {
     const value = record[key];
 
-    return typeof value === "boolean" ? value : fallback;
+    return typeof value === 'boolean' ? value : fallback;
 }
 
-function strings(
-    record: RawRecord,
-    key: string,
-    fallback: string[]
-): string[] {
+interface StringsOptions {
+    record: RawRecord;
+    key: string;
+    fallback: string[];
+}
+
+function strings({ record, key, fallback }: StringsOptions): string[] {
     const value = record[key];
     if (!Array.isArray(value)) {
         return fallback;
     }
 
-    return value.filter((item): item is string => typeof item === "string");
-}
-
-function records(record: RawRecord, key: string): RawRecord[] {
-    const value = record[key];
-
-    return Array.isArray(value) ? value.filter(isRecord) : [];
+    return value.filter((item): item is string => typeof item === 'string');
 }
 
 function criterionOf(record: RawRecord): Criterion {
     return {
-        field: text(record, "field"),
-        op: text(record, "op"),
-        name: text(record, "name"),
-        value: text(record, "value"),
-        negate: flag(
-            record,
-            "negate",
-            false
-        ),
+        field: text({ record, key: 'field' }),
+        op: text({ record, key: 'op' }),
+        name: text({ record, key: 'name' }),
+        value: text({ record, key: 'value' }),
+        negate: flag({ record, key: 'negate', fallback: false }),
     };
 }
 
 function criteriaOf(value: unknown): RuleCriteria {
-    const record = isRecord(value) ? value : {};
+    const record = RawRecords.is(value) ? value : {};
 
     return {
-        match: text(record, "match") === CriteriaMatches.Any ? CriteriaMatches.Any : CriteriaMatches.All,
-        items: records(record, "items").map(criterionOf),
+        match: text({
+            record,
+            key: 'match',
+        }) === CRITERIA_MATCHES.Any ? CRITERIA_MATCHES.Any : CRITERIA_MATCHES.All,
+        items: RawRecords.records(record, 'items').map(criterionOf),
     };
 }
 
 function actionOf(value: unknown): RawRecord {
-    if (!isRecord(value)) {
+    if (!RawRecords.is(value)) {
         return {};
     }
 
     return Object.fromEntries(Object
         .entries(value)
-        .filter(([key]) => !RetiredActionKeys.includes(key)));
+        .filter(([key]) => !RETIRED_ACTION_KEYS.includes(key)));
 }
 
 function ruleOf(record: RawRecord): Rule {
+    const id = text({ record, key: 'id' });
+
     return {
-        id: text(record, "id") || crypto.randomUUID(),
-        name: text(record, "name"),
-        enabled: flag(
-            record,
-            "enabled",
-            true
-        ),
-        type: text(record, "type"),
-        criteria: criteriaOf(record["criteria"]),
-        action: actionOf(record["action"]),
+        id: id === '' ? crypto.randomUUID() : id,
+        name: text({ record, key: 'name' }),
+        enabled: flag({ record, key: 'enabled', fallback: true }),
+        type: text({ record, key: 'type' }),
+        criteria: criteriaOf(record['criteria']),
+        action: actionOf(record['action']),
     };
 }
 
 function storedRulesOf(record: RawRecord): RawRecord[] {
-    const raw = record["schemaVersion"] === SettingsSchema.FirstRulesVersion
+    const raw = record['schemaVersion'] === SETTINGS_SCHEMA.FirstRulesVersion
         ? SchemaVersion2Migration.rulesOf(record)
-        : records(record, "rules");
+        : RawRecords.records(record, 'rules');
 
-    return Number(record["schemaVersion"] ?? 0) < SettingsSchema.FirstRewriteVersion
+    return Number(record['schemaVersion'] ?? 0) < SETTINGS_SCHEMA.FirstRewriteVersion
         ? SchemaVersion3Migration.migrate(raw)
         : raw;
 }
 
 function variableOf(record: RawRecord): ProfileVariable {
     return {
-        name: text(record, "name").trim(),
-        value: text(record, "value"),
+        name: text({ record, key: 'name' }).trim(),
+        value: text({ record, key: 'value' }),
     };
 }
 
 function profileOf(record: RawRecord): RuleProfile {
+    const id = text({ record, key: 'id' });
+    const name = text({ record, key: 'name' }).trim();
+
     return {
-        id: text(record, "id") || crypto.randomUUID(),
-        name: text(record, "name").trim() || UnnamedProfile,
-        rules: records(record, "rules").map(ruleOf),
-        variables: records(record, "variables")
+        id: id === '' ? crypto.randomUUID() : id,
+        name: name === '' ? UNNAMED_PROFILE : name,
+        rules: RawRecords.records(record, 'rules').map(ruleOf),
+        variables: RawRecords.records(record, 'variables')
             .map(variableOf)
-            .filter(variable => variable.name !== ""),
+            .filter(variable => variable.name !== ''),
     };
 }
 
 function hasProfiles(record: RawRecord): boolean {
-    return Number(record["schemaVersion"] ?? 0) >= SettingsSchema.FirstProfilesVersion;
+    return Number(record['schemaVersion'] ?? 0) >= SETTINGS_SCHEMA.FirstProfilesVersion;
 }
 
 function profilesOf(record: RawRecord): RuleProfile[] {
     if (hasProfiles(record)) {
-        const profiles = records(record, "profiles").map(profileOf);
+        const profiles = RawRecords.records(record, 'profiles').map(profileOf);
 
-        return profiles.length === 0 ? [DefaultProfile] : profiles;
+        return profiles.length === 0 ? [DEFAULT_PROFILE] : profiles;
     }
 
     const legacy = record as LegacySettings;
-    const migratedRules = LegacySettingsMigration.hasLegacyRules(legacy) ? LegacySettingsMigration.toRules(legacy) : [];
+    const migratedRules = LegacySettingsMigration.hasLegacyRules(legacy)
+        ? LegacySettingsMigration.toRules(legacy)
+        : [];
 
     return [
         {
-            ...DefaultProfile,
+            ...DEFAULT_PROFILE,
             rules: [
                 ...storedRulesOf(record).map(ruleOf),
                 ...migratedRules,
@@ -162,51 +165,48 @@ function profilesOf(record: RawRecord): RuleProfile[] {
 }
 
 function activeProfileIdOf(record: RawRecord, profiles: RuleProfile[]): string {
-    const stored = text(record, "activeProfileId");
+    const stored = text({ record, key: 'activeProfileId' });
     const isKnown = hasProfiles(record) && profiles.some(profile => profile.id === stored);
 
-    return isKnown ? stored : profiles[0]!.id;
+    return isKnown ? stored : profiles[0]?.id ?? DEFAULT_PROFILE.id;
 }
 
 export const PanelSettingsNormalizer = {
     needsMigration(value: unknown): boolean {
-        if (!isRecord(value)) {
+        if (!RawRecords.is(value)) {
             return false;
         }
 
-        return value["schemaVersion"] !== SettingsSchema.CurrentVersion || LegacySettingsMigration.hasLegacyRules(value as LegacySettings);
+        return value['schemaVersion'] !== SETTINGS_SCHEMA.CurrentVersion
+            || LegacySettingsMigration.hasLegacyRules(value as LegacySettings);
     },
 
     normalize(value: unknown): PanelSettings {
-        if (!isRecord(value)) {
-            return DefaultPanelSettings;
+        if (!RawRecords.is(value)) {
+            return DEFAULT_PANEL_SETTINGS;
         }
 
         const profiles = profilesOf(value);
 
         return {
-            schemaVersion: SettingsSchema.CurrentVersion,
-            interceptionEnabled: flag(
-                value,
-                "interceptionEnabled",
-                DefaultPanelSettings.interceptionEnabled
-            ),
-            pinnedEndpoints: strings(
-                value,
-                "pinnedEndpoints",
-                []
-            ),
+            schemaVersion: SETTINGS_SCHEMA.CurrentVersion,
+            interceptionEnabled: flag({
+                record: value,
+                key: 'interceptionEnabled',
+                fallback: DEFAULT_PANEL_SETTINGS.interceptionEnabled,
+            }),
+            pinnedEndpoints: strings({ record: value, key: 'pinnedEndpoints', fallback: [] }),
             activeProfileId: activeProfileIdOf(value, profiles),
             profiles,
-            testerSamples: strings(
-                value,
-                "testerSamples",
-                strings(
-                    value,
-                    "regexTesterSamples",
-                    DefaultPanelSettings.testerSamples
-                )
-            ),
+            testerSamples: strings({
+                record: value,
+                key: 'testerSamples',
+                fallback: strings({
+                    record: value,
+                    key: 'regexTesterSamples',
+                    fallback: DEFAULT_PANEL_SETTINGS.testerSamples,
+                }),
+            }),
         };
     },
 };

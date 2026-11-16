@@ -1,7 +1,19 @@
-import type { HeaderEntry } from "../../../Contracts/Timeline/HeaderEntry";
+import type { HeaderEntry } from '../../../Contracts/Timeline/HeaderEntry';
 
 function isNamed(entry: HeaderEntry, name: string): boolean {
     return entry.name.toLowerCase() === name.toLowerCase();
+}
+
+export interface SetOptions {
+    headers: HeaderEntry[];
+    name: string;
+    value: string;
+}
+
+export interface AppendOptions {
+    headers: HeaderEntry[];
+    name: string;
+    value: string;
 }
 
 export const HeaderList = {
@@ -11,15 +23,7 @@ export const HeaderList = {
             .map(entry => entry.value);
     },
 
-    first(headers: HeaderEntry[], name: string): string | null {
-        return headers.find(entry => isNamed(entry, name))?.value ?? null;
-    },
-
-    set(
-        headers: HeaderEntry[],
-        name: string,
-        value: string
-    ): HeaderEntry[] {
+    set({ headers, name, value }: SetOptions): HeaderEntry[] {
         return [
             ...HeaderList.remove(headers, name),
             {
@@ -29,11 +33,7 @@ export const HeaderList = {
         ];
     },
 
-    append(
-        headers: HeaderEntry[],
-        name: string,
-        value: string
-    ): HeaderEntry[] {
+    append({ headers, name, value }: AppendOptions): HeaderEntry[] {
         return [
             ...headers,
             {

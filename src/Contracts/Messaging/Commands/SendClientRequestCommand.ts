@@ -1,14 +1,7 @@
-import type { HeaderEntry } from "../../Timeline/HeaderEntry";
-import type { PanelCommandType } from "../PanelCommandType";
-
-export interface SentClientRequest {
-    method: string;
-    url: string;
-    headers: HeaderEntry[];
-    bodyBase64: string | null;
-}
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
+import type { SentClientRequest } from './SentClientRequest';
 
 export interface SendClientRequestCommand {
-    type: PanelCommandType.SendClientRequest;
+    type: typeof PANEL_COMMAND_TYPE.SendClientRequest;
     request: SentClientRequest;
 }

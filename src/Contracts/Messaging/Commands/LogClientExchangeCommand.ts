@@ -1,5 +1,6 @@
-import type { HeaderEntry } from "../../Timeline/HeaderEntry";
-import type { PanelCommandType } from "../PanelCommandType";
+import type { HeaderEntry } from '../../Timeline/HeaderEntry';
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
+import type { ClientExchangeResponse } from './ClientExchangeResponse';
 
 export interface ClientExchangeRequest {
     method: string;
@@ -8,16 +9,8 @@ export interface ClientExchangeRequest {
     body: string;
 }
 
-export interface ClientExchangeResponse {
-    status: number;
-    statusText: string;
-    headers: HeaderEntry[];
-    body: string;
-    durationInMilliseconds: number;
-}
-
 export interface LogClientExchangeCommand {
-    type: PanelCommandType.LogClientExchange;
+    type: typeof PANEL_COMMAND_TYPE.LogClientExchange;
     entryId: string;
     tabId: number;
     startedAt: string;

@@ -1,16 +1,17 @@
 # SSE Client
 
 The **SSE Client** tab shows the server-sent event streams of the inspected page and opens your own.  
-Event streams never show in the [Traffic](Traffic.md) timeline.  
+The page's event streams leave the [Traffic](Traffic.md) timeline while **Listen to page streams** is on.  
 The tab badge counts the open streams, the page's and yours.
 
 ## Listen to page streams
 
 The **Listen to page streams** switch in the header is off each time the panel opens.
 
-- While it is off, Rewire ignores the inspected tab's event streams, and a page `fetch` that answers with `text/event-stream` stays in Traffic as a call.
+- While it is off, Rewire ignores the inspected tab's event streams, and a page `fetch` or XHR call that answers with `text/event-stream` stays in Traffic as a call.
 - While it is on, the streams the inspected tab and its iframes open from then on show in the list.
 - Your own streams work either way.
+- When the switch can't be applied to the tab, a notice says why.
 
 ## Subscribe
 
@@ -19,17 +20,21 @@ Type the stream URL, such as `https://sse.tools.typinks.com/api/story`, a public
 - The URL and header values take the active profile's `{{variables}}`.
 - **Headers · N** folds out to name and value rows, with **Add header** and **×**, as in the [WS Client](WsClient.md).
 - The panel opens the stream with a streaming `fetch` that sends `Accept: text/event-stream`, the headers, and the target site's cookies.
+  Unlike the WS Client, the headers go through `fetch` itself, so the browser drops the ones it controls, such as `Cookie`, `Origin` or `Referer`.
 - The panel reads the `event`, `id`, `retry` and `data` fields of each event as the stream arrives.
 - A refused stream, such as a `401`, shows the status in a notice and closes.
+- Your own stream never reconnects: when it ends or fails, it closes, whatever its `retry` says.
 
 ## Streams
 
 The **Streams** list holds the page's streams and your own, newest first, with the same dot, tag, address and count as the WS Client's sockets.
 
-- The page's streams are its `EventSource` connections and its streaming `fetch` calls that answer with `text/event-stream`, captured while **Listen to page streams** is on.
-- While the switch is on, a page `fetch` that turns out to be an event stream leaves the Traffic timeline once its answer arrives.
+- The page's streams are its `EventSource` connections and its `fetch` and XHR calls that answer with `text/event-stream`, captured while **Listen to page streams** is on.
+- While the switch is on, a page `fetch` or XHR call that turns out to be an event stream leaves the Traffic timeline once its answer arrives.
 - **×** stops your own open stream, or removes a closed stream and its events.
 - **Clear closed** next to the title removes every closed stream and its events; it shows while there is one.
+- Pick a stream to show its events; until you do, the newest stream is shown, and **Subscribe** picks the stream it opens.
+- The panel holds the newest 2,000 events and frames of all streams and sockets together, as in the WS Client.
 
 ## Events
 

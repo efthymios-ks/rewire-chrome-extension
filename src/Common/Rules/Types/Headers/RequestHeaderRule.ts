@@ -1,36 +1,36 @@
-import type { RuleAction } from "../../../../Contracts/Rules/Rule";
-import { RuleCategory } from "../../../../Contracts/Rules/RuleCategory";
-import { RuleTypeIds } from "../../../../Contracts/Rules/RuleTypeIds";
-import { HeaderSuggestions } from "../../../Http/HeaderSuggestions";
-import { Result } from "../../../Results/Result";
-import type { RuleContext } from "../../Context/RuleContext";
-import type { DnrCondition } from "../../Criteria/DnrFragment";
-import type { RequestDraft } from "../../Drafts/Drafts";
-import type { DnrRuleDraft } from "../DnrRuleDraft";
-import { FieldKind, type FieldSpec } from "../FieldSpec";
-import { OperationHint, OperationKinds } from "../OperationKinds";
-import { RuleTypeBase } from "../RuleTypeBase";
-import { type HeaderOperation, HeaderOperations } from "./HeaderOperations";
+import type { RuleAction } from '../../../../Contracts/Rules/RuleAction';
+import { RULE_CATEGORY } from '../../../../Contracts/Rules/RuleCategory';
+import { RULE_TYPE_IDS } from '../../../../Contracts/Rules/RuleTypeId';
+import { HeaderSuggestions } from '../../../Http/HeaderSuggestions';
+import { Result } from '../../../Results/Result';
+import type { RequestDraft } from '../../Drafts/RequestDraft';
+import type { DnrRuleDraft } from '../DnrRuleDraft';
+import { FIELD_KIND } from '../FieldKind';
+import type { FieldSpec } from '../FieldSpec';
+import { OPERATION_HINT } from '../OperationHint';
+import { OPERATION_KINDS } from '../OperationKinds';
+import { type BrowserRulesOptions, type OnRequestOptions, RuleTypeBase } from '../RuleTypeBase';
+import { type HeaderOperation, HeaderOperations } from './HeaderOperations';
 
 interface RequestHeaderAction {
     operations: HeaderOperation[];
 }
 
 export class RequestHeaderRule extends RuleTypeBase<RequestHeaderAction> {
-    readonly id = RuleTypeIds.RequestHeader;
-    readonly category = RuleCategory.Headers;
-    readonly label = "Request header";
-    readonly description = "Add, update or remove request headers.";
+    readonly id = RULE_TYPE_IDS.RequestHeader;
+    readonly category = RULE_CATEGORY.Headers;
+    readonly label = 'Request header';
+    readonly description = 'Add, update or remove request headers.';
     override readonly handlesRequest = true;
     readonly fields: FieldSpec[] = [
         {
-            kind: FieldKind.Operations,
-            key: "operations",
-            label: "Headers",
-            nameLabel: "Header",
+            kind: FIELD_KIND.Operations,
+            key: 'operations',
+            label: 'Headers',
+            nameLabel: 'Header',
             nameSuggestions: HeaderSuggestions.names(),
             valueSuggestionsFor: HeaderSuggestions.valuesFor,
-            hint: `${OperationHint} Values can use {{variables}}.`,
+            hint: `${OPERATION_HINT} Values can use {{variables}}.`,
         },
     ];
 
@@ -38,9 +38,9 @@ export class RequestHeaderRule extends RuleTypeBase<RequestHeaderAction> {
         return {
             operations: [
                 {
-                    op: OperationKinds.AddOrUpdate,
-                    name: "",
-                    value: "",
+                    op: OPERATION_KINDS.AddOrUpdate,
+                    name: '',
+                    value: '',
                 },
             ],
         };
@@ -64,31 +64,31 @@ export class RequestHeaderRule extends RuleTypeBase<RequestHeaderAction> {
         return HeaderOperations.check(action.operations);
     }
 
-    protected override onRequest(
-        draft: RequestDraft,
-        action: RequestHeaderAction,
-        context: RuleContext
-    ): RequestDraft {
+    protected override onRequest({
+        draft,
+        action,
+        context,
+    }: OnRequestOptions<RequestHeaderAction>): RequestDraft {
         return {
             ...draft,
-            headers: HeaderOperations.apply(
-                draft.headers,
-                action.operations,
-                context
-            ),
+            headers: HeaderOperations.apply({
+                headers: draft.headers,
+                operations: action.operations,
+                context,
+            }),
         };
     }
 
-    protected override browserRules(
-        action: RequestHeaderAction,
-        condition: DnrCondition,
-        context: RuleContext
-    ): Result<DnrRuleDraft[]> {
-        const requestHeaders = HeaderOperations.toBrowser(
-            action.operations,
+    protected override browserRules({
+        action,
+        condition,
+        context,
+    }: BrowserRulesOptions<RequestHeaderAction>): Result<DnrRuleDraft[]> {
+        const requestHeaders = HeaderOperations.toBrowser({
+            operations: action.operations,
             context,
-            true
-        );
+            isRequest: true,
+        });
         if (requestHeaders.hasErrors) {
             return requestHeaders;
         }
@@ -96,7 +96,7 @@ export class RequestHeaderRule extends RuleTypeBase<RequestHeaderAction> {
         return Result.ok([
             {
                 action: {
-                    type: "modifyHeaders",
+                    type: 'modifyHeaders',
                     requestHeaders: requestHeaders.value,
                 },
                 condition,

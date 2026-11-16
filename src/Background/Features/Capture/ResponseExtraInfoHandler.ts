@@ -1,27 +1,27 @@
-import type { Protocol } from "devtools-protocol";
-import { HeaderLookup } from "../../../Common/Http/HeaderLookup";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { ITimelineStore } from "./ITimelineStore";
+import type { Protocol } from 'devtools-protocol';
+import { HeaderLookup } from '../../../Common/Http/HeaderLookup';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { TimelineStore } from './TimelineStore';
 
-export class ResponseExtraInfoHandler implements ICdpEventHandler<"Network.responseReceivedExtraInfo"> {
-    readonly event = "Network.responseReceivedExtraInfo";
+export class ResponseExtraInfoHandler implements CdpEventHandler<'Network.responseReceivedExtraInfo'> {
+    readonly event = 'Network.responseReceivedExtraInfo';
 
-    private readonly _timelineStore: ITimelineStore;
+    private readonly _timelineStore: TimelineStore;
 
-    constructor(timelineStore: ITimelineStore) {
+    constructor(timelineStore: TimelineStore) {
         this._timelineStore = timelineStore;
     }
 
-    async handle(tabId: number, event: Protocol.Network.ResponseReceivedExtraInfoEvent): Promise<void> {
+    async handleAsync(tabId: number, event: Protocol.Network.ResponseReceivedExtraInfoEvent): Promise<void> {
         const rawResponseHeaders = HeaderLookup.fromRawRecord(event.headers);
 
-        this._timelineStore.updateOrDefer(
+        this._timelineStore.updateOrDefer({
             tabId,
-            event.requestId,
-            record => ({
+            entryId: event.requestId,
+            change: record => ({
                 ...record,
                 rawResponseHeaders,
-            })
-        );
+            }),
+        });
     }
 }

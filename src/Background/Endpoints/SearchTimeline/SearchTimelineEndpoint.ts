@@ -1,22 +1,22 @@
-import type { Result } from "../../../Common/Results/Result";
-import { TimelineSearch } from "../../../Common/Search/TimelineSearch";
-import type { SearchTimelineCommand } from "../../../Contracts/Messaging/Commands/SearchTimelineCommand";
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { SearchMatch } from "../../../Contracts/Search/SearchQuery";
-import type { ITimelineStore } from "../../Features/Capture/ITimelineStore";
-import { TimelineRecordMapper } from "../../Features/Capture/TimelineRecordMapper";
-import type { IPanelEndpoint } from "../IPanelEndpoint";
+import type { Result } from '../../../Common/Results/Result';
+import { TimelineSearch } from '../../../Common/Search/TimelineSearch';
+import type { SearchTimelineCommand } from '../../../Contracts/Messaging/Commands/SearchTimelineCommand';
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { SearchMatch } from '../../../Contracts/Search/SearchMatch';
+import type { TimelineStore } from '../../Features/Capture/TimelineStore';
+import { TimelineRecordMapper } from '../../Features/Capture/TimelineRecordMapper';
+import type { PanelEndpoint } from '../PanelEndpoint';
 
-export class SearchTimelineEndpoint implements IPanelEndpoint<PanelCommandType.SearchTimeline> {
-    readonly commandType = PanelCommandType.SearchTimeline;
+export class SearchTimelineEndpoint implements PanelEndpoint<typeof PANEL_COMMAND_TYPE.SearchTimeline> {
+    readonly commandType = PANEL_COMMAND_TYPE.SearchTimeline;
 
-    private readonly _timelineStore: ITimelineStore;
+    private readonly _timelineStore: TimelineStore;
 
-    constructor(timelineStore: ITimelineStore) {
+    constructor(timelineStore: TimelineStore) {
         this._timelineStore = timelineStore;
     }
 
-    async handle(command: SearchTimelineCommand): Promise<Result<SearchMatch[]>> {
+    async handleAsync(command: SearchTimelineCommand): Promise<Result<SearchMatch[]>> {
         const entries = this._timelineStore
             .records(command.tabId)
             .map(record => TimelineRecordMapper.toDetail(record))

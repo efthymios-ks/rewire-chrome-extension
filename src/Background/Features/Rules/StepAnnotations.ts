@@ -1,19 +1,21 @@
-import type { AppliedStep } from "../../../Common/Rules/Engine/RulePipeline";
-import type { RuleEngine } from "../../../Contracts/Rules/RuleEngine";
-import type { TimelineAnnotation } from "../../../Contracts/Timeline/TimelineAnnotation";
+import type { AppliedStep } from '../../../Common/Rules/Engine/AppliedStep';
+import type { RuleEngine } from '../../../Contracts/Rules/RuleEngine';
+import type { TimelineAnnotation } from '../../../Contracts/Timeline/TimelineAnnotation';
+
+export interface StepAnnotationsOfOptions {
+    steps: AppliedStep[];
+    engine: RuleEngine;
+    isAnsweredByRule: boolean;
+}
 
 export const StepAnnotations = {
-    of(
-        steps: AppliedStep[],
-        engine: RuleEngine,
-        isAnsweredByRule: boolean
-    ): TimelineAnnotation {
+    of({ steps, engine, isAnsweredByRule }: StepAnnotationsOfOptions): TimelineAnnotation {
         return {
             appliedRules: steps.map(step => ({
                 ruleId: step.plan.rule.id,
                 ruleName: step.plan.rule.name,
                 engine,
-                note: step.plan.type?.label ?? "",
+                note: step.plan.type?.label ?? '',
             })),
             changes: steps.flatMap(step => step.changes),
             isAnsweredByRule,

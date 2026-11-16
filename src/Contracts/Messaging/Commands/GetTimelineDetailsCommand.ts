@@ -1,6 +1,6 @@
-import type { PanelCommandType } from "../PanelCommandType";
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface GetTimelineDetailsCommand {
-    type: PanelCommandType.GetTimelineDetails;
+    type: typeof PANEL_COMMAND_TYPE.GetTimelineDetails;
     tabId: number;
 }

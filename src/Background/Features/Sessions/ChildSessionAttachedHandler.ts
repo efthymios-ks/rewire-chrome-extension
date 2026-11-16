@@ -1,30 +1,30 @@
-import type { Protocol } from "devtools-protocol";
-import type { ILogger } from "../../../Common/Logging/ILogger";
-import type { IDebuggerClient } from "../Debugging/IDebuggerClient";
-import type { IDebuggerSessions } from "../Debugging/DebuggerSessions";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { ISessionPreparer } from "./SessionPreparer";
+import type { Protocol } from 'devtools-protocol';
+import type { Logger } from '../../../Common/Logging/Logger';
+import type { DebuggerClient } from '../Debugging/DebuggerClient';
+import type { DebuggerSessions } from '../Debugging/DebuggerSessions';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { SessionPreparer } from './SessionPreparer';
 
-export interface ChildSessionAttachedDependencies {
-    debuggerClient: IDebuggerClient;
-    sessions: IDebuggerSessions;
-    preparer: ISessionPreparer;
-    logger: ILogger;
+export interface ChildSessionAttachedHandlerDependencies {
+    debuggerClient: DebuggerClient;
+    sessions: DebuggerSessions;
+    preparer: SessionPreparer;
+    logger: Logger;
 }
 
-export class ChildSessionAttachedHandler implements ICdpEventHandler<"Target.attachedToTarget"> {
-    readonly event = "Target.attachedToTarget";
+export class ChildSessionAttachedHandler implements CdpEventHandler<'Target.attachedToTarget'> {
+    readonly event = 'Target.attachedToTarget';
 
-    private readonly _dependencies: ChildSessionAttachedDependencies;
+    private readonly _dependencies: ChildSessionAttachedHandlerDependencies;
 
-    constructor(dependencies: ChildSessionAttachedDependencies) {
+    constructor(dependencies: ChildSessionAttachedHandlerDependencies) {
         this._dependencies = dependencies;
     }
 
-    async handle(tabId: number, params: Protocol.Target.AttachedToTargetEvent): Promise<void> {
+    async handleAsync(tabId: number, params: Protocol.Target.AttachedToTargetEvent): Promise<void> {
         const { debuggerClient, sessions, preparer, logger } = this._dependencies;
         sessions.addChild(tabId, params.sessionId);
-        const prepared = await preparer.prepare(tabId, params.sessionId);
+        const prepared = await preparer.prepareAsync(tabId, params.sessionId);
         if (prepared.hasErrors) {
             logger.warn(`Capturing the iframe ${params.targetInfo.url} failed.`, prepared.error);
         }
@@ -33,10 +33,10 @@ export class ChildSessionAttachedHandler implements ICdpEventHandler<"Target.att
             return;
         }
 
-        const resumed = await debuggerClient.sendToSession(
-            tabId,
-            params.sessionId,
-            "Runtime.runIfWaitingForDebugger"
+        const resumed = await debuggerClient.sendToSessionAsync(
+            /* tabId: */ tabId,
+            /* sessionId: */ params.sessionId,
+            /* command: */ 'Runtime.runIfWaitingForDebugger',
         );
         if (resumed.hasErrors) {
             logger.warn(`Resuming the iframe ${params.targetInfo.url} failed.`, resumed.error);

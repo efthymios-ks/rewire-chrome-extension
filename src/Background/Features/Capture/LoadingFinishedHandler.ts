@@ -1,46 +1,49 @@
-import type { Protocol } from "devtools-protocol";
-import { TimelineEntryState } from "../../../Contracts/Timeline/TimelineEntryState";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import { Durations } from "./Durations";
-import type { ITimelineStore } from "./ITimelineStore";
-import type { IResponseBodyReader } from "./ResponseBodyReader";
+import type { Protocol } from 'devtools-protocol';
+import { TIMELINE_ENTRY_STATE } from '../../../Contracts/Timeline/TimelineEntryState';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import { Durations } from './Durations';
+import type { TimelineStore } from './TimelineStore';
+import type { ResponseBodyReader } from './ResponseBodyReader';
 
-export class LoadingFinishedHandler implements ICdpEventHandler<"Network.loadingFinished"> {
-    readonly event = "Network.loadingFinished";
+export class LoadingFinishedHandler implements CdpEventHandler<'Network.loadingFinished'> {
+    readonly event = 'Network.loadingFinished';
 
-    private readonly _timelineStore: ITimelineStore;
-    private readonly _bodyReader: IResponseBodyReader;
+    private readonly _timelineStore: TimelineStore;
+    private readonly _bodyReader: ResponseBodyReader;
 
-    constructor(timelineStore: ITimelineStore, bodyReader: IResponseBodyReader) {
+    constructor(timelineStore: TimelineStore, bodyReader: ResponseBodyReader) {
         this._timelineStore = timelineStore;
         this._bodyReader = bodyReader;
     }
 
-    async handle(tabId: number, event: Protocol.Network.LoadingFinishedEvent): Promise<void> {
+    async handleAsync(tabId: number, event: Protocol.Network.LoadingFinishedEvent): Promise<void> {
         const record = this._timelineStore.get(tabId, event.requestId);
-        if (record === undefined) {
+        if (record == null) {
             return;
         }
 
-        const captured = await this._bodyReader.read(
+        const captured = await this._bodyReader.readAsync({
             tabId,
-            event.requestId,
-            record.summary.mimeType
-        );
+            requestId: event.requestId,
+            mimeType: record.summary.mimeType,
+        });
 
-        this._timelineStore.update(
+        this._timelineStore.update({
             tabId,
-            event.requestId,
-            current => ({
+            entryId: event.requestId,
+            change: current => ({
                 ...current,
                 responseBody: captured.body,
                 responseBodyNote: captured.note,
                 summary: {
                     ...current.summary,
-                    state: TimelineEntryState.Completed,
-                    durationInMilliseconds: Durations.betweenTimestamps(current.startedTimestamp, event.timestamp),
+                    state: TIMELINE_ENTRY_STATE.Completed,
+                    durationInMilliseconds: Durations.betweenTimestamps(
+                        /* startedTimestamp: */ current.startedTimestamp,
+                        /* endedTimestamp: */ event.timestamp,
+                    ),
                 },
-            })
-        );
+            }),
+        });
     }
 }

@@ -1,14 +1,16 @@
-import type { TimelineEntrySummary } from "../../../Contracts/Timeline/TimelineEntrySummary";
-import { ContextMenu } from "../../Core/Dom/ContextMenu";
-import { buildElement } from "../../Core/Dom/ElementBuilder";
-import { EmptyState } from "../../Core/Dom/EmptyState";
-import { RenderScheduler } from "../../Core/Dom/RenderScheduler";
-import { Equalities } from "../../Core/Equalities";
-import type { PanelContext } from "../Shell/PanelContext";
-import { EntryContextMenu } from "./EntryContextMenu";
-import { EntrySelection } from "./EntrySelection";
-import { TimelineRow } from "./TimelineRow";
-import { VisibleEntries } from "./VisibleEntries";
+import type { TimelineEntrySummary } from '../../../Contracts/Timeline/TimelineEntrySummary';
+import { buildElement } from '../../Core/Dom/buildElement';
+import { ContextMenu } from '../../Core/Dom/ContextMenu';
+import { EmptyState } from '../../Core/Dom/EmptyState';
+import { RenderScheduler } from '../../Core/Dom/RenderScheduler';
+import { Equalities } from '../../Core/Equalities';
+import type { PanelContext } from '../Shell/PanelContext';
+import { EntryContextMenu } from './EntryContextMenu';
+import { EntrySelection } from './EntrySelection';
+import { TimelineRow } from './TimelineRow';
+import { VisibleEntries } from './VisibleEntries';
+
+const NOT_SCROLLED = -1;
 
 interface RenderedRow {
     entry: TimelineEntrySummary;
@@ -22,42 +24,49 @@ export class TimelineList {
     private readonly _context: PanelContext;
     private readonly _list: HTMLUListElement;
     private readonly _emptyState: HTMLElement;
+    private readonly _noListedCallsState: HTMLElement;
     private readonly _rows = new Map<string, RenderedRow>();
     private readonly _scheduler = new RenderScheduler(() => this.render());
     private readonly _contextMenu = new ContextMenu();
     private readonly _entryMenu: EntryContextMenu;
+    private _scrolledSelectionCount = NOT_SCROLLED;
 
     constructor(context: PanelContext) {
         this._context = context;
         this._entryMenu = new EntryContextMenu(context);
-        this._list = buildElement("ul", {
-            className: "timeline-list",
+        this._list = buildElement('ul', {
+            className: 'timeline-list',
             attributes: {
-                role: "listbox",
-                "aria-label": "Captured API requests",
+                role: 'listbox',
+                'aria-label': 'Captured API requests',
             },
         });
-        this._emptyState = EmptyState.build("No API calls yet. Fetch and XHR requests of this tab show up here.");
-        this.root = buildElement("div", {
-            className: "timeline",
+        this._emptyState = EmptyState.build(
+            'No API calls yet. Fetch and XHR requests of this tab show up here.',
+        );
+        this._noListedCallsState = EmptyState.build('No calls match the filters and the search.');
+        this.root = buildElement('div', {
+            className: 'timeline',
             children: [
                 this._list,
                 this._emptyState,
+                this._noListedCallsState,
             ],
         });
 
-        context.store.select(
-            state => [
+        context.store.select({
+            selector: state => [
                 state.entries,
                 state.settings.pinnedEndpoints,
                 state.contentFilter,
                 state.frameFilter,
                 state.selectedEntryId,
+                state.selectionCount,
                 state.search,
             ],
-            () => this._scheduler.schedule(),
-            Equalities.shallowArray
-        );
+            listener: () => this._scheduler.schedule(),
+            isEqual: Equalities.shallowArray,
+        });
     }
 
     private render(): void {
@@ -68,54 +77,70 @@ export class TimelineList {
             .filter(entryId => !visibleIds.has(entryId))
             .forEach(entryId => this._rows.delete(entryId));
 
-        const matchedIds = new Set(state.search.matches.map(match => match.entryId));
         const elements = entries.map(entry => {
-            const element = this.rowFor(entry, state.settings.pinnedEndpoints.includes(entry.endpointKey));
+            const element = this.rowFor(
+                /* entry: */ entry,
+                /* isPinned: */ state.settings.pinnedEndpoints.includes(entry.endpointKey),
+            );
             const isSelected = entry.id === state.selectedEntryId;
-            element.classList.toggle("selected", isSelected);
-            element.classList.toggle("search-match", matchedIds.has(entry.id));
-            element.setAttribute("aria-selected", String(isSelected));
+            element.setAttribute(
+                /* qualifiedName: */ 'aria-selected',
+                /* value: */ String(isSelected),
+            );
 
             return element;
         });
 
         this._list.replaceChildren(...elements);
-        this._emptyState.hidden = elements.length > 0;
-        this._list.querySelector(".timeline-row.selected")?.scrollIntoView({
-            block: "nearest",
+        this._emptyState.hidden = state.entries.length > 0;
+        this._noListedCallsState.hidden = elements.length > 0 || state.entries.length === 0;
+        this.scrollToNewSelection(state.selectionCount);
+    }
+
+    // Only a fresh pick scrolls, so incoming traffic never pulls the list back to the selected row.
+    private scrollToNewSelection(selectionCount: number): void {
+        if (selectionCount === this._scrolledSelectionCount) {
+            return;
+        }
+
+        this._scrolledSelectionCount = selectionCount;
+        this._list.querySelector('.timeline-row[aria-selected="true"]')?.scrollIntoView({
+            block: 'nearest',
         });
     }
 
     private rowFor(entry: TimelineEntrySummary, isPinned: boolean): HTMLLIElement {
         const existing = this._rows.get(entry.id);
-        if (existing !== undefined && existing.entry === entry && existing.isPinned === isPinned) {
+        if (
+            existing != null
+            && existing.entry === entry
+            && existing.isPinned === isPinned
+        ) {
             return existing.element;
         }
 
-        const element = TimelineRow.build(
+        const element = TimelineRow.build({
             entry,
             isPinned,
-            {
+            actions: {
                 onSelect: selected => EntrySelection.select(this._context.store, selected.id),
-                onTogglePin: this._context.trafficFeatures.canPin ? selected => void this._context.settingsService.togglePin(selected.endpointKey) : null,
-                onContextMenu: (
-                    selected,
-                    x,
-                    y
-                ) => this._contextMenu.open(
-                    this._entryMenu.itemsFor(selected),
-                    x,
-                    y
-                ),
-            }
-        );
+                onTogglePin: this._context.trafficFeatures.canPin
+                    ? selected => void this._context.settingsService.togglePinAsync(selected.endpointKey)
+                    : null,
+                onContextMenu: ({ entry: selected, clientX, clientY }) => this._contextMenu.open({
+                    items: this._entryMenu.itemsFor(selected),
+                    clientX,
+                    clientY,
+                }),
+            },
+        });
         this._rows.set(
-            entry.id,
-            {
+            /* key: */ entry.id,
+            /* value: */ {
                 entry,
                 isPinned,
                 element,
-            }
+            },
         );
 
         return element;

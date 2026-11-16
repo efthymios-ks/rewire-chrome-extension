@@ -1,4 +1,4 @@
-import type { DnrCondition } from "../Criteria/DnrFragment";
+import type { DnrCondition } from '../Criteria/DnrCondition';
 
 export interface DnrRuleDraft {
     action: chrome.declarativeNetRequest.RuleAction;

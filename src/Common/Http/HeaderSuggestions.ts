@@ -1,21 +1,26 @@
-import { HeaderNames } from "../../Contracts/Http/HeaderNames";
-import { MediaTypeNames } from "../../Contracts/Http/MediaTypeNames";
+import { HEADER_NAMES } from '../../Contracts/Http/HeaderNames';
+import { HTTP_METHODS } from '../../Contracts/Http/HttpMethods';
+import { MEDIA_TYPE_NAMES } from '../../Contracts/Http/MediaTypeNames';
 
 export interface HeaderValueSuggestion {
     matches(headerName: string): boolean;
     values(): readonly string[];
 }
 
-const AnyValue = "*";
-const AnyMediaType = "*/*";
+const ANY_VALUE = '*';
+const ANY_MEDIA_TYPE = '*/*';
 
 function sorted(values: readonly string[]): readonly string[] {
-    return values.toSorted((left, right) => left.localeCompare(right, undefined, {
-        sensitivity: "base",
-    }));
+    return values.toSorted((left, right) => left.localeCompare(
+        /* that: */ right,
+        /* locales: */ undefined,
+        /* options: */ {
+            sensitivity: 'base',
+        },
+    ));
 }
 
-const MediaTypeList = sorted(Object.values(MediaTypeNames));
+const MEDIA_TYPE_LIST = sorted(Object.values(MEDIA_TYPE_NAMES));
 
 function isOneOf(...names: string[]): (headerName: string) => boolean {
     const lowerNames = names.map(name => name.toLowerCase());
@@ -23,109 +28,109 @@ function isOneOf(...names: string[]): (headerName: string) => boolean {
     return headerName => lowerNames.includes(headerName.trim().toLowerCase());
 }
 
-const Rules: HeaderValueSuggestion[] = [
+const RULES: HeaderValueSuggestion[] = [
     {
-        matches: isOneOf(HeaderNames.ContentType),
-        values: () => MediaTypeList,
+        matches: isOneOf(HEADER_NAMES.ContentType),
+        values: () => MEDIA_TYPE_LIST,
     },
     {
-        matches: isOneOf(HeaderNames.Accept),
+        matches: isOneOf(HEADER_NAMES.Accept),
         values: () => [
-            AnyMediaType,
-            ...MediaTypeList,
+            ANY_MEDIA_TYPE,
+            ...MEDIA_TYPE_LIST,
         ],
     },
     {
         matches: isOneOf(
-            HeaderNames.AcceptEncoding,
-            HeaderNames.ContentEncoding,
-            HeaderNames.GrpcAcceptEncoding,
-            HeaderNames.GrpcEncoding
+            /* names: */ HEADER_NAMES.AcceptEncoding,
+            /* names: */ HEADER_NAMES.ContentEncoding,
+            /* names: */ HEADER_NAMES.GrpcAcceptEncoding,
+            /* names: */ HEADER_NAMES.GrpcEncoding,
         ),
         values: () => [
-            "gzip",
-            "deflate",
-            "br",
-            "zstd",
-            "identity",
+            'gzip',
+            'deflate',
+            'br',
+            'zstd',
+            'identity',
         ],
     },
     {
-        matches: isOneOf(HeaderNames.CacheControl),
+        matches: isOneOf(HEADER_NAMES.CacheControl),
         values: () => [
-            "no-cache",
-            "no-store",
-            "max-age=0",
-            "must-revalidate",
-            "private",
-            "public",
+            'no-cache',
+            'no-store',
+            'max-age=0',
+            'must-revalidate',
+            'private',
+            'public',
         ],
     },
     {
-        matches: isOneOf(HeaderNames.Pragma),
-        values: () => ["no-cache"],
+        matches: isOneOf(HEADER_NAMES.Pragma),
+        values: () => ['no-cache'],
     },
     {
-        matches: isOneOf(HeaderNames.Connection),
+        matches: isOneOf(HEADER_NAMES.Connection),
         values: () => [
-            "keep-alive",
-            "close",
+            'keep-alive',
+            'close',
         ],
     },
     {
-        matches: isOneOf(HeaderNames.AccessControlAllowOrigin, HeaderNames.AccessControlAllowHeaders),
-        values: () => [AnyValue],
+        matches: isOneOf(HEADER_NAMES.AccessControlAllowOrigin, HEADER_NAMES.AccessControlAllowHeaders),
+        values: () => [ANY_VALUE],
     },
     {
-        matches: isOneOf(HeaderNames.AccessControlAllowMethods, HeaderNames.AccessControlRequestMethod),
+        matches: isOneOf(HEADER_NAMES.AccessControlAllowMethods, HEADER_NAMES.AccessControlRequestMethod),
         values: () => [
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-            "OPTIONS",
+            HTTP_METHODS.Get,
+            HTTP_METHODS.Post,
+            HTTP_METHODS.Put,
+            HTTP_METHODS.Patch,
+            HTTP_METHODS.Delete,
+            HTTP_METHODS.Options,
         ],
     },
     {
-        matches: isOneOf(HeaderNames.AccessControlAllowCredentials),
-        values: () => ["true"],
+        matches: isOneOf(HEADER_NAMES.AccessControlAllowCredentials),
+        values: () => ['true'],
     },
     {
-        matches: isOneOf(HeaderNames.ContentDisposition),
+        matches: isOneOf(HEADER_NAMES.ContentDisposition),
         values: () => [
-            "attachment",
-            "inline",
+            'attachment',
+            'inline',
         ],
     },
     {
-        matches: isOneOf(HeaderNames.XRequestedWith),
-        values: () => ["XMLHttpRequest"],
+        matches: isOneOf(HEADER_NAMES.XRequestedWith),
+        values: () => ['XMLHttpRequest'],
     },
     {
-        matches: isOneOf(HeaderNames.XContentTypeOptions),
-        values: () => ["nosniff"],
+        matches: isOneOf(HEADER_NAMES.XContentTypeOptions),
+        values: () => ['nosniff'],
     },
     {
-        matches: isOneOf(HeaderNames.XFrameOptions),
+        matches: isOneOf(HEADER_NAMES.XFrameOptions),
         values: () => [
-            "DENY",
-            "SAMEORIGIN",
+            'DENY',
+            'SAMEORIGIN',
         ],
     },
 ];
 
 export const HeaderSuggestions = {
     names(): readonly string[] {
-        return sorted(Object.values(HeaderNames));
+        return sorted(Object.values(HEADER_NAMES));
     },
 
     mediaTypes(): readonly string[] {
-        return MediaTypeList;
+        return MEDIA_TYPE_LIST;
     },
 
     valuesFor(headerName: string): readonly string[] {
-        return [...new Set(Rules
+        return [...new Set(RULES
             .filter(rule => rule.matches(headerName))
             .flatMap(rule => rule.values()))];
     },

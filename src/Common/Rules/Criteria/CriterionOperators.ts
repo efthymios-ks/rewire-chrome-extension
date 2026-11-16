@@ -1,55 +1,54 @@
-import { CriterionOperatorIds } from "../../../Contracts/Rules/Criterion";
-import { DomainList } from "../../Urls/DomainList";
-import { DomainMatcher } from "../../Urls/DomainMatcher";
-import { WildcardPattern } from "../../Urls/WildcardPattern";
-import { RegexCache } from "./RegexCache";
+import { CRITERION_OPERATOR_IDS } from '../../../Contracts/Rules/CriterionOperatorIds';
+import { RegexCache } from '../../Regex/RegexCache';
+import { DomainList } from '../../Urls/DomainList';
+import { DomainMatcher } from '../../Urls/DomainMatcher';
+import { WildcardPattern } from '../../Urls/WildcardPattern';
+import { criterionValuesOf } from './criterionValuesOf';
 
-export interface ICriterionOperator {
+export interface OperatorTestOptions {
+    values: string[];
+    expected: string;
+    isCaseInsensitive?: boolean;
+}
+
+export interface CriterionOperator {
     readonly id: string;
     readonly label: string;
     readonly needsValue: boolean;
-    test(values: string[], expected: string): boolean;
+    test(options: OperatorTestOptions): boolean;
 }
 
-const ListSeparatorPattern = /[\s,]+/;
-const RangePattern = /^(\d{3})\s*-\s*(\d{3})$/;
-const ClassPattern = /^(\d)xx$/i;
-const WindowPattern = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/;
-const MinutesPerHour = 60;
-const StatusClassSize = 100;
-
-function listOf(text: string): string[] {
-    return text
-        .split(ListSeparatorPattern)
-        .map(item => item.trim().toLowerCase())
-        .filter(item => item.length > 0);
-}
+const RANGE_PATTERN = /^(\d{3})\s*-\s*(\d{3})$/;
+const CLASS_PATTERN = /^(\d)xx$/i;
+const WINDOW_PATTERN = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/;
+const MINUTES_PER_HOUR = 60;
+const STATUS_CLASS_SIZE = 100;
 
 function inRange(value: number, range: string): boolean {
     const trimmed = range.trim();
-    const bounded = RangePattern.exec(trimmed);
-    if (bounded !== null) {
+    const bounded = RANGE_PATTERN.exec(trimmed);
+    if (bounded != null) {
         return value >= Number(bounded[1]) && value <= Number(bounded[2]);
     }
 
-    const statusClass = ClassPattern.exec(trimmed);
-    if (statusClass !== null) {
-        const start = Number(statusClass[1]) * StatusClassSize;
+    const statusClass = CLASS_PATTERN.exec(trimmed);
+    if (statusClass != null) {
+        const start = Number(statusClass[1]) * STATUS_CLASS_SIZE;
 
-        return value >= start && value < start + StatusClassSize;
+        return value >= start && value < start + STATUS_CLASS_SIZE;
     }
 
     return value === Number(trimmed);
 }
 
 function minutesOf(hours: string | undefined, minutes: string | undefined): number {
-    return Number(hours) * MinutesPerHour + Number(minutes);
+    return Number(hours) * MINUTES_PER_HOUR + Number(minutes);
 }
 
 function inWindow(time: string, window: string): boolean {
-    const match = WindowPattern.exec(window.trim());
-    const [hours, minutes] = time.split(":");
-    if (match === null) {
+    const match = WINDOW_PATTERN.exec(window.trim());
+    const [hours, minutes] = time.split(':');
+    if (match == null) {
         return false;
     }
 
@@ -62,61 +61,69 @@ function inWindow(time: string, window: string): boolean {
         : current >= start || current < end;
 }
 
-export const CriterionOperators: ICriterionOperator[] = [
+export const CRITERION_OPERATORS: CriterionOperator[] = [
     {
-        id: CriterionOperatorIds.Wildcard,
-        label: "matches wildcard",
+        id: CRITERION_OPERATOR_IDS.Wildcard,
+        label: 'matches wildcard',
         needsValue: true,
-        test: (values, expected) => values.some(value => WildcardPattern.matches(expected, value)),
+        test: ({ values, expected, isCaseInsensitive }) => values.some(value => isCaseInsensitive === true
+            ? WildcardPattern.matchesIgnoringCase(expected, value)
+            : WildcardPattern.matches(expected, value)),
     },
     {
-        id: CriterionOperatorIds.Regex,
-        label: "matches regex",
+        id: CRITERION_OPERATOR_IDS.Regex,
+        label: 'matches regex',
         needsValue: true,
-        test: (values, expected) => values.some(value => RegexCache.test(expected, value)),
+        test: ({ values, expected, isCaseInsensitive }) => values.some(value => isCaseInsensitive === true
+            ? RegexCache.testIgnoringCase(expected, value)
+            : RegexCache.test(expected, value)),
     },
     {
-        id: CriterionOperatorIds.Domains,
-        label: "is in domains",
+        id: CRITERION_OPERATOR_IDS.Domains,
+        label: 'is in domains',
         needsValue: true,
-        test: (values, expected) => values.some(value => DomainMatcher.matchesAny(value, DomainList.parse(expected))),
+        test: ({ values, expected }) => values.some(value => DomainMatcher.matchesAny(
+            /* host: */ value,
+            /* domains: */ DomainList.parse(expected),
+        )),
     },
     {
-        id: CriterionOperatorIds.OneOf,
-        label: "is one of",
+        id: CRITERION_OPERATOR_IDS.OneOf,
+        label: 'is one of',
         needsValue: true,
-        test: (values, expected) => values.some(value => listOf(expected).includes(value.toLowerCase())),
+        test: ({ values, expected }) => {
+            const expectedValues = criterionValuesOf(expected);
+
+            return values.some(value => expectedValues.includes(value.toLowerCase()));
+        },
     },
     {
-        id: CriterionOperatorIds.Exists,
-        label: "exists",
+        id: CRITERION_OPERATOR_IDS.Exists,
+        label: 'exists',
         needsValue: false,
-        test: values => values.length > 0,
+        test: ({ values }) => values.length > 0,
     },
     {
-        id: CriterionOperatorIds.Range,
-        label: "is in range",
+        id: CRITERION_OPERATOR_IDS.Range,
+        label: 'is in range',
         needsValue: true,
-        test: (values, expected) => values.some(value => expected
-            .split(",")
-            .some(range => inRange(Number(value), range))),
+        test: ({ values, expected }) => values.some(value => expected
+            .split(',')
+            .some(range => inRange(
+                /* value: */ Number(value),
+                /* range: */ range,
+            ))),
     },
     {
-        id: CriterionOperatorIds.Percent,
-        label: "falls in the first percent",
+        id: CRITERION_OPERATOR_IDS.Percent,
+        label: 'falls in the first percent',
         needsValue: true,
-        test: (values, expected) => values.some(value => Number(value) < Number(expected)),
+        test: ({ values, expected }) => values.some(value => Number(value) < Number(expected)),
     },
     {
-        id: CriterionOperatorIds.Between,
-        label: "is between",
+        id: CRITERION_OPERATOR_IDS.Between,
+        label: 'is between',
         needsValue: true,
-        test: (values, expected) => values.some(value => inWindow(value, expected)),
+        test: ({ values, expected }) => values.some(value => inWindow(value, expected)),
     },
 ];
-
-export const CriterionOperatorRegistry = {
-    get(id: string): ICriterionOperator | undefined {
-        return CriterionOperators.find(operator => operator.id === id);
-    },
-};

@@ -1,7 +1,8 @@
-import { buildElement } from "../../../Core/Dom/ElementBuilder";
-import { ButtonVariants, FormControls } from "../../../Core/Dom/FormControls";
+import { buildElement } from '../../../Core/Dom/buildElement';
+import { BUTTON_VARIANTS } from '../../../Core/Dom/ButtonVariants';
+import { FormControls } from '../../../Core/Dom/FormControls';
 
-const EscapeKey = "Escape";
+const ESCAPE_KEY = 'Escape';
 
 export interface SlidePage {
     title: string;
@@ -18,27 +19,27 @@ export class SlideOver {
     private readonly _backButton: HTMLButtonElement;
 
     constructor(label: string) {
-        this._title = buildElement("h2", {
-            className: "slide-title",
+        this._title = buildElement('h2', {
+            className: 'slide-title',
         });
-        this._body = buildElement("div", {
-            className: "slide-body",
+        this._body = buildElement('div', {
+            className: 'slide-body',
         });
         this._backButton = FormControls.button({
-            text: "Back",
-            variant: ButtonVariants.Ghost,
+            text: 'Back',
+            variant: BUTTON_VARIANTS.Ghost,
             onClick: () => this.pop(),
         });
 
-        this.root = buildElement("aside", {
-            className: "slide-over",
+        this.root = buildElement('aside', {
+            className: 'slide-over',
             attributes: {
-                role: "dialog",
-                "aria-label": label,
+                role: 'dialog',
+                'aria-label': label,
             },
             listeners: {
                 keydown: event => {
-                    if (event.key !== EscapeKey) {
+                    if (event.key !== ESCAPE_KEY) {
                         return;
                     }
 
@@ -47,14 +48,14 @@ export class SlideOver {
                 },
             },
             children: [
-                buildElement("header", {
-                    className: "slide-header",
+                buildElement('header', {
+                    className: 'slide-header',
                     children: [
                         this._backButton,
                         this._title,
                         FormControls.button({
-                            text: "Close",
-                            variant: ButtonVariants.Ghost,
+                            text: 'Close',
+                            variant: BUTTON_VARIANTS.Ghost,
                             onClick: () => this.closeAll(),
                         }),
                     ],
@@ -65,17 +66,7 @@ export class SlideOver {
         this.render();
     }
 
-    isOpen(): boolean {
-        return this._pages.length > 0;
-    }
-
     push(page: SlidePage): void {
-        this._pages.push(page);
-        this.render();
-    }
-
-    replaceTop(page: SlidePage): void {
-        this._pages.pop();
         this._pages.push(page);
         this.render();
     }
@@ -94,10 +85,10 @@ export class SlideOver {
 
     private render(): void {
         const page = this._pages.at(-1);
-        this.root.hidden = page === undefined;
+        this.root.hidden = page == null;
         this._backButton.hidden = this._pages.length < 2;
-        this._title.textContent = page?.title ?? "";
-        this._body.replaceChildren(...(page === undefined ? [] : [page.content]));
-        page?.content.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+        this._title.textContent = page?.title ?? '';
+        this._body.replaceChildren(...(page == null ? [] : [page.content]));
+        page?.content.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
     }
 }

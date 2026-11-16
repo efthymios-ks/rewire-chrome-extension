@@ -1,144 +1,150 @@
-import type { Protocol } from "devtools-protocol";
-import type { ILogger } from "../../../Common/Logging/ILogger";
-import type { IDebuggerClient } from "../Debugging/IDebuggerClient";
-import type { ICdpEventHandler } from "../Debugging/ICdpEventHandler";
-import type { IBrowserRuleSimulator } from "./BrowserRuleSimulator";
-import { CaptureDecision, type ICaptureFilter } from "./CaptureFilter";
-import type { ITimelineStore } from "./ITimelineStore";
-import type { IPendingDocuments } from "./PendingDocuments";
-import { TimelineAnnotations } from "./TimelineAnnotations";
-import type { ITimelineAdmission } from "./TimelineAdmission";
-import type { ITimelineRecordClassifier } from "./TimelineRecordClassifier";
-import type { ITimelineRecordFactory } from "./TimelineRecordFactory";
+import type { Protocol } from 'devtools-protocol';
+import { HeaderLookup } from '../../../Common/Http/HeaderLookup';
+import type { Logger } from '../../../Common/Logging/Logger';
+import type { DebuggerClient } from '../Debugging/DebuggerClient';
+import type { CdpEventHandler } from '../Debugging/CdpEventHandler';
+import type { BrowserRuleSimulator } from './BrowserRuleSimulator';
+import type { CaptureFilter } from './CaptureFilter';
+import type { TimelineStore } from './TimelineStore';
+import { RequestBodyDecoder } from './RequestBodyDecoder';
+import { RequestPostData } from './RequestPostData';
+import type { TimelineAdmission } from './TimelineAdmission';
+import type { TimelineRecord } from './TimelineRecord';
+import type { TimelineRecordClassifier } from './TimelineRecordClassifier';
+import type { TimelineRecordFactory } from './TimelineRecordFactory';
 
-export interface RequestWillBeSentDependencies {
-    timelineStore: ITimelineStore;
-    pendingDocuments: IPendingDocuments;
-    admission: ITimelineAdmission;
-    captureFilter: ICaptureFilter;
-    recordFactory: ITimelineRecordFactory;
-    recordClassifier: ITimelineRecordClassifier;
-    browserRuleSimulator: IBrowserRuleSimulator;
-    debuggerClient: IDebuggerClient;
-    logger: ILogger;
+interface AddRedirectLegOptions {
+    tabId: number;
+    base: TimelineRecord;
+    event: Protocol.Network.RequestWillBeSentEvent;
+    redirectResponse: Protocol.Network.Response;
 }
 
-export class RequestWillBeSentHandler implements ICdpEventHandler<"Network.requestWillBeSent"> {
-    readonly event = "Network.requestWillBeSent";
+export interface RequestWillBeSentHandlerDependencies {
+    timelineStore: TimelineStore;
+    admission: TimelineAdmission;
+    captureFilter: CaptureFilter;
+    recordFactory: TimelineRecordFactory;
+    recordClassifier: TimelineRecordClassifier;
+    browserRuleSimulator: BrowserRuleSimulator;
+    debuggerClient: DebuggerClient;
+    logger: Logger;
+}
 
-    private readonly _dependencies: RequestWillBeSentDependencies;
+export class RequestWillBeSentHandler implements CdpEventHandler<'Network.requestWillBeSent'> {
+    readonly event = 'Network.requestWillBeSent';
 
-    constructor(dependencies: RequestWillBeSentDependencies) {
+    private readonly _dependencies: RequestWillBeSentHandlerDependencies;
+
+    constructor(dependencies: RequestWillBeSentHandlerDependencies) {
         this._dependencies = dependencies;
     }
 
-    async handle(tabId: number, event: Protocol.Network.RequestWillBeSentEvent): Promise<void> {
-        const { timelineStore, pendingDocuments, admission, captureFilter, recordFactory, browserRuleSimulator } = this._dependencies;
+    async handleAsync(tabId: number, event: Protocol.Network.RequestWillBeSentEvent): Promise<void> {
+        const {
+            timelineStore,
+            admission,
+            captureFilter,
+            recordFactory,
+            browserRuleSimulator,
+        } = this._dependencies;
         const existing = timelineStore.get(tabId, event.requestId);
-        if (existing !== undefined && event.redirectResponse !== undefined) {
-            const annotation = browserRuleSimulator.onRequest(existing);
-            if (annotation !== null) {
-                timelineStore.annotate(
-                    tabId,
-                    event.requestId,
-                    annotation
-                );
+        if (existing != null && event.redirectResponse != null) {
+            // Admission already simulated the first hop; only later hops start without annotations.
+            const annotation = existing.summary.redirectedFromUrl == null
+                ? null
+                : browserRuleSimulator.simulateRequest(existing);
+            if (annotation != null) {
+                timelineStore.annotate({ tabId, entryId: event.requestId, annotation });
             }
 
-            const redirectResponse = event.redirectResponse;
-            const endedTimestamp = event.timestamp;
-            const annotated = timelineStore.get(tabId, event.requestId) ?? existing;
-            timelineStore.addLeg(
+            this.addRedirectLeg({
                 tabId,
-                event.requestId,
-                legId => recordFactory.toCompletedLeg(
-                    annotated,
-                    legId,
-                    redirectResponse,
-                    endedTimestamp
-                )
-            );
-            timelineStore.update(
+                base: timelineStore.get(tabId, event.requestId) ?? existing,
+                event,
+                redirectResponse: event.redirectResponse,
+            });
+            timelineStore.update({
                 tabId,
-                event.requestId,
-                record => recordFactory.redirect(record, event)
-            );
+                entryId: event.requestId,
+                change: record => recordFactory.redirect(record, event),
+            });
 
             return;
         }
 
-        const pending = pendingDocuments.get(tabId, event.requestId);
-        if (pending !== undefined && event.redirectResponse !== undefined) {
-            const annotation = browserRuleSimulator.onRequest(pending);
-            if (annotation !== null || TimelineAnnotations.isTouchedByRule(pending)) {
-                const annotated = annotation === null ? pending : TimelineAnnotations.applyTo(pending, annotation);
-                const redirectResponse = event.redirectResponse;
-                const endedTimestamp = event.timestamp;
-                timelineStore.addLeg(
-                    tabId,
-                    event.requestId,
-                    legId => recordFactory.toCompletedLeg(
-                        annotated,
-                        legId,
-                        redirectResponse,
-                        endedTimestamp
-                    )
-                );
-            }
-
-            pendingDocuments.update(
-                tabId,
-                event.requestId,
-                record => recordFactory.redirect(record, event)
-            );
-
-            return;
-        }
-
-        if (existing !== undefined) {
-            return;
-        }
-
-        const decision = captureFilter.decide(event.type);
-        if (decision === CaptureDecision.CaptureWhenResponseIsData) {
-            pendingDocuments.hold(recordFactory.create(tabId, event));
-
-            return;
-        }
-
-        if (decision !== CaptureDecision.Capture) {
+        if (existing != null || !captureFilter.shouldCapture(event.type)) {
             return;
         }
 
         admission.admit(recordFactory.create(tabId, event));
-
-        if (event.request.hasPostData === true && event.request.postData === undefined) {
-            await this.loadPostData(tabId, event.requestId);
-        }
+        await this.decodeRequestBodyAsync(tabId, event);
     }
 
-    private async loadPostData(tabId: number, requestId: string): Promise<void> {
-        const { timelineStore, recordClassifier, debuggerClient, logger } = this._dependencies;
-        const postData = await debuggerClient.send(
+    private addRedirectLeg({ tabId, base, event, redirectResponse }: AddRedirectLegOptions): void {
+        const { timelineStore, recordFactory } = this._dependencies;
+        timelineStore.addLeg({
             tabId,
-            "Network.getRequestPostData",
-            {
-                requestId,
-            }
+            baseId: event.requestId,
+            make: legId => recordFactory.toCompletedLeg({
+                base,
+                legId,
+                response: redirectResponse,
+                endedTimestamp: event.timestamp,
+            }),
+        });
+    }
+
+    private async decodeRequestBodyAsync(
+        tabId: number,
+        event: Protocol.Network.RequestWillBeSentEvent,
+    ): Promise<void> {
+        const { timelineStore, recordClassifier } = this._dependencies;
+        const headers = HeaderLookup.fromRecord(event.request.headers);
+        const inlineBytes = RequestPostData.bytesOf(event.request);
+        // The factory already decoded inline bodies that need no decompression.
+        if (inlineBytes != null && !RequestBodyDecoder.isCompressed({ bytes: inlineBytes, headers })) {
+            return;
+        }
+
+        const bytes = inlineBytes ?? await this.fetchPostDataAsync(tabId, event);
+        if (bytes == null) {
+            return;
+        }
+
+        const captured = await RequestBodyDecoder.decodeAsync({ bytes, headers });
+        timelineStore.update({
+            tabId,
+            entryId: event.requestId,
+            change: record => recordClassifier.reclassify({
+                ...record,
+                ...captured,
+            }),
+        });
+    }
+
+    private async fetchPostDataAsync(
+        tabId: number,
+        event: Protocol.Network.RequestWillBeSentEvent,
+    ): Promise<Uint8Array | null> {
+        if (event.request.hasPostData !== true || event.request.postData != null) {
+            return null;
+        }
+
+        const { debuggerClient, logger } = this._dependencies;
+        const postData = await debuggerClient.sendAsync(
+            /* tabId: */ tabId,
+            /* command: */ 'Network.getRequestPostData',
+            /* params: */ {
+                requestId: event.requestId,
+            },
         );
         if (postData.hasErrors) {
             logger.warn(postData.error);
 
-            return;
+            return null;
         }
 
-        timelineStore.update(
-            tabId,
-            requestId,
-            record => recordClassifier.reclassify({
-                ...record,
-                requestBody: postData.value.postData,
-            })
-        );
+        return RequestPostData.fetchedBytesOf(postData.value);
     }
 }

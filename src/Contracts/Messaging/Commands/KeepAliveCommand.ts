@@ -1,5 +1,5 @@
-import type { PanelCommandType } from "../PanelCommandType";
+import type { PANEL_COMMAND_TYPE } from '../PanelCommandType';
 
 export interface KeepAliveCommand {
-    type: PanelCommandType.KeepAlive;
+    type: typeof PANEL_COMMAND_TYPE.KeepAlive;
 }

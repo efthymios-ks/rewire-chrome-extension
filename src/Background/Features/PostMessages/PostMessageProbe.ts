@@ -1,4 +1,4 @@
-export const PostMessageBindingName = "__rewirePostMessage";
+import { POST_MESSAGE_BINDING_NAME } from './PostMessageBindingName';
 
 export interface PostMessageReport {
     origin: string;
@@ -9,14 +9,23 @@ export interface PostMessageReport {
     data: string;
 }
 
+const PROBE_SYMBOL_KEY = 'rewire.postMessageProbe';
+
+const REMOVE_INSTALLED_PROBE = `const probeKey = Symbol.for(${JSON.stringify(PROBE_SYMBOL_KEY)});
+    const installedProbe = globalThis[probeKey];
+    if (typeof installedProbe?.remove === "function") {
+        installedProbe.remove();
+    }`;
+
 export const PostMessageProbe = {
     source: `(() => {
-    const binding = globalThis[${JSON.stringify(PostMessageBindingName)}];
-    if (typeof binding !== "function" || globalThis.__rewirePostMessageProbe === true) {
+    ${REMOVE_INSTALLED_PROBE}
+
+    const binding = globalThis[${JSON.stringify(POST_MESSAGE_BINDING_NAME)}];
+    if (typeof binding !== "function") {
         return;
     }
 
-    Object.defineProperty(globalThis, "__rewirePostMessageProbe", { value: true });
     const textOf = data => {
         if (typeof data === "string") {
             return data;
@@ -28,7 +37,7 @@ export const PostMessageProbe = {
             return String(data);
         }
     };
-    globalThis.addEventListener("message", event => {
+    const listener = event => {
         binding(JSON.stringify({
             origin: event.origin,
             href: location.href,
@@ -37,23 +46,37 @@ export const PostMessageProbe = {
             isFromSelf: event.source === globalThis,
             data: textOf(event.data),
         }));
-    }, true);
+    };
+    globalThis.addEventListener("message", listener, { capture: true });
+    Object.defineProperty(globalThis, probeKey, {
+        configurable: true,
+        value: {
+            remove: () => {
+                globalThis.removeEventListener("message", listener, { capture: true });
+                delete globalThis[probeKey];
+            },
+        },
+    });
+})();`,
+
+    removalSource: `(() => {
+    ${REMOVE_INSTALLED_PROBE}
 })();`,
 
     parse(payload: string): PostMessageReport | null {
         try {
             const parsed: unknown = JSON.parse(payload);
-            if (typeof parsed !== "object" || parsed === null) {
+            if (typeof parsed !== 'object' || parsed == null) {
                 return null;
             }
 
             const report = parsed as Partial<PostMessageReport>;
-            const isValid = typeof report.origin === "string"
-                && typeof report.href === "string"
-                && typeof report.isTop === "boolean"
-                && typeof report.isFromTop === "boolean"
-                && typeof report.isFromSelf === "boolean"
-                && typeof report.data === "string";
+            const isValid = typeof report.origin === 'string'
+                && typeof report.href === 'string'
+                && typeof report.isTop === 'boolean'
+                && typeof report.isFromTop === 'boolean'
+                && typeof report.isFromSelf === 'boolean'
+                && typeof report.data === 'string';
 
             return isValid ? report as PostMessageReport : null;
         } catch {

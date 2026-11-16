@@ -1,6 +1,6 @@
-import { PanelCommandType } from "../../../Contracts/Messaging/PanelCommandType";
-import type { PanelContext } from "../Shell/PanelContext";
-import { LiveEntries } from "./LiveEntries";
+import { PANEL_COMMAND_TYPE } from '../../../Contracts/Messaging/PanelCommandType';
+import type { PanelContext } from '../Shell/PanelContext';
+import { LiveEntries } from './LiveEntries';
 
 export class LiveChannelRemover {
     private readonly _context: PanelContext;
@@ -9,7 +9,7 @@ export class LiveChannelRemover {
         this._context = context;
     }
 
-    async remove(channelIds: string[]): Promise<void> {
+    async removeAsync(channelIds: string[]): Promise<void> {
         const { store, connection, notifier } = this._context;
         const { live, inspectedTab } = store.getState();
         const closedIds = live.channels
@@ -22,12 +22,12 @@ export class LiveChannelRemover {
             ...state,
             live: LiveEntries.withoutChannels(state.live, closedIds),
         }));
-        if (pageIds.length === 0 || inspectedTab === null) {
+        if (pageIds.length === 0 || inspectedTab == null) {
             return;
         }
 
-        const removed = await connection.send<PanelCommandType.RemoveLiveChannels>({
-            type: PanelCommandType.RemoveLiveChannels,
+        const removed = await connection.sendAsync<typeof PANEL_COMMAND_TYPE.RemoveLiveChannels>({
+            type: PANEL_COMMAND_TYPE.RemoveLiveChannels,
             tabId: inspectedTab.tabId,
             channelIds: pageIds,
         });

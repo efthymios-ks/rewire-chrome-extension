@@ -1,48 +1,57 @@
-import type { RuleAction } from "../../../Contracts/Rules/Rule";
-import { LatencyLimits } from "../../../Contracts/Settings/LatencyLimits";
-import { CommonFields } from "./FieldSpec";
+import type { RuleAction } from '../../../Contracts/Rules/RuleAction';
+import { LATENCY_LIMITS } from '../../../Contracts/Settings/LatencyLimits';
+import { RawRecords } from '../../Objects/RawRecords';
+import { CommonFields } from './CommonFields';
 
 type RawRecord = Record<string, unknown>;
 
-function isRecord(value: unknown): value is RawRecord {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+export interface TextOptions {
+    raw: RuleAction;
+    key: string;
+    fallback?: string;
+}
+
+export interface NumberOptions {
+    raw: RuleAction;
+    key: string;
+    fallback: number;
+}
+
+export interface BoolOptions {
+    raw: RuleAction;
+    key: string;
+    fallback: boolean;
+}
+
+export interface RecordsOptions<TItem> {
+    raw: RuleAction;
+    key: string;
+    map: (item: RawRecord) => TItem;
 }
 
 export const ActionReader = {
-    text(
-        raw: RuleAction,
-        key: string,
-        fallback: string = ""
-    ): string {
+    text({ raw, key, fallback = '' }: TextOptions): string {
         const value = raw[key];
 
-        return typeof value === "string" ? value : fallback;
+        return typeof value === 'string' ? value : fallback;
     },
 
-    number(
-        raw: RuleAction,
-        key: string,
-        fallback: number
-    ): number {
+    number({ raw, key, fallback }: NumberOptions): number {
         const value = raw[key];
 
-        return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
     },
 
     nullableNumber(raw: RuleAction, key: string): number | null {
         const value = raw[key];
 
-        return typeof value === "number" && Number.isFinite(value) ? value : null;
+        return typeof value === 'number' && Number.isFinite(value) ? value : null;
     },
 
-    bool(
-        raw: RuleAction,
-        key: string,
-        fallback: boolean
-    ): boolean {
+    bool({ raw, key, fallback }: BoolOptions): boolean {
         const value = raw[key];
 
-        return typeof value === "boolean" ? value : fallback;
+        return typeof value === 'boolean' ? value : fallback;
     },
 
     strings(raw: RuleAction, key: string): string[] {
@@ -51,41 +60,26 @@ export const ActionReader = {
             return [];
         }
 
-        return value.filter((item): item is string => typeof item === "string");
+        return value.filter((item): item is string => typeof item === 'string');
     },
 
-    records<TItem>(
-        raw: RuleAction,
-        key: string,
-        map: (item: RawRecord) => TItem
-    ): TItem[] {
+    records<TItem>({ raw, key, map }: RecordsOptions<TItem>): TItem[] {
         const value = raw[key];
         if (!Array.isArray(value)) {
             return [];
         }
 
         return value
-            .filter(isRecord)
+            .filter(RawRecords.is)
             .map(map);
     },
 
-    field(
-        item: RawRecord,
-        key: string,
-        fallback: string = ""
-    ): string {
-        const value = item[key];
-
-        return typeof value === "string" ? value : fallback;
-    },
-
     delay(raw: RuleAction): number {
-        const delay = ActionReader.number(
-            raw,
-            CommonFields.DelayKey,
-            0
-        );
+        const delay = ActionReader.number({ raw, key: CommonFields.DelayKey, fallback: 0 });
 
-        return Math.min(Math.max(delay, LatencyLimits.MinDelayInMilliseconds), LatencyLimits.MaxDelayInMilliseconds);
+        return Math.min(
+            /* values: */ Math.max(delay, LATENCY_LIMITS.MinDelayInMilliseconds),
+            /* values: */ LATENCY_LIMITS.MaxDelayInMilliseconds,
+        );
     },
 };

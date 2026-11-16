@@ -1,4 +1,4 @@
-import type { Rule } from "../../Contracts/Rules/Rule";
+import type { Rule } from '../../Contracts/Rules/Rule';
 
 export interface RuleEditRequest {
     rule: Rule;
