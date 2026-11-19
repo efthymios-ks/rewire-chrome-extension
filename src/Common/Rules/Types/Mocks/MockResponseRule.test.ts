@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { DnrCondition } from '../../Criteria/DnrCondition';
+import { BODY_EDIT_MESSAGES } from './BodyEditMessages';
 import { MOCK_MESSAGES } from './MockMessages';
 import { MockResponseRule } from './MockResponseRule';
 import { aCriterion, aRequestDraft, aResponseDraft, aRuleContext, criteriaOf } from '../../../../TestData';
@@ -24,6 +25,22 @@ const BODY_ONLY = {
     headers: [],
     body: 'mocked',
 };
+const PATCH = {
+    overrideStatus: false,
+    status: 200,
+    overrideBody: true,
+    bodyMode: 'jsonMerge',
+    contentType: 'text/plain',
+    headers: [],
+    body: '{"user":{"role":"admin"},"debug":true,"legacy":null}',
+};
+const SERVER_JSON = '{"user":{"name":"Ada","role":"user"},"legacy":1,"items":[1,2]}';
+
+function isFieldVisible(key: string, action: Record<string, unknown>): boolean {
+    const field = ruleType.fields.find(candidate => candidate.key === key);
+
+    return field?.visibleWhen?.(action) ?? true;
+}
 
 describe('MockResponseRule', () => {
     test('withoutSecrets_WhenASensitiveHeaderIsMocked_ShouldBlankOnlyItsValue', () => {
@@ -515,5 +532,218 @@ describe('MockResponseRule', () => {
 
         // Assert
         expect(delay).toBe(0);
+    });
+
+    test('defaultAction_WhenRead_ShouldReplaceTheBody', () => {
+        // Arrange
+        const expected = 'replace';
+
+        // Act
+        const action = ruleType.defaultAction();
+
+        // Assert
+        expect(action['bodyMode']).toBe(expected);
+    });
+
+    test('applyResponse_WhenPatchingAJsonBody_ShouldAddUpdateAndRemoveNestedFieldsAndKeepTheRest', () => {
+        // Arrange
+        const response = aResponseDraft({
+            body: SERVER_JSON,
+        });
+
+        // Act
+        const draft = ruleType.applyResponse({
+            draft: response,
+            action: PATCH,
+            context: aRuleContext(),
+            request: aRequestDraft(),
+        });
+
+        // Assert
+        expect(JSON.parse(draft.body ?? '')).toEqual({
+            user: {
+                name: 'Ada',
+                role: 'admin',
+            },
+            items: [
+                1,
+                2,
+            ],
+            debug: true,
+        });
+        expect(draft.headers).toEqual(response.headers);
+        expect(draft.status).toBe(response.status);
+    });
+
+    test('applyResponse_WhenPatchingABodyThatIsNotJson_ShouldLeaveItAsItIs', () => {
+        // Arrange
+        const response = aResponseDraft({
+            body: '<html>not json</html>',
+        });
+
+        // Act
+        const draft = ruleType.applyResponse({
+            draft: response,
+            action: PATCH,
+            context: aRuleContext(),
+            request: aRequestDraft(),
+        });
+
+        // Assert
+        expect(draft.body).toBe('<html>not json</html>');
+    });
+
+    test('applyResponse_WhenThePatchUsesVariables_ShouldFillThemInsideStrings', () => {
+        // Arrange
+        const context = aRuleContext();
+        context.setVariable('role', 'owner');
+        const action = {
+            ...PATCH,
+            body: '{"user":{"role":"{{role}}"}}',
+        };
+
+        // Act
+        const draft = ruleType.applyResponse({
+            draft: aResponseDraft({
+                body: SERVER_JSON,
+            }),
+            action,
+            context,
+            request: aRequestDraft(),
+        });
+
+        // Assert
+        expect(JSON.parse(draft.body ?? '').user.role).toBe('owner');
+    });
+
+    test('applyResponse_WhenPatchingWithTheStatusOverridden_ShouldSetTheStatusAndPatchTheBody', () => {
+        // Arrange
+        const action = {
+            ...PATCH,
+            overrideStatus: true,
+            status: 201,
+        };
+
+        // Act
+        const draft = ruleType.applyResponse({
+            draft: aResponseDraft({
+                body: SERVER_JSON,
+            }),
+            action,
+            context: aRuleContext(),
+            request: aRequestDraft(),
+        });
+
+        // Assert
+        expect(draft.status).toBe(201);
+        expect(JSON.parse(draft.body ?? '').debug).toBe(true);
+    });
+
+    test('applyRequest_WhenPatchingWithTheStatusOverridden_ShouldLetTheServerAnswer', () => {
+        // Arrange
+        const request = aRequestDraft();
+        const action = {
+            ...PATCH,
+            overrideStatus: true,
+        };
+
+        // Act
+        const draft = ruleType.applyRequest({
+            draft: request,
+            action,
+            context: aRuleContext(),
+        });
+
+        // Assert
+        expect(draft).toEqual(request);
+        expect(ruleType.runsAtRequest(action)).toBe(false);
+        expect(ruleType.runsAtResponse(action, criteriaOf(aCriterion()))).toBe(true);
+    });
+
+    test.each([
+        'replace',
+        'unknown',
+        undefined,
+    ])('applyResponse_WhenTheBodyModeIs(%s)_ShouldReplaceTheBody', bodyMode => {
+        // Arrange
+        const action = {
+            ...BODY_ONLY,
+            bodyMode,
+        };
+
+        // Act
+        const draft = ruleType.applyResponse({
+            draft: aResponseDraft({
+                body: SERVER_JSON,
+            }),
+            action,
+            context: aRuleContext(),
+            request: aRequestDraft(),
+        });
+
+        // Assert
+        expect(draft.body).toBe('mocked');
+    });
+
+    test('validate_WhenThePatchIsNotJson_ShouldRejectIt', () => {
+        // Arrange
+        const action = {
+            ...PATCH,
+            body: '{oops',
+        };
+
+        // Act
+        const errors = ruleType.validate(action);
+
+        // Assert
+        expect(errors).toEqual([BODY_EDIT_MESSAGES.InvalidPatch]);
+    });
+
+    test('summary_WhenPatching_ShouldSayJsonPatch', () => {
+        // Arrange
+        const action = PATCH;
+
+        // Act
+        const summary = ruleType.summary(action);
+
+        // Assert
+        expect(summary).toBe('JSON patch');
+    });
+
+    test.each([
+        {
+            key: 'bodyMode',
+            action: BODY_ONLY,
+            expected: true,
+        },
+        {
+            key: 'bodyMode',
+            action: STATUS_ONLY,
+            expected: false,
+        },
+        {
+            key: 'contentType',
+            action: BODY_ONLY,
+            expected: true,
+        },
+        {
+            key: 'contentType',
+            action: PATCH,
+            expected: false,
+        },
+        {
+            key: 'body',
+            action: PATCH,
+            expected: true,
+        },
+    ])('fields_WhenTheFieldIs($key)_ShouldShowOnlyWhenItApplies(%#)', ({ key, action, expected }) => {
+        // Arrange
+        const fieldKey = key;
+
+        // Act
+        const isVisible = isFieldVisible(fieldKey, action);
+
+        // Assert
+        expect(isVisible).toBe(expected);
     });
 });

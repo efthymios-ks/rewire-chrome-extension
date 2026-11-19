@@ -77,7 +77,9 @@ A rule that only removes params next to a URL, path, extension, query or host wi
 - **Override the status** and **Override the body** each switch on one part.
   With only one on, the server answers and the rule changes that part of its answer.
   With a response condition, the rule waits for the server and changes its answer even with both on.
-- **Content type** takes free text and suggests the common media types.
+- **Body mode**, under **Override the body**, picks **Replace the body**, which answers with **Body**, or **Merge a JSON patch**, which merges **Body** into the server's JSON answer as **Response body** does: keys are added or updated, nested objects merge, `null` removes a key, arrays are replaced whole, and a body that isn't JSON is left as it is.
+  A patch needs the server's answer, so with **Merge a JSON patch** the server is always called, even with both overrides on, and its content type stays.
+- **Content type** takes free text and suggests the common media types; it applies to **Replace the body**.
 - **Headers** sets response headers on the answer, replacing any of the same name.
   Header values and the **Body** can use `{{variables}}`.
 - With both overrides on, it answers the CORS preflight of a call it mocks with `204`, allowing the requested method and headers, so cross-origin mocks need no **CORS** rule.

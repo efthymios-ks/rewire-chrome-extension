@@ -687,14 +687,18 @@ Its `action` is `{}`.
 | `overrideStatus` | boolean | Answer with `status`.                                                     | `true`             |
 | `status`         | number  | `100` to `599`.                                                           | `200`              |
 | `overrideBody`   | boolean | Answer with `body` and `contentType`.                                     | `true`             |
-| `contentType`    | string  | The `Content-Type` of the body.                                           | `application/json` |
+| `bodyMode`       | string  | `replace` answers with `body`; `jsonMerge` merges `body`, a JSON patch, into the server's JSON body. | `replace` |
+| `contentType`    | string  | The `Content-Type` of the body; `jsonMerge` keeps the server's.           | `application/json` |
 | `headers`        | array   | Extra response headers, as `{ "key": "...", "value": "..." }`; note `key`, not `name`. | `[]`  |
 | `body`           | string  | The body text; can use `{{variables}}`. JSON goes in as an escaped string. | `{}`              |
 
 - At least one of `overrideStatus` and `overrideBody` must be `true`.
 - With only one on, the server answers and the rule changes that part of its answer.
 - With a response condition, the rule waits for the server and changes its answer even with both on.
-- With both on, it answers the CORS preflight of a call it mocks, so a cross-origin mock needs no **CORS** rule.
+- With `bodyMode` `jsonMerge`, the server is always called, even with both on, since the patch needs its body.
+  Keys are added or updated, nested objects merge, `null` removes a key, arrays are replaced whole, and a body that isn't JSON is left as it is.
+  `body` must be valid JSON as typed, so `{{variables}}` work only inside JSON strings.
+- With both on and `bodyMode` `replace`, it answers the CORS preflight of a call it mocks, so a cross-origin mock needs no **CORS** rule.
   The preflight is an `OPTIONS` request that must match the conditions too, so a `method` condition has to list `OPTIONS`.
 - To block a request, mock it with a status such as `403`.
 
@@ -727,6 +731,7 @@ Its `action` is `{}`.
     "overrideStatus": true,
     "status": 200,
     "overrideBody": true,
+    "bodyMode": "replace",
     "contentType": "application/json",
     "headers": [
       {
@@ -735,6 +740,38 @@ Its `action` is `{}`.
       }
     ],
     "body": "{\"id\":42,\"name\":\"Ada\"}"
+  }
+}
+```
+
+Patching the server's answer instead: the user comes back as an admin, with every other field as the server sent it.
+
+```json
+{
+  "id": "me-admin-patch",
+  "name": "Make me an admin",
+  "enabled": true,
+  "type": "mockResponse",
+  "criteria": {
+    "match": "all",
+    "items": [
+      {
+        "field": "path",
+        "op": "wildcard",
+        "name": "",
+        "value": "/api/v1/me",
+        "negate": false
+      }
+    ]
+  },
+  "action": {
+    "overrideStatus": false,
+    "status": 200,
+    "overrideBody": true,
+    "bodyMode": "jsonMerge",
+    "contentType": "",
+    "headers": [],
+    "body": "{\"user\":{\"role\":\"admin\"},\"legacy\":null}"
   }
 }
 ```

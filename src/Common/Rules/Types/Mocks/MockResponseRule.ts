@@ -9,6 +9,7 @@ import type { HeaderEntry } from '../../../../Contracts/Timeline/HeaderEntry';
 import { HeaderLookup } from '../../../Http/HeaderLookup';
 import { HeaderSuggestions } from '../../../Http/HeaderSuggestions';
 import { SensitiveHeaders } from '../../../Http/SensitiveHeaders';
+import { JsonText } from '../../../Json/JsonText';
 import type { RuleContext } from '../../Context/RuleContext';
 import { CriteriaEvaluator } from '../../Criteria/CriteriaEvaluator';
 import { CRITERION_STAGE } from '../../Criteria/CriterionStage';
@@ -21,6 +22,9 @@ import type { FieldSpec } from '../FieldSpec';
 import { CorsHeaders } from '../Headers/CorsHeaders';
 import { RuleChecks } from '../RuleChecks';
 import { type OnRequestOptions, type OnResponseOptions, RuleTypeBase } from '../RuleTypeBase';
+import { BODY_EDIT_MESSAGES } from './BodyEditMessages';
+import { BODY_EDIT_MODES } from './BodyEditModes';
+import { BodyEdits } from './BodyEdits';
 import { MOCK_MESSAGES } from './MockMessages';
 
 interface KeyValue {
@@ -32,6 +36,7 @@ interface MockResponseAction {
     overrideStatus: boolean;
     status: number;
     overrideBody: boolean;
+    bodyMode: string;
     contentType: string;
     headers: KeyValue[];
     body: string;
@@ -40,6 +45,7 @@ interface MockResponseAction {
 const MOCK_RESPONSE_KEYS = Object.freeze({
     OverrideStatus: 'overrideStatus',
     OverrideBody: 'overrideBody',
+    BodyMode: 'bodyMode',
 } as const);
 
 function keyValues(action: RuleAction, key: string): KeyValue[] {
@@ -57,8 +63,55 @@ function isOn(key: string): (action: RuleAction) => boolean {
     return action => action[key] !== false;
 }
 
+const isBodyOverridden = isOn(MOCK_RESPONSE_KEYS.OverrideBody);
+
+function bodyModeOf(action: RuleAction): string {
+    const mode = ActionReader.text({ raw: action, key: MOCK_RESPONSE_KEYS.BodyMode });
+
+    return mode === BODY_EDIT_MODES.JsonMerge ? BODY_EDIT_MODES.JsonMerge : BODY_EDIT_MODES.Replace;
+}
+
+function isReplacingTheBody(action: RuleAction): boolean {
+    return isBodyOverridden(action) && bodyModeOf(action) === BODY_EDIT_MODES.Replace;
+}
+
+function isPatch(action: MockResponseAction): boolean {
+    return action.overrideBody && action.bodyMode === BODY_EDIT_MODES.JsonMerge;
+}
+
+// A patch needs the server's body, so only a mock that replaces the body can answer without the server.
 function isFullMock(action: MockResponseAction): boolean {
-    return action.overrideStatus && action.overrideBody;
+    return action.overrideStatus && action.overrideBody && !isPatch(action);
+}
+
+function patchChecks(action: MockResponseAction): string[] {
+    if (!isPatch(action)) {
+        return [];
+    }
+
+    return JsonText.tryParse(action.body).hasErrors ? [BODY_EDIT_MESSAGES.InvalidPatch] : [];
+}
+
+interface OverriddenBodyOptions {
+    body: string | null;
+    action: MockResponseAction;
+    context: RuleContext;
+}
+
+function overriddenBodyOf({ body, action, context }: OverriddenBodyOptions): string | null {
+    if (!isPatch(action)) {
+        return context.render(action.body);
+    }
+
+    return BodyEdits.bodyOf({
+        body,
+        edit: {
+            ...BodyEdits.defaults(),
+            mode: BODY_EDIT_MODES.JsonMerge,
+            body: action.body,
+        },
+        context,
+    });
 }
 
 function withHeaders(
@@ -119,19 +172,35 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             label: 'Override the body',
         },
         {
+            kind: FIELD_KIND.Select,
+            key: MOCK_RESPONSE_KEYS.BodyMode,
+            label: 'Body mode',
+            options: [
+                {
+                    value: BODY_EDIT_MODES.Replace,
+                    label: 'Replace the body',
+                },
+                {
+                    value: BODY_EDIT_MODES.JsonMerge,
+                    label: 'Merge a JSON patch (null removes a key)',
+                },
+            ],
+            visibleWhen: isBodyOverridden,
+        },
+        {
             kind: FIELD_KIND.MediaType,
             key: 'contentType',
             label: 'Content type',
             placeholder: MEDIA_TYPE_NAMES.ApplicationJson,
-            visibleWhen: isOn(MOCK_RESPONSE_KEYS.OverrideBody),
+            visibleWhen: isReplacingTheBody,
         },
         {
             kind: FIELD_KIND.Code,
             key: 'body',
-            label: 'Body',
+            label: 'Body or JSON patch',
             rows: 12,
             hint: 'Can use {{variables}}.',
-            visibleWhen: isOn(MOCK_RESPONSE_KEYS.OverrideBody),
+            visibleWhen: isBodyOverridden,
         },
         {
             kind: FIELD_KIND.KeyValueList,
@@ -156,6 +225,7 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             overrideStatus: true,
             status: STATUS_CODE_LIMITS.DefaultMock,
             overrideBody: true,
+            bodyMode: BODY_EDIT_MODES.Replace,
             contentType: MEDIA_TYPE_NAMES.ApplicationJson,
             headers: [],
             body: '{}',
@@ -179,6 +249,7 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
                 key: MOCK_RESPONSE_KEYS.OverrideBody,
                 fallback: true,
             }),
+            bodyMode: bodyModeOf(action),
             contentType: ActionReader.text({
                 raw: action,
                 key: 'contentType',
@@ -190,7 +261,8 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
     }
 
     protected describe(action: MockResponseAction): string {
-        const bodyLabel = action.contentType === '' ? 'body' : action.contentType;
+        const contentLabel = action.contentType === '' ? 'body' : action.contentType;
+        const bodyLabel = isPatch(action) ? 'JSON patch' : contentLabel;
         const parts = [
             action.overrideStatus ? String(action.status) : null,
             action.overrideBody ? bodyLabel : null,
@@ -217,6 +289,7 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
         return [
             ...(action.overrideStatus || action.overrideBody ? [] : [MOCK_MESSAGES.NothingToOverride]),
             ...(action.overrideStatus ? RuleChecks.status(action.status) : []),
+            ...patchChecks(action),
             ...action.headers.flatMap(header => RuleChecks.headerName(header.key)),
         ];
     }
@@ -261,7 +334,8 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
             return draft;
         }
 
-        const bodyHeaders = action.overrideBody ? contentTypeHeaders(action.contentType) : [];
+        const replacesTheBody = action.overrideBody && !isPatch(action);
+        const bodyHeaders = replacesTheBody ? contentTypeHeaders(action.contentType) : [];
 
         return {
             ...draft,
@@ -270,7 +344,9 @@ export class MockResponseRule extends RuleTypeBase<MockResponseAction> {
                 ...bodyHeaders,
                 ...customHeaders(action, context),
             ]),
-            body: action.overrideBody ? context.render(action.body) : draft.body,
+            body: action.overrideBody
+                ? overriddenBodyOf({ body: draft.body, action, context })
+                : draft.body,
         };
     }
 }
